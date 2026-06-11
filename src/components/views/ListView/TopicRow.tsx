@@ -1,8 +1,20 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { cn } from '@/utils/cn'
-import { TaskRow } from '@/components/task/TaskRow'
-import { useTasksByTopic } from '@/hooks/useTasks'
+import { SortableTaskRow } from '@/components/task/SortableTaskRow'
+import { useFilteredTasksByTopic } from '@/hooks/useFilteredTasks'
+import { useFilterStore, selectIsFiltering } from '@/store/filterStore'
+import { taskRepo } from '@/repositories'
+import { reorderItems } from '@/utils/sortUtils'
 import type { Topic } from '@/types'
 
 interface TopicRowProps {
@@ -12,7 +24,22 @@ interface TopicRowProps {
 
 export function TopicRow({ topic, onAddTask }: TopicRowProps) {
   const [isOpen, setIsOpen] = useState(true)
-  const tasks = useTasksByTopic(topic.id)
+  const tasks = useFilteredTasksByTopic(topic.id)
+  const isFiltering = useFilterStore(selectIsFiltering)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const fromIndex = tasks.findIndex((t) => t.id === active.id)
+    const toIndex = tasks.findIndex((t) => t.id === over.id)
+    if (fromIndex === -1 || toIndex === -1) return
+
+    const reordered = reorderItems(tasks, fromIndex, toIndex)
+    await Promise.all(reordered.map((t) => taskRepo.update(t.id, { order: t.order })))
+  }
 
   return (
     <div>
@@ -41,11 +68,26 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
       {isOpen && (
         <div className={cn('ml-4 space-y-0.5', tasks.length === 0 && 'py-1')}>
           {tasks.length === 0 && (
-            <p className="px-5 py-2 text-xs text-muted-foreground">タスクがありません</p>
+            <p className="px-5 py-2 text-xs text-muted-foreground">
+              {isFiltering ? 'フィルタに一致するタスクがありません' : 'タスクがありません'}
+            </p>
           )}
-          {tasks.map((task) => (
-            <TaskRow key={task.id} task={task} />
-          ))}
+          {tasks.length > 0 && (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={tasks.map((t) => t.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {tasks.map((task) => (
+                  <SortableTaskRow key={task.id} task={task} disabled={isFiltering} />
+                ))}
+              </SortableContext>
+            </DndContext>
+          )}
         </div>
       )}
     </div>

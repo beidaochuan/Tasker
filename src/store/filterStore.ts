@@ -26,6 +26,14 @@ const initialFilter = {
   dueDateTo: null,
 }
 
+export const selectIsFiltering = (s: FilterState): boolean =>
+  s.searchText !== '' ||
+  s.statuses.length > 0 ||
+  s.priorities.length > 0 ||
+  s.tagIds.length > 0 ||
+  s.dueDateFrom !== null ||
+  s.dueDateTo !== null
+
 export const useFilterStore = create<FilterState>((set) => ({
   ...initialFilter,
 

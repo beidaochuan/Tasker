@@ -1,14 +1,17 @@
-import { Plus, FolderOpen, Moon, Sun } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, FolderOpen, Moon, Sun, Tag } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/button'
 import { useProjects } from '@/hooks/useProjects'
 import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
+import { TagManager } from '@/components/task/TagManager'
 
 export function Sidebar() {
   const projects = useProjects()
   const { selectedProjectId, setSelectedProjectId, openProjectForm } = useUIStore()
   const { isDark, toggleDark } = useThemeStore()
+  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false)
 
   return (
     <aside className="flex w-56 flex-col border-r border-border bg-background">
@@ -47,11 +50,21 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className="border-t border-border p-3">
+      <div className="flex items-center gap-1 border-t border-border p-3">
         <Button variant="ghost" size="icon" onClick={toggleDark} title="テーマ切替">
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsTagManagerOpen(true)}
+          title="タグ管理"
+        >
+          <Tag className="h-4 w-4" />
+        </Button>
       </div>
+
+      {isTagManagerOpen && <TagManager onClose={() => setIsTagManagerOpen(false)} />}
     </aside>
   )
 }

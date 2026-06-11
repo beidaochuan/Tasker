@@ -1,6 +1,7 @@
 import { Plus, FolderOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TopicRow } from './TopicRow'
+import { FilterPanel } from '@/components/filter/FilterPanel'
 import { useTopics } from '@/hooks/useTasks'
 import { useUIStore } from '@/store/uiStore'
 import { topicRepo } from '@/repositories'
@@ -37,6 +38,7 @@ export function ListView() {
           トピックを追加
         </Button>
       </div>
+      <FilterPanel />
 
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
         {topics.length === 0 && (
