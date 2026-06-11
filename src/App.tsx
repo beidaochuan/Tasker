@@ -8,6 +8,8 @@ import { TaskDrawer } from '@/components/task/TaskDrawer'
 import { ProjectForm } from '@/components/project/ProjectForm'
 import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const CalendarView = lazy(() => import('@/components/views/CalendarView/CalendarView'))
 const GanttView = lazy(() => import('@/components/views/GanttView/GanttView'))
@@ -55,6 +57,7 @@ function MainContent() {
 
 function App() {
   const { isDark } = useThemeStore()
+  useKeyboardShortcuts()
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
@@ -65,14 +68,20 @@ function App() {
   }, [])
 
   return (
-    <>
+    <ErrorBoundary>
       <ExportWarning />
       <AppShell>
-        <MainContent />
+        <ErrorBoundary>
+          <MainContent />
+        </ErrorBoundary>
       </AppShell>
-      <TaskDrawer />
-      <ProjectForm />
-    </>
+      <ErrorBoundary>
+        <TaskDrawer />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <ProjectForm />
+      </ErrorBoundary>
+    </ErrorBoundary>
   )
 }
 

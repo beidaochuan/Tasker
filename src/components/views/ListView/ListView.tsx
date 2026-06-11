@@ -2,6 +2,7 @@ import { Plus, FolderOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TopicRow } from './TopicRow'
 import { FilterPanel } from '@/components/filter/FilterPanel'
+import { ListViewSkeleton } from '@/components/ui/skeleton'
 import { useTopics } from '@/hooks/useTasks'
 import { useUIStore } from '@/store/uiStore'
 import { topicRepo } from '@/repositories'
@@ -12,7 +13,7 @@ export function ListView() {
 
   async function handleAddTopic() {
     if (!selectedProjectId) return
-    const maxOrder = topics.reduce((m, t) => Math.max(m, t.order), -1)
+    const maxOrder = (topics ?? []).reduce((m, t) => Math.max(m, t.order), -1)
     await topicRepo.create({
       projectId: selectedProjectId,
       name: '新しいトピック',
@@ -27,6 +28,10 @@ export function ListView() {
         <p className="text-sm">左のサイドバーからプロジェクトを選択してください</p>
       </div>
     )
+  }
+
+  if (topics === undefined) {
+    return <ListViewSkeleton />
   }
 
   return (

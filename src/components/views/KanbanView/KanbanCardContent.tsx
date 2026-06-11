@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Clock } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { formatDate, isOverdue, isDueToday } from '@/utils/dateUtils'
@@ -15,7 +16,10 @@ interface KanbanCardContentProps {
   className?: string
 }
 
-export function KanbanCardContent({ task, className }: KanbanCardContentProps) {
+export const KanbanCardContent = memo(function KanbanCardContent({
+  task,
+  className,
+}: KanbanCardContentProps) {
   const overdue = task.status !== 'done' && isOverdue(task.dueDate)
   const today = task.status !== 'done' && isDueToday(task.dueDate)
 
@@ -52,4 +56,4 @@ export function KanbanCardContent({ task, className }: KanbanCardContentProps) {
       )}
     </div>
   )
-}
+})

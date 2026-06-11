@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
@@ -14,13 +15,19 @@ interface KanbanColumnProps {
   defaultTopicId: string | null
 }
 
-export function KanbanColumn({ status, tasks, isOver, defaultTopicId }: KanbanColumnProps) {
+export const KanbanColumn = memo(function KanbanColumn({
+  status,
+  tasks,
+  isOver,
+  defaultTopicId,
+}: KanbanColumnProps) {
   const { openNewTaskDrawer } = useUIStore()
   // setNodeRef を列全体に設定してヘッダー部分もドロップゾーンに含める
   const { setNodeRef } = useDroppable({ id: status })
 
   const wipLimit = WIP_LIMITS[status]
   const isOverWip = wipLimit > 0 && tasks.length > wipLimit
+  const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks])
 
   return (
     <div
@@ -68,7 +75,7 @@ export function KanbanColumn({ status, tasks, isOver, defaultTopicId }: KanbanCo
       <div
         className={cn('flex-1 space-y-2 overflow-y-auto p-2', tasks.length === 0 && 'min-h-[80px]')}
       >
-        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <KanbanCard key={task.id} task={task} />
           ))}
@@ -81,4 +88,4 @@ export function KanbanColumn({ status, tasks, isOver, defaultTopicId }: KanbanCo
       </div>
     </div>
   )
-}
+})

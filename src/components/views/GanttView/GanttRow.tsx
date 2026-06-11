@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT } from './ganttConstants'
@@ -12,7 +13,7 @@ interface Props {
   onBarClick?: (taskId: string) => void
 }
 
-export function GanttRow({
+export const GanttRow = memo(function GanttRow({
   tasks,
   totalDays,
   ganttStart,
@@ -51,4 +52,4 @@ export function GanttRow({
       ))}
     </div>
   )
-}
+})

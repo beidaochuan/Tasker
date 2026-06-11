@@ -13,6 +13,7 @@ import {
 import { FolderOpen } from 'lucide-react'
 import { KanbanColumn } from './KanbanColumn'
 import { KanbanCardContent } from './KanbanCardContent'
+import { KanbanSkeleton } from '@/components/ui/skeleton'
 import { COLUMN_ORDER, WIP_LIMITS } from './kanbanConstants'
 import { useKanbanData } from '@/hooks/useTasks'
 import { useUIStore } from '@/store/uiStore'
@@ -41,7 +42,7 @@ function resolveTargetColumn(
 
 export function KanbanView() {
   const { selectedProjectId } = useUIStore()
-  const { tasksByStatus, defaultTopicId } = useKanbanData(selectedProjectId)
+  const { tasksByStatus, defaultTopicId, isLoading } = useKanbanData(selectedProjectId)
 
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
   const [overColumnId, setOverColumnId] = useState<TaskStatus | null>(null)
@@ -128,6 +129,10 @@ export function KanbanView() {
         <p className="text-sm">左のサイドバーからプロジェクトを選択してください</p>
       </div>
     )
+  }
+
+  if (isLoading) {
+    return <KanbanSkeleton />
   }
 
   return (

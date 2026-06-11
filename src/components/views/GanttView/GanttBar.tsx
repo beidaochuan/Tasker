@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react'
 import { differenceInDays, startOfDay } from 'date-fns'
 import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
@@ -18,8 +19,21 @@ interface Props {
   onClick?: (taskId: string) => void
 }
 
-export function GanttBar({ task, ganttStart, scale, onBarPointerDown, onClick }: Props) {
-  // #6: 早期 return を計算前に移動（到達不可能な new Date() フォールバックを除去）
+export const GanttBar = memo(function GanttBar({
+  task,
+  ganttStart,
+  scale,
+  onBarPointerDown,
+  onClick,
+}: Props) {
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent, handle: 'move' | 'left' | 'right') => {
+      e.stopPropagation()
+      onBarPointerDown?.(e, task, handle)
+    },
+    [onBarPointerDown, task]
+  )
+
   if (!task.startDate && !task.dueDate) return null
 
   const ppd = PIXELS_PER_DAY[scale]
@@ -33,11 +47,6 @@ export function GanttBar({ task, ganttStart, scale, onBarPointerDown, onClick }:
 
   const colorClass = STATUS_COLORS[task.status]
   const barHeight = ROW_HEIGHT - 12
-
-  const handlePointerDown = (e: React.PointerEvent, handle: 'move' | 'left' | 'right') => {
-    e.stopPropagation()
-    onBarPointerDown?.(e, task, handle)
-  }
 
   return (
     <div
@@ -62,4 +71,4 @@ export function GanttBar({ task, ganttStart, scale, onBarPointerDown, onClick }:
       />
     </div>
   )
-}
+})

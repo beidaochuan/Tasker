@@ -67,8 +67,9 @@ export function FilterPanel() {
       {/* 検索バー + フィルタトグル */}
       <div className="flex items-center gap-2 px-4 py-2">
         <input
+          id="search-input"
           type="search"
-          placeholder="タスクを検索..."
+          placeholder="タスクを検索... (/)"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"

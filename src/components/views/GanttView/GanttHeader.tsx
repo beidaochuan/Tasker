@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { addDays, startOfDay, format, startOfMonth, getDaysInMonth } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import type { GanttScale } from './ganttConstants'
@@ -65,20 +65,22 @@ function buildMonthCells(startDate: Date, totalDays: number, ppd: number): Heade
   return cells
 }
 
-export function GanttHeader({ startDate, totalDays, scale }: Props) {
+export const GanttHeader = memo(function GanttHeader({ startDate, totalDays, scale }: Props) {
   const ppd = PIXELS_PER_DAY[scale]
   const totalWidth = totalDays * ppd
+  const startTime = startDate.getTime()
 
   const upperCells = useMemo<HeaderCell[]>(() => {
+    const start = new Date(startTime)
     // #8: day と week はどちらも上段に月を表示する
     if (scale === 'day' || scale === 'week') {
-      return buildMonthCells(startOfDay(startDate), totalDays, ppd)
+      return buildMonthCells(startOfDay(start), totalDays, ppd)
     }
     // month: 上段: 年
     const cells: HeaderCell[] = []
     let i = 0
     while (i < totalDays) {
-      const d = addDays(startDate, i)
+      const d = addDays(start, i)
       const year = d.getFullYear()
       const yearStart = new Date(year, 0, 1)
       const nextYear = new Date(year + 1, 0, 1)
@@ -93,13 +95,14 @@ export function GanttHeader({ startDate, totalDays, scale }: Props) {
       i += span
     }
     return cells
-  }, [startDate, totalDays, scale, ppd])
+  }, [startTime, totalDays, scale, ppd])
 
   const lowerCells = useMemo<HeaderCell[]>(() => {
-    if (scale === 'day') return buildDayCells(startOfDay(startDate), totalDays, ppd)
-    if (scale === 'week') return buildWeekCells(startOfDay(startDate), totalDays, ppd)
-    return buildMonthCells(startOfDay(startDate), totalDays, ppd)
-  }, [startDate, totalDays, scale, ppd])
+    const start = new Date(startTime)
+    if (scale === 'day') return buildDayCells(startOfDay(start), totalDays, ppd)
+    if (scale === 'week') return buildWeekCells(startOfDay(start), totalDays, ppd)
+    return buildMonthCells(startOfDay(start), totalDays, ppd)
+  }, [startTime, totalDays, scale, ppd])
 
   const halfH = HEADER_HEIGHT / 2
 
@@ -130,4 +133,4 @@ export function GanttHeader({ startDate, totalDays, scale }: Props) {
       ))}
     </div>
   )
-}
+})

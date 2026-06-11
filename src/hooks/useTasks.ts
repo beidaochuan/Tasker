@@ -11,14 +11,12 @@ export interface KanbanData {
   defaultTopicId: string | null
 }
 
-export function useTopics(projectId: string | null): Topic[] {
-  return (
-    useLiveQuery(async () => {
-      if (!projectId) return []
-      const rows = await db.topics.where('projectId').equals(projectId).toArray()
-      return sortByOrder(rows.map((r) => ({ ...r, createdAt: fromUnixMs(r.createdAt) })))
-    }, [projectId]) ?? []
-  )
+export function useTopics(projectId: string | null): Topic[] | undefined {
+  return useLiveQuery(async () => {
+    if (!projectId) return []
+    const rows = await db.topics.where('projectId').equals(projectId).toArray()
+    return sortByOrder(rows.map((r) => ({ ...r, createdAt: fromUnixMs(r.createdAt) })))
+  }, [projectId])
 }
 
 export function useTasksByTopic(topicId: string): Task[] {
@@ -41,7 +39,11 @@ export function useTask(id: string | null): Task | undefined {
 
 // カンバンビュー用: projectId → topics → tasks を1クエリで取得しステータス別にグループ化
 // 依存配列が [projectId]（文字列）のみになり参照不安定性を回避、DBサブスクリプションも1本
-export function useKanbanData(projectId: string | null): KanbanData {
+export interface KanbanDataWithLoading extends KanbanData {
+  isLoading: boolean
+}
+
+export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
   const raw = useLiveQuery(async () => {
     if (!projectId) return null
     const topicRows = await db.topics.where('projectId').equals(projectId).toArray()
@@ -53,6 +55,7 @@ export function useKanbanData(projectId: string | null): KanbanData {
   }, [projectId])
 
   return useMemo(() => {
+    const isLoading = raw === undefined && projectId !== null
     const allTasks = raw?.allTasks ?? []
     const defaultTopicId = raw?.defaultTopicId ?? null
     const tasksByStatus: Record<TaskStatus, Task[]> = {
@@ -64,6 +67,6 @@ export function useKanbanData(projectId: string | null): KanbanData {
     for (const task of allTasks) {
       tasksByStatus[task.status].push(task)
     }
-    return { tasksByStatus, defaultTopicId }
-  }, [raw])
+    return { tasksByStatus, defaultTopicId, isLoading }
+  }, [raw, projectId])
 }
