@@ -1,73 +1,100 @@
-# React + TypeScript + Vite
+# Tasker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ブラウザ完結型のタスク管理アプリ。すべてのデータはブラウザの IndexedDB に保存され、サーバー不要で動作します。
 
-Currently, two official plugins are available:
+## 機能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### ビュー
+| ビュー | 概要 |
+|--------|------|
+| **リストビュー** | プロジェクト内のトピック（グループ）ごとにタスクを一覧表示。ドラッグ＆ドロップで並び替え可能 |
+| **カンバンビュー** | ステータス列（未着手・進行中・完了・キャンセル）にカードを配置。列間のドラッグ移動に対応 |
+| **カレンダービュー** | 月・週・日単位の表示。FullCalendar ベース、繰り返しタスクも展開表示 |
+| **ガントチャートビュー** | 開始日〜期日をバーで可視化。バーのドラッグで日程変更可能 |
 
-## React Compiler
+### タスク管理
+- タイトル・説明・ステータス・優先度（低/中/高/緊急）・開始日・期日
+- サブタスク（チェックリスト）
+- タグ付け（色付きラベル）
+- **繰り返しタスク**：毎日・毎週・毎月・毎年、N 回ごとの間隔設定。完了時に次のタスクを自動生成（RRule 準拠）
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### フィルタ・検索
+- テキスト検索（`/` キーでフォーカス）
+- ステータス・優先度・タグ・期日範囲の複合フィルタ
 
-## Expanding the ESLint configuration
+### データ管理
+- JSON エクスポート／インポート（バックアップ・移行用）
+- 7 日以上エクスポートしていない場合の警告表示
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### その他
+- ダーク / ライトテーマ切替
+- PWA 対応（オフライン動作・インストール可能）
+- キーボードショートカット（`n`: 新規タスク、`/`: 検索フォーカス）
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 技術スタック
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+| 分類 | ライブラリ |
+|------|-----------|
+| フレームワーク | React 19 + TypeScript |
+| ビルド | Vite 8 |
+| スタイル | Tailwind CSS v4 |
+| 状態管理 | Zustand |
+| DB | Dexie (IndexedDB ラッパー) |
+| フォーム | React Hook Form + Zod |
+| D&D | dnd-kit |
+| カレンダー | FullCalendar 6 |
+| 繰り返しルール | rrule |
+| UI コンポーネント | Radix UI |
+| テスト | Vitest + Testing Library |
+| PWA | vite-plugin-pwa |
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## セットアップ
+
+```bash
+# 依存パッケージのインストール
+npm install
+
+# 開発サーバー起動（http://localhost:5173）
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## コマンド一覧
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev          # 開発サーバー
+npm run build        # プロダクションビルド
+npm run preview      # ビルド結果をローカルでプレビュー
+npm run test         # テスト実行
+npm run test:watch   # テストをウォッチモードで実行
+npm run test:ui      # Vitest UI を開く
+npm run test:coverage # カバレッジ計測
+npm run lint         # ESLint チェック
+npm run lint:fix     # ESLint 自動修正
+npm run format       # Prettier フォーマット
 ```
+
+## ディレクトリ構成
+
+```
+src/
+├── components/
+│   ├── layout/        # AppShell, Sidebar, ViewTabs
+│   ├── views/
+│   │   ├── ListView/     # リストビュー
+│   │   ├── KanbanView/   # カンバンビュー
+│   │   ├── CalendarView/ # カレンダービュー
+│   │   └── GanttView/    # ガントチャートビュー
+│   ├── task/          # TaskDrawer, SortableTaskRow, TagManager
+│   ├── filter/        # FilterPanel
+│   └── ui/            # 汎用 UI コンポーネント (Button, Badge 等)
+├── db/                # Dexie スキーマ定義
+├── hooks/             # カスタムフック (useTasks, useRecurrence 等)
+├── repositories/      # DB アクセス層
+├── store/             # Zustand ストア (UI 状態, テーマ, フィルタ)
+├── types/             # 型定義
+└── utils/             # ユーティリティ (日付, フィルタ, エクスポート等)
+```
+
+## データストレージ
+
+すべてのデータはブラウザの IndexedDB（Dexie v4）に保存されます。外部サーバーへの通信は一切ありません。データを移行・バックアップするには、サイドバーの **エクスポート** ボタンから JSON ファイルを保存してください。
