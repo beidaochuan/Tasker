@@ -10,6 +10,19 @@ import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
 
 const CalendarView = lazy(() => import('@/components/views/CalendarView/CalendarView'))
+const GanttView = lazy(() => import('@/components/views/GanttView/GanttView'))
+
+// #11: 静的 JSX として定義してレンダリングごとの生成を避ける
+const CALENDAR_FALLBACK = (
+  <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+    カレンダーを読み込み中...
+  </div>
+)
+const GANTT_FALLBACK = (
+  <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+    ガントチャートを読み込み中...
+  </div>
+)
 
 function MainContent() {
   const { activeView } = useUIStore()
@@ -21,14 +34,14 @@ function MainContent() {
       return <KanbanView />
     case 'calendar':
       return (
-        <Suspense
-          fallback={
-            <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-              カレンダーを読み込み中...
-            </div>
-          }
-        >
+        <Suspense fallback={CALENDAR_FALLBACK}>
           <CalendarView />
+        </Suspense>
+      )
+    case 'gantt':
+      return (
+        <Suspense fallback={GANTT_FALLBACK}>
+          <GanttView />
         </Suspense>
       )
     default:
