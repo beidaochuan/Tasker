@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import './index.css'
 import { AppShell } from '@/components/layout/AppShell'
 import { ExportWarning } from '@/components/layout/ExportWarning'
@@ -9,6 +9,8 @@ import { ProjectForm } from '@/components/project/ProjectForm'
 import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
 
+const CalendarView = lazy(() => import('@/components/views/CalendarView/CalendarView'))
+
 function MainContent() {
   const { activeView } = useUIStore()
 
@@ -17,6 +19,18 @@ function MainContent() {
       return <ListView />
     case 'kanban':
       return <KanbanView />
+    case 'calendar':
+      return (
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+              カレンダーを読み込み中...
+            </div>
+          }
+        >
+          <CalendarView />
+        </Suspense>
+      )
     default:
       return (
         <div className="flex h-full items-center justify-center text-muted-foreground text-sm">

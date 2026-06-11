@@ -1,0 +1,67 @@
+/* FullCalendar をアプリの CSS 変数テーマに合わせるオーバーライド */
+/* shadcn/ui の CSS変数（H S% L% 形式）を使用。ダークモードは自動対応。 */
+
+.fc {
+  --fc-border-color: hsl(var(--border));
+  --fc-button-bg-color: hsl(var(--primary));
+  --fc-button-border-color: hsl(var(--primary));
+  /* Issue #10: hsl(var() / alpha) は CSS Color Level 4。
+     代わりに filter:brightness で hover/active を表現する。 */
+  --fc-button-hover-bg-color: hsl(var(--primary));
+  --fc-button-hover-border-color: hsl(var(--primary));
+  --fc-button-active-bg-color: hsl(var(--primary));
+  --fc-button-active-border-color: hsl(var(--primary));
+  --fc-button-text-color: hsl(var(--primary-foreground));
+  --fc-today-bg-color: hsl(var(--accent));
+  --fc-page-bg-color: hsl(var(--background));
+  --fc-neutral-bg-color: hsl(var(--muted));
+  --fc-list-event-hover-bg-color: hsl(var(--accent));
+  --fc-event-text-color: #fff;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  border-color: hsl(var(--border));
+}
+
+.fc .fc-col-header-cell {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.fc .fc-daygrid-day-number,
+.fc .fc-col-header-cell-cushion {
+  color: hsl(var(--foreground));
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.fc .fc-button {
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+}
+
+/* Issue #10: alpha 構文の代わりに filter:brightness で hover/active 表現 */
+.fc .fc-button:hover:not(:disabled) {
+  filter: brightness(0.85);
+}
+
+.fc .fc-button:active,
+.fc .fc-button.fc-button-active {
+  filter: brightness(0.7);
+}
+
+.fc .fc-event {
+  cursor: pointer;
+  font-size: 0.75rem;
+  border-radius: calc(var(--radius) / 2);
+}
+
+/* Issue #11: opacity はテキストも透明化するため brightness で背景色だけ変える */
+.fc .fc-event:hover {
+  filter: brightness(0.9);
+}
