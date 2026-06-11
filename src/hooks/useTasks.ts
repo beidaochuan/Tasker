@@ -1,9 +1,15 @@
+import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db/schema'
-import type { Task, Topic } from '@/types'
+import type { Task, Topic, TaskStatus } from '@/types'
 import { rowToTask } from '@/repositories/taskRepository'
 import { fromUnixMs } from '@/utils/dateUtils'
 import { sortByOrder } from '@/utils/sortUtils'
+
+export interface KanbanData {
+  tasksByStatus: Record<TaskStatus, Task[]>
+  defaultTopicId: string | null
+}
 
 export function useTopics(projectId: string | null): Topic[] {
   return (
@@ -31,4 +37,33 @@ export function useTask(id: string | null): Task | undefined {
     if (!row) return undefined
     return rowToTask(row)
   }, [id])
+}
+
+// カンバンビュー用: projectId → topics → tasks を1クエリで取得しステータス別にグループ化
+// 依存配列が [projectId]（文字列）のみになり参照不安定性を回避、DBサブスクリプションも1本
+export function useKanbanData(projectId: string | null): KanbanData {
+  const raw = useLiveQuery(async () => {
+    if (!projectId) return null
+    const topicRows = await db.topics.where('projectId').equals(projectId).toArray()
+    const topicIds = topicRows.map((t) => t.id)
+    const defaultTopicId = topicIds[0] ?? null
+    if (topicIds.length === 0) return { allTasks: [], defaultTopicId }
+    const taskRows = await db.tasks.where('topicId').anyOf(topicIds).toArray()
+    return { allTasks: sortByOrder(taskRows.map(rowToTask)), defaultTopicId }
+  }, [projectId])
+
+  return useMemo(() => {
+    const allTasks = raw?.allTasks ?? []
+    const defaultTopicId = raw?.defaultTopicId ?? null
+    const tasksByStatus: Record<TaskStatus, Task[]> = {
+      todo: [],
+      in_progress: [],
+      done: [],
+      cancelled: [],
+    }
+    for (const task of allTasks) {
+      tasksByStatus[task.status].push(task)
+    }
+    return { tasksByStatus, defaultTopicId }
+  }, [raw])
 }

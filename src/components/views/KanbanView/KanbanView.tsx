@@ -1,0 +1,164 @@
+import { useState, useCallback } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { FolderOpen } from 'lucide-react'
+import { KanbanColumn } from './KanbanColumn'
+import { KanbanCardContent } from './KanbanCardContent'
+import { COLUMN_ORDER, WIP_LIMITS } from './kanbanConstants'
+import { useKanbanData } from '@/hooks/useTasks'
+import { useUIStore } from '@/store/uiStore'
+import { taskRepo } from '@/repositories'
+import type { Task, TaskStatus } from '@/types'
+
+type TasksByStatus = Record<TaskStatus, Task[]>
+
+function findColumnOfTask(taskId: string, tasksByStatus: TasksByStatus): TaskStatus | null {
+  for (const col of COLUMN_ORDER) {
+    if (tasksByStatus[col].some((t) => t.id === taskId)) return col
+  }
+  return null
+}
+
+function resolveTargetColumn(
+  overId: string | null,
+  tasksByStatus: TasksByStatus
+): TaskStatus | null {
+  if (!overId) return null
+  // over.id が列ID (TaskStatus) の場合
+  if (COLUMN_ORDER.includes(overId as TaskStatus)) return overId as TaskStatus
+  // over.id がカードID の場合: そのカードが属する列を返す
+  return findColumnOfTask(overId, tasksByStatus)
+}
+
+export function KanbanView() {
+  const { selectedProjectId } = useUIStore()
+  const { tasksByStatus, defaultTopicId } = useKanbanData(selectedProjectId)
+
+  const [draggingTask, setDraggingTask] = useState<Task | null>(null)
+  const [overColumnId, setOverColumnId] = useState<TaskStatus | null>(null)
+  const [localTasksByStatus, setLocalTasksByStatus] = useState<TasksByStatus | null>(null)
+
+  const displayed = localTasksByStatus ?? tasksByStatus
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const task = event.active.data.current?.task as Task | undefined
+    if (task) setDraggingTask(task)
+    // localTasksByStatus の初期化は handleDragOver の初回に lazy で行う
+  }, []) // tasksByStatus 非依存: 初回 handleDragOver の prev ?? tasksByStatus で取得
+
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { active, over } = event
+      if (!over) return
+
+      const activeId = active.id as string
+
+      setLocalTasksByStatus((prev) => {
+        const base = prev ?? tasksByStatus
+
+        const targetCol = resolveTargetColumn(over.id as string, base)
+        if (!targetCol) return prev
+
+        setOverColumnId(targetCol)
+
+        // ドラッグ中タスクの現在列をローカル状態から動的に解決（Issue #2 修正）
+        const currentCol = findColumnOfTask(activeId, base)
+        if (!currentCol || currentCol === targetCol) return prev
+
+        // WIP制限チェック: ターゲット列の現在カード数で判断
+        const wipLimit = WIP_LIMITS[targetCol]
+        if (wipLimit > 0 && base[targetCol].length >= wipLimit) return prev
+
+        const activeTask = base[currentCol].find((t) => t.id === activeId)
+        if (!activeTask) return prev
+
+        return {
+          ...base,
+          [currentCol]: base[currentCol].filter((t) => t.id !== activeId),
+          [targetCol]: [...base[targetCol], { ...activeTask, status: targetCol }],
+        }
+      })
+    },
+    [tasksByStatus]
+  )
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event
+      const currentLocal = localTasksByStatus // リセット前にキャプチャ
+
+      setDraggingTask(null)
+      setOverColumnId(null)
+      setLocalTasksByStatus(null)
+
+      if (!over) return
+
+      const activeTask = active.data.current?.task as Task | undefined
+      if (!activeTask) return
+
+      // ターゲット列は DB 状態ではなくローカル状態から解決（Issue #3 修正）
+      const base = currentLocal ?? tasksByStatus
+      const targetCol = resolveTargetColumn(over.id as string, base)
+      if (!targetCol || targetCol === activeTask.status) return
+
+      // WIP制限: DB 状態の件数で最終確認
+      const wipLimit = WIP_LIMITS[targetCol]
+      if (wipLimit > 0 && tasksByStatus[targetCol].length >= wipLimit) return
+
+      await taskRepo.update(activeTask.id, { status: targetCol })
+    },
+    [localTasksByStatus, tasksByStatus]
+  )
+
+  if (!selectedProjectId) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+        <FolderOpen className="h-12 w-12" />
+        <p className="text-sm">左のサイドバーからプロジェクトを選択してください</p>
+      </div>
+    )
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex h-full gap-3 overflow-x-auto p-4">
+        {COLUMN_ORDER.map((status) => (
+          <KanbanColumn
+            key={status}
+            status={status}
+            tasks={displayed[status]}
+            isOver={overColumnId === status}
+            defaultTopicId={defaultTopicId}
+          />
+        ))}
+      </div>
+
+      {/* DragOverlay: useSortable を持たない KanbanCardContent を直接使用（Issue #6 修正）*/}
+      <DragOverlay>
+        {draggingTask && (
+          <KanbanCardContent
+            task={draggingTask}
+            className="rotate-2 cursor-grabbing shadow-lg opacity-95"
+          />
+        )}
+      </DragOverlay>
+    </DndContext>
+  )
+}

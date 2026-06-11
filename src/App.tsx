@@ -3,6 +3,7 @@ import './index.css'
 import { AppShell } from '@/components/layout/AppShell'
 import { ExportWarning } from '@/components/layout/ExportWarning'
 import { ListView } from '@/components/views/ListView/ListView'
+import { KanbanView } from '@/components/views/KanbanView/KanbanView'
 import { TaskDrawer } from '@/components/task/TaskDrawer'
 import { ProjectForm } from '@/components/project/ProjectForm'
 import { useUIStore } from '@/store/uiStore'
@@ -14,10 +15,12 @@ function MainContent() {
   switch (activeView) {
     case 'list':
       return <ListView />
+    case 'kanban':
+      return <KanbanView />
     default:
       return (
         <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-          {activeView} ビューは Phase 2 以降で実装予定です
+          {activeView} ビューは今後実装予定です
         </div>
       )
   }
