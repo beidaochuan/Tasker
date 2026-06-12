@@ -2,6 +2,8 @@ import { useRef, useCallback, useState, useMemo } from 'react'
 import { FolderOpen } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useUIStore } from '@/store/uiStore'
+import { taskRepo } from '@/repositories'
+import { resolveTaskId } from '@/utils/recurrenceUtils'
 import { useGanttData } from '@/hooks/useGanttData'
 import { GanttHeader } from './GanttHeader'
 import { GanttRow } from './GanttRow'
@@ -16,6 +18,8 @@ const SCALE_LABELS: Record<GanttScale, string> = {
   week: '週',
   month: '月',
 }
+
+const MIN_DAYS: Record<GanttScale, number> = { day: 30, week: 90, month: 365 }
 
 const TOPIC_ROW_HEIGHT = 28
 
@@ -32,13 +36,17 @@ export function GanttView() {
 
   const ppd = PIXELS_PER_DAY[scale]
 
-  const { startDate, totalDays } = useMemo(
-    () =>
-      ganttRows.length > 0 ? calcGanttRange(ganttRows) : { startDate: new Date(), totalDays: 60 },
-    [ganttRows]
-  )
+  const { startDate, totalDays } = useMemo(() => {
+    const range =
+      ganttRows.length > 0 ? calcGanttRange(ganttRows) : { startDate: new Date(), totalDays: 60 }
+    return { startDate: range.startDate, totalDays: Math.max(range.totalDays, MIN_DAYS[scale]) }
+  }, [ganttRows, scale])
 
   const { preview, onBarPointerDown } = useGanttDrag(startDate, scale)
+
+  const handleCreateBar = useCallback(async (taskId: string, startDate: Date, dueDate: Date) => {
+    await taskRepo.update(resolveTaskId(taskId), { startDate, dueDate })
+  }, [])
 
   const flatRows = useMemo<FlatRow[]>(() => {
     const rows: FlatRow[] = []
@@ -150,10 +158,10 @@ export function GanttView() {
               return (
                 <div
                   key={vi.index}
-                  className={`absolute left-0 right-0 flex items-center border-b border-border px-3 ${
+                  className={`absolute left-0 right-0 flex items-center border-b border-border ${
                     row.type === 'topic'
-                      ? 'bg-muted/50 text-xs font-semibold text-muted-foreground'
-                      : 'text-sm text-foreground'
+                      ? 'bg-muted/50 px-3 text-xs font-semibold text-muted-foreground'
+                      : 'pl-6 pr-3 text-sm text-foreground'
                   }`}
                   style={{ top: vi.start, height: vi.size }}
                 >
@@ -201,6 +209,7 @@ export function GanttView() {
                     scale={scale}
                     onBarPointerDown={onBarPointerDown}
                     onBarClick={openTaskDrawer}
+                    onCreateBar={handleCreateBar}
                   />
                 </div>
               )

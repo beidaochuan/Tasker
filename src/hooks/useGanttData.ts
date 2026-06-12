@@ -35,7 +35,16 @@ export function useGanttData(projectId: string | null): GanttRow[] {
       ;(tasksByTopic[task.topicId] ??= []).push(task)
     }
     for (const tasks of Object.values(tasksByTopic)) {
-      tasks.sort((a, b) => a.order - b.order)
+      tasks.sort((a, b) => {
+        const aDate = a.startDate ?? a.dueDate
+        const bDate = b.startDate ?? b.dueDate
+        if (aDate && !bDate) return -1
+        if (!aDate && bDate) return 1
+        if (aDate && bDate && aDate.getTime() !== bDate.getTime()) {
+          return aDate.getTime() - bDate.getTime()
+        }
+        return a.title.localeCompare(b.title, 'ja')
+      })
     }
     return { topics, tasksByTopic }
   }, [projectId])
@@ -50,6 +59,7 @@ export function useGanttData(projectId: string | null): GanttRow[] {
       const tasks: Task[] = []
 
       for (const task of baseTasks) {
+        if (task.status === 'cancelled') continue
         if (hasRepeatRule(task.repeatRule) && task.dueDate) {
           // 今日以降の直近1件だけ表示（今日を含む次の発生日を expandOccurrences で取得）
           const farFuture = addDays(today, 3650)

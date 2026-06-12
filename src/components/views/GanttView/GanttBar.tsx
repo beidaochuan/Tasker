@@ -1,15 +1,14 @@
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useRef } from 'react'
 import { differenceInDays, startOfDay } from 'date-fns'
 import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, RESIZE_HANDLE_WIDTH } from './ganttConstants'
 import { resolveTaskId } from '@/utils/recurrenceUtils'
 
-const STATUS_COLORS: Record<Task['status'], string> = {
+const STATUS_COLORS: Record<Exclude<Task['status'], 'cancelled'>, string> = {
   todo: 'bg-indigo-500',
-  in_progress: 'bg-amber-500',
-  done: 'bg-green-500',
-  cancelled: 'bg-gray-400',
+  in_progress: 'bg-green-500',
+  done: 'bg-gray-400',
 }
 
 interface Props {
@@ -27,9 +26,22 @@ export const GanttBar = memo(function GanttBar({
   onBarPointerDown,
   onClick,
 }: Props) {
+  const didDragRef = useRef(false)
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, handle: 'move' | 'left' | 'right') => {
       e.stopPropagation()
+      didDragRef.current = false
+      const startX = e.clientX
+      const onMove = (ev: PointerEvent) => {
+        if (Math.abs(ev.clientX - startX) > 4) didDragRef.current = true
+      }
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+      }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
       onBarPointerDown?.(e, task, handle)
     },
     [onBarPointerDown, task]
@@ -37,7 +49,6 @@ export const GanttBar = memo(function GanttBar({
 
   if (!task.startDate && !task.dueDate) return null
 
-  // 繰り返し展開の仮想インスタンス（ID が "taskId_timestamp" 形式）はドラッグ不可
   const isVirtual = /^\S+_\d+$/.test(task.id)
 
   const ppd = PIXELS_PER_DAY[scale]
@@ -49,15 +60,20 @@ export const GanttBar = memo(function GanttBar({
   const durationDays = Math.max(1, differenceInDays(end, start) + 1)
   const width = durationDays * ppd
 
-  const colorClass = STATUS_COLORS[task.status]
   const barHeight = ROW_HEIGHT - 12
+
+  if (task.status === 'cancelled') return null
+
+  const colorClass = STATUS_COLORS[task.status]
 
   return (
     <div
       className={`absolute top-[6px] rounded cursor-pointer select-none flex items-center overflow-hidden ${colorClass}`}
       style={{ left, width, height: barHeight }}
       onPointerDown={isVirtual ? undefined : (e) => handlePointerDown(e, 'move')}
-      onClick={() => onClick?.(resolveTaskId(task.id))}
+      onClick={() => {
+        if (!didDragRef.current) onClick?.(resolveTaskId(task.id))
+      }}
       title={task.title}
     >
       {!isVirtual && (
@@ -67,9 +83,6 @@ export const GanttBar = memo(function GanttBar({
           onPointerDown={(e) => handlePointerDown(e, 'left')}
         />
       )}
-      <span className="mx-2 truncate text-xs text-white font-medium pointer-events-none">
-        {task.title}
-      </span>
       {!isVirtual && (
         <div
           className="absolute right-0 top-0 h-full cursor-ew-resize z-10 hover:bg-black/20"

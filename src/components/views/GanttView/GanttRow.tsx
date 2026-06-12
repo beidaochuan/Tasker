@@ -1,4 +1,5 @@
-import { memo } from 'react'
+import { memo, useRef, useCallback } from 'react'
+import { addDays, startOfDay } from 'date-fns'
 import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT } from './ganttConstants'
@@ -11,6 +12,7 @@ interface Props {
   scale: GanttScale
   onBarPointerDown?: (e: React.PointerEvent, task: Task, handle: 'move' | 'left' | 'right') => void
   onBarClick?: (taskId: string) => void
+  onCreateBar?: (taskId: string, startDate: Date, dueDate: Date) => void
 }
 
 export const GanttRow = memo(function GanttRow({
@@ -20,17 +22,86 @@ export const GanttRow = memo(function GanttRow({
   scale,
   onBarPointerDown,
   onBarClick,
+  onCreateBar,
 }: Props) {
   const ppd = PIXELS_PER_DAY[scale]
   const totalWidth = totalDays * ppd
+  const task = tasks[0]
+  const hasBar = task && (task.startDate || task.dueDate)
+
+  // ドラッグ作成用プレビュー状態
+  const dragRef = useRef<{ startDay: number } | null>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
+
+  const xToDay = useCallback(
+    (clientX: number, rowEl: HTMLElement) => {
+      const rect = rowEl.getBoundingClientRect()
+      const scrollLeft = rowEl.closest('.overflow-auto')?.scrollLeft ?? 0
+      const x = clientX - rect.left + scrollLeft
+      return Math.floor(x / ppd)
+    },
+    [ppd]
+  )
+
+  const showPreview = useCallback(
+    (startDay: number, endDay: number) => {
+      const el = previewRef.current
+      if (!el) return
+      const left = Math.min(startDay, endDay) * ppd
+      const width = (Math.abs(endDay - startDay) + 1) * ppd
+      el.style.left = `${left}px`
+      el.style.width = `${width}px`
+      el.style.display = 'block'
+    },
+    [ppd]
+  )
+
+  const hidePreview = useCallback(() => {
+    if (previewRef.current) previewRef.current.style.display = 'none'
+  }, [])
+
+  const handleRowPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (hasBar || !task || !onCreateBar) return
+      e.preventDefault()
+      const row = e.currentTarget
+      row.setPointerCapture(e.pointerId)
+      const startDay = xToDay(e.clientX, row)
+      dragRef.current = { startDay }
+      showPreview(startDay, startDay)
+
+      const onMove = (ev: PointerEvent) => {
+        if (!dragRef.current) return
+        const endDay = xToDay(ev.clientX, row)
+        showPreview(dragRef.current.startDay, endDay)
+      }
+      const onUp = (ev: PointerEvent) => {
+        if (!dragRef.current) return
+        const endDay = xToDay(ev.clientX, row)
+        hidePreview()
+        const s = Math.min(dragRef.current.startDay, endDay)
+        const d = Math.max(dragRef.current.startDay, endDay)
+        dragRef.current = null
+        row.removeEventListener('pointermove', onMove)
+        row.removeEventListener('pointerup', onUp)
+        const ganttStartDay = startOfDay(ganttStart)
+        const startDate = addDays(ganttStartDay, s)
+        const dueDate = addDays(ganttStartDay, d)
+        onCreateBar(task.id, startDate, dueDate)
+      }
+      row.addEventListener('pointermove', onMove)
+      row.addEventListener('pointerup', onUp)
+    },
+    [hasBar, task, onCreateBar, xToDay, showPreview, hidePreview, ganttStart]
+  )
 
   return (
-    // #5: 縦グリッド線を CSS repeating-linear-gradient で描画（DOM ノード生成ゼロ）
     <div
       className="relative border-b border-border"
       style={{
         width: totalWidth,
         height: ROW_HEIGHT,
+        cursor: hasBar ? 'default' : 'crosshair',
         backgroundImage: `repeating-linear-gradient(
           to right,
           transparent,
@@ -39,11 +110,18 @@ export const GanttRow = memo(function GanttRow({
           hsl(var(--border) / 0.3) ${ppd}px
         )`,
       }}
+      onPointerDown={handleRowPointerDown}
     >
-      {tasks.map((task) => (
+      {/* ドラッグ作成プレビュー */}
+      <div
+        ref={previewRef}
+        className="absolute top-[6px] rounded pointer-events-none bg-indigo-400/60 border border-indigo-500"
+        style={{ display: 'none', height: ROW_HEIGHT - 12 }}
+      />
+      {tasks.map((t) => (
         <GanttBar
-          key={task.id}
-          task={task}
+          key={t.id}
+          task={t}
           ganttStart={ganttStart}
           scale={scale}
           onBarPointerDown={onBarPointerDown}

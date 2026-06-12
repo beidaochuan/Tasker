@@ -46,6 +46,7 @@ export function useCalendarTasks(
     const events: CalendarEvent[] = []
 
     for (const task of tasks) {
+      if (task.status === 'cancelled') continue
       if (!task.dueDate) continue
       const color = STATUS_COLORS[task.status]
 
