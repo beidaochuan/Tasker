@@ -99,4 +99,13 @@ export class TaskRepository {
       return { ok: false, error: { code: 'DB_ERROR', message: String(e) } }
     }
   }
+
+  async deleteByTopicId(topicId: string): Promise<Result<void>> {
+    try {
+      await this.#db.tasks.where('topicId').equals(topicId).delete()
+      return { ok: true, data: undefined }
+    } catch (e) {
+      return { ok: false, error: { code: 'DB_ERROR', message: String(e) } }
+    }
+  }
 }
