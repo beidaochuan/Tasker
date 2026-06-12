@@ -4,8 +4,10 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+const base = process.env.VITE_BASE_PATH ?? '/'
+
 export default defineConfig({
-  base: '/Tasker/',
+  base,
   plugins: [
     tailwindcss(),
     react(),
@@ -19,10 +21,10 @@ export default defineConfig({
         theme_color: '#863bff',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/Tasker/',
+        start_url: base,
         icons: [
           {
-            src: '/Tasker/favicon.svg',
+            src: `${base}favicon.svg`,
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any maskable',
