@@ -3,6 +3,7 @@ import { differenceInDays, startOfDay } from 'date-fns'
 import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, RESIZE_HANDLE_WIDTH } from './ganttConstants'
+import { resolveTaskId } from '@/utils/recurrenceUtils'
 
 const STATUS_COLORS: Record<Task['status'], string> = {
   todo: 'bg-indigo-500',
@@ -36,6 +37,9 @@ export const GanttBar = memo(function GanttBar({
 
   if (!task.startDate && !task.dueDate) return null
 
+  // 繰り返し展開の仮想インスタンス（ID が "taskId_timestamp" 形式）はドラッグ不可
+  const isVirtual = /^\S+_\d+$/.test(task.id)
+
   const ppd = PIXELS_PER_DAY[scale]
   const start = startOfDay(task.startDate ?? task.dueDate!)
   const end = startOfDay(task.dueDate ?? task.startDate!)
@@ -52,23 +56,27 @@ export const GanttBar = memo(function GanttBar({
     <div
       className={`absolute top-[6px] rounded cursor-pointer select-none flex items-center overflow-hidden ${colorClass}`}
       style={{ left, width, height: barHeight }}
-      onPointerDown={(e) => handlePointerDown(e, 'move')}
-      onClick={() => onClick?.(task.id)}
+      onPointerDown={isVirtual ? undefined : (e) => handlePointerDown(e, 'move')}
+      onClick={() => onClick?.(resolveTaskId(task.id))}
       title={task.title}
     >
-      <div
-        className="absolute left-0 top-0 h-full cursor-ew-resize z-10 hover:bg-black/20"
-        style={{ width: RESIZE_HANDLE_WIDTH }}
-        onPointerDown={(e) => handlePointerDown(e, 'left')}
-      />
+      {!isVirtual && (
+        <div
+          className="absolute left-0 top-0 h-full cursor-ew-resize z-10 hover:bg-black/20"
+          style={{ width: RESIZE_HANDLE_WIDTH }}
+          onPointerDown={(e) => handlePointerDown(e, 'left')}
+        />
+      )}
       <span className="mx-2 truncate text-xs text-white font-medium pointer-events-none">
         {task.title}
       </span>
-      <div
-        className="absolute right-0 top-0 h-full cursor-ew-resize z-10 hover:bg-black/20"
-        style={{ width: RESIZE_HANDLE_WIDTH }}
-        onPointerDown={(e) => handlePointerDown(e, 'right')}
-      />
+      {!isVirtual && (
+        <div
+          className="absolute right-0 top-0 h-full cursor-ew-resize z-10 hover:bg-black/20"
+          style={{ width: RESIZE_HANDLE_WIDTH }}
+          onPointerDown={(e) => handlePointerDown(e, 'right')}
+        />
+      )}
     </div>
   )
 })

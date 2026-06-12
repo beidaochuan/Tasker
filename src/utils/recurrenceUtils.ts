@@ -70,6 +70,50 @@ export function getNextOccurrence(rruleStr: string | null, after: Date): Date | 
   }
 }
 
+// rrule はすべての Date を UTC として扱う。
+// ローカル日付を "UTC の同じ年月日" に変換してから渡し、戻り値を逆変換することで日付ずれを防ぐ。
+function toUTCDate(localDate: Date): Date {
+  return new Date(Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate()))
+}
+function fromUTCDate(utcDate: Date): Date {
+  return new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate())
+}
+
+/**
+ * repeatRule を持つタスクの、rangeStart〜rangeEnd（両端含む）内の全発生日を返す。
+ * dtstart はタスクの dueDate（基準日）を使う。
+ */
+export function expandOccurrences(
+  rruleStr: string,
+  dtstart: Date,
+  rangeStart: Date,
+  rangeEnd: Date
+): Date[] {
+  const parsed = parseRRule(rruleStr)
+  if (!parsed) return []
+  try {
+    const rule = new RRule({
+      freq: FREQ_MAP[parsed.freq],
+      interval: parsed.interval,
+      dtstart: toUTCDate(dtstart),
+    })
+    return rule.between(toUTCDate(rangeStart), toUTCDate(rangeEnd), true).map(fromUTCDate)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 仮想インスタンス ID（"taskId_timestamp" 形式）から実タスク ID を取得する。
+ * 通常の ID はそのまま返す。
+ */
+export function resolveTaskId(id: string): string {
+  const sep = id.lastIndexOf('_')
+  if (sep === -1) return id
+  const suffix = id.slice(sep + 1)
+  return /^\d+$/.test(suffix) ? id.slice(0, sep) : id
+}
+
 export function hasRepeatRule(rruleStr: string | null | undefined): rruleStr is string {
   return typeof rruleStr === 'string' && rruleStr.length > 0
 }

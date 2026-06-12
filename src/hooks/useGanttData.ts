@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { addMonths, startOfDay } from 'date-fns'
 import { db } from '@/db/schema'
 import { rowToTask } from '@/repositories/taskRepository'
 import { fromUnixMs } from '@/utils/dateUtils'
 import { sortByOrder } from '@/utils/sortUtils'
+import { expandOccurrences, hasRepeatRule } from '@/utils/recurrenceUtils'
 import type { Task, Topic } from '@/types'
 
 export interface GanttRow {
@@ -15,6 +17,10 @@ interface RawGanttData {
   topics: Topic[]
   tasksByTopic: Record<string, Task[]>
 }
+
+// 繰り返し展開の対象ウィンドウ: 今日の前後 6 ヶ月
+const EXPAND_MONTHS_BEFORE = 6
+const EXPAND_MONTHS_AFTER = 6
 
 export function useGanttData(projectId: string | null): GanttRow[] {
   // #9: 型パラメータを明示して RawGanttData | null の型推論を確定させる
@@ -40,9 +46,34 @@ export function useGanttData(projectId: string | null): GanttRow[] {
 
   return useMemo(() => {
     if (!raw) return []
-    return raw.topics.map((topic) => ({
-      topic,
-      tasks: raw.tasksByTopic[topic.id] ?? [],
-    }))
+
+    const today = startOfDay(new Date())
+    const rangeStart = addMonths(today, -EXPAND_MONTHS_BEFORE)
+    const rangeEnd = addMonths(today, EXPAND_MONTHS_AFTER)
+
+    return raw.topics.map((topic) => {
+      const baseTasks = raw.tasksByTopic[topic.id] ?? []
+      const tasks: Task[] = []
+
+      for (const task of baseTasks) {
+        if (hasRepeatRule(task.repeatRule) && task.dueDate) {
+          const occurrences = expandOccurrences(task.repeatRule, task.dueDate, rangeStart, rangeEnd)
+          for (const date of occurrences) {
+            tasks.push({
+              ...task,
+              id: `${task.id}_${date.getTime()}`,
+              dueDate: date,
+              startDate: task.startDate
+                ? new Date(date.getTime() - (task.dueDate.getTime() - task.startDate.getTime()))
+                : null,
+            })
+          }
+        } else {
+          tasks.push(task)
+        }
+      }
+
+      return { topic, tasks }
+    })
   }, [raw])
 }

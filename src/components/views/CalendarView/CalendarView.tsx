@@ -1,13 +1,14 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import type { EventClickArg, EventDropArg, DateSelectArg } from '@fullcalendar/core'
+import type { EventClickArg, EventDropArg, DateSelectArg, DatesSetArg } from '@fullcalendar/core'
 import { FolderOpen } from 'lucide-react'
 import { useCalendarTasks } from '@/hooks/useCalendarTasks'
 import { useUIStore } from '@/store/uiStore'
 import { taskRepo } from '@/repositories'
+import { resolveTaskId } from '@/utils/recurrenceUtils'
 import './calendar.css'
 
 // Issue #7/#8: レンダリングと無関係な静的 props はモジュール定数に切り出して参照を安定させる
@@ -29,17 +30,25 @@ const FC_BUTTON_TEXT = {
 export function CalendarView() {
   // Hooks はすべて early return より前に呼ぶ（React の規則）
   const { selectedProjectId, openTaskDrawer } = useUIStore()
-  const events = useCalendarTasks(selectedProjectId)
+  const [rangeStart, setRangeStart] = useState<Date | null>(null)
+  const [rangeEnd, setRangeEnd] = useState<Date | null>(null)
+  const events = useCalendarTasks(selectedProjectId, rangeStart, rangeEnd)
+
+  const handleDatesSet = useCallback((arg: DatesSetArg) => {
+    setRangeStart(arg.start)
+    setRangeEnd(arg.end)
+  }, [])
 
   // Issue #5: useCallback で関数参照を安定させ FullCalendar の不要な再バインドを防ぐ
   const handleEventClick = useCallback(
     (arg: EventClickArg) => {
-      openTaskDrawer(arg.event.id)
+      openTaskDrawer(resolveTaskId(arg.event.id))
     },
     [openTaskDrawer]
   )
 
   // Issue #6: try/catch で uncaught promise rejection を防ぎ、失敗時は必ず revert
+  // 繰り返し展開イベントのドロップは基準 dueDate を更新する
   const handleEventDrop = useCallback(async (arg: EventDropArg) => {
     const newDate = arg.event.start
     if (!newDate) {
@@ -47,7 +56,7 @@ export function CalendarView() {
       return
     }
     try {
-      const result = await taskRepo.update(arg.event.id, { dueDate: newDate })
+      const result = await taskRepo.update(resolveTaskId(arg.event.id), { dueDate: newDate })
       if (!result.ok) {
         arg.revert()
         console.error('[CalendarView] dueDate 更新失敗:', result.error)
@@ -88,6 +97,7 @@ export function CalendarView() {
         eventClick={handleEventClick}
         eventDrop={handleEventDrop}
         select={handleDateSelect}
+        datesSet={handleDatesSet}
         buttonText={FC_BUTTON_TEXT}
       />
     </div>

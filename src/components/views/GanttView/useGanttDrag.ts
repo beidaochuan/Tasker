@@ -4,6 +4,7 @@ import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY } from './ganttConstants'
 import { taskRepo } from '@/repositories'
+import { resolveTaskId } from '@/utils/recurrenceUtils'
 
 type Handle = 'move' | 'left' | 'right'
 
@@ -90,7 +91,7 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
       target.setPointerCapture(e.pointerId)
 
       dragRef.current = {
-        taskId: task.id,
+        taskId: resolveTaskId(task.id),
         handle,
         startX: e.clientX,
         ppd: PIXELS_PER_DAY[scale], // #2: 開始時のスケールを確定
@@ -132,6 +133,7 @@ export function calcGanttRange(rows: { tasks: Task[] }[]): { startDate: Date; to
   const allDates: Date[] = [startOfDay(new Date())]
   for (const row of rows) {
     for (const task of row.tasks) {
+      if (task.id.includes('_')) continue // 仮想インスタンスは表示幅の計算から除外
       if (task.startDate) allDates.push(startOfDay(task.startDate))
       if (task.dueDate) allDates.push(startOfDay(task.dueDate))
     }

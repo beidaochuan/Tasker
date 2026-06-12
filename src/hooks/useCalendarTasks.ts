@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { addDays } from 'date-fns'
 import { db } from '@/db/schema'
 import { rowToTask } from '@/repositories/taskRepository'
+import { expandOccurrences, hasRepeatRule } from '@/utils/recurrenceUtils'
 import type { Task, TaskStatus } from '@/types'
 
 export interface CalendarEvent {
@@ -25,7 +26,11 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
   cancelled: '#9ca3af',
 }
 
-export function useCalendarTasks(projectId: string | null): CalendarEvent[] {
+export function useCalendarTasks(
+  projectId: string | null,
+  rangeStart: Date | null,
+  rangeEnd: Date | null
+): CalendarEvent[] {
   // Issue #3: useLiveQuery<Task[]> で戻り値型を明示
   const tasks = useLiveQuery<Task[]>(async () => {
     if (!projectId) return []
@@ -39,23 +44,44 @@ export function useCalendarTasks(projectId: string | null): CalendarEvent[] {
   return useMemo(() => {
     if (!tasks) return []
     const events: CalendarEvent[] = []
+
     for (const task of tasks) {
       if (!task.dueDate) continue
-      const start = task.startDate ?? task.dueDate
-      // Issue #2: addDays(date-fns) でイミュータブルに +1日
-      const end = addDays(task.dueDate, 1)
       const color = STATUS_COLORS[task.status]
-      events.push({
-        id: task.id,
-        title: task.title,
-        start,
-        end,
-        allDay: true,
-        extendedProps: { task },
-        backgroundColor: color,
-        borderColor: color,
-      })
+
+      if (hasRepeatRule(task.repeatRule)) {
+        // rangeStart/rangeEnd が確定してから展開（datesSet 未発火の間はスキップ）
+        if (!rangeStart || !rangeEnd) continue
+        const occurrences = expandOccurrences(task.repeatRule, task.dueDate, rangeStart, rangeEnd)
+        for (const date of occurrences) {
+          events.push({
+            id: `${task.id}_${date.getTime()}`,
+            title: task.title,
+            start: date,
+            end: addDays(date, 1),
+            allDay: true,
+            extendedProps: { task },
+            backgroundColor: color,
+            borderColor: color,
+          })
+        }
+      } else {
+        // 繰り返しなし: そのまま表示
+        const start = task.startDate ?? task.dueDate
+        // Issue #2: addDays(date-fns) でイミュータブルに +1日
+        const end = addDays(task.dueDate, 1)
+        events.push({
+          id: task.id,
+          title: task.title,
+          start,
+          end,
+          allDay: true,
+          extendedProps: { task },
+          backgroundColor: color,
+          borderColor: color,
+        })
+      }
     }
     return events
-  }, [tasks])
+  }, [tasks, rangeStart, rangeEnd])
 }
