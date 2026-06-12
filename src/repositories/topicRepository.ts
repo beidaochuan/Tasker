@@ -71,4 +71,18 @@ export class TopicRepository {
       return { ok: false, error: { code: 'DB_ERROR', message: String(e) } }
     }
   }
+
+  async getIdsByProjectId(projectId: string): Promise<string[]> {
+    const rows = await this.#db.topics.where('projectId').equals(projectId).primaryKeys()
+    return rows as string[]
+  }
+
+  async deleteByProjectId(projectId: string): Promise<Result<void>> {
+    try {
+      await this.#db.topics.where('projectId').equals(projectId).delete()
+      return { ok: true, data: undefined }
+    } catch (e) {
+      return { ok: false, error: { code: 'DB_ERROR', message: String(e) } }
+    }
+  }
 }

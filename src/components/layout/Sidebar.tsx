@@ -10,6 +10,7 @@ import {
   Upload,
   AlertTriangle,
   CheckCircle,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/button'
@@ -18,12 +19,14 @@ import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
 import { TagManager } from '@/components/task/TagManager'
 import { exportAllData, importAllData } from '@/utils/exportUtils'
+import { projectRepo, topicRepo, taskRepo } from '@/repositories'
 
 type DialogState =
   | { type: 'none' }
   | { type: 'confirm'; file: File }
   | { type: 'success' }
   | { type: 'error'; message: string }
+  | { type: 'deleteConfirm'; projectId: string; projectName: string }
 
 export function Sidebar() {
   const projects = useProjects()
@@ -38,6 +41,20 @@ export function Sidebar() {
     if (!file) return
     e.target.value = ''
     setDialogState({ type: 'confirm', file })
+  }
+
+  async function handleDeleteProject() {
+    if (dialogState.type !== 'deleteConfirm') return
+    const { projectId } = dialogState
+    setDialogState({ type: 'none' })
+
+    // トピックIDを取得してタスクを連鎖削除
+    const topicIds = await topicRepo.getIdsByProjectId(projectId)
+    await Promise.all(topicIds.map((id) => taskRepo.deleteByTopicId(id)))
+    await topicRepo.deleteByProjectId(projectId)
+    await projectRepo.delete(projectId)
+
+    if (selectedProjectId === projectId) setSelectedProjectId(null)
   }
 
   async function handleConfirmImport() {
@@ -66,22 +83,39 @@ export function Sidebar() {
 
       <nav className="flex-1 overflow-y-auto px-2 py-1">
         {projects.map((project) => (
-          <button
+          <div
             key={project.id}
-            onClick={() => setSelectedProjectId(project.id)}
             className={cn(
-              'flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors border-b border-border/40',
+              'group flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors border-b border-border/40',
               selectedProjectId === project.id
                 ? 'bg-accent text-accent-foreground'
                 : 'text-foreground hover:bg-accent/50'
             )}
           >
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: project.color }}
-            />
-            <span className="truncate">{project.name}</span>
-          </button>
+            <button
+              className="flex min-w-0 flex-1 items-center gap-2"
+              onClick={() => setSelectedProjectId(project.id)}
+            >
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: project.color }}
+              />
+              <span className="truncate">{project.name}</span>
+            </button>
+            <button
+              className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              onClick={() =>
+                setDialogState({
+                  type: 'deleteConfirm',
+                  projectId: project.id,
+                  projectName: project.name,
+                })
+              }
+              title="プロジェクトを削除"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         ))}
 
         {projects.length === 0 && (
@@ -141,6 +175,34 @@ export function Sidebar() {
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-6 shadow-lg focus:outline-none">
+            {dialogState.type === 'deleteConfirm' && (
+              <>
+                <div className="mb-4 flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                  <div>
+                    <Dialog.Title className="text-sm font-semibold">
+                      プロジェクトの削除
+                    </Dialog.Title>
+                    <Dialog.Description className="mt-1 text-xs text-muted-foreground">
+                      「{dialogState.projectName}
+                      」とそのすべてのタスクを削除します。この操作は元に戻せません。
+                    </Dialog.Description>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDialogState({ type: 'none' })}
+                  >
+                    キャンセル
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
+                    削除
+                  </Button>
+                </div>
+              </>
+            )}
             {dialogState.type === 'confirm' && (
               <>
                 <div className="mb-4 flex items-start gap-3">
