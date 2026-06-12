@@ -34,18 +34,6 @@ export function useGanttData(projectId: string | null): GanttRow[] {
       const task = rowToTask(row)
       ;(tasksByTopic[task.topicId] ??= []).push(task)
     }
-    for (const tasks of Object.values(tasksByTopic)) {
-      tasks.sort((a, b) => {
-        const aDate = a.startDate ?? a.dueDate
-        const bDate = b.startDate ?? b.dueDate
-        if (aDate && !bDate) return -1
-        if (!aDate && bDate) return 1
-        if (aDate && bDate && aDate.getTime() !== bDate.getTime()) {
-          return aDate.getTime() - bDate.getTime()
-        }
-        return a.title.localeCompare(b.title, 'ja')
-      })
-    }
     return { topics, tasksByTopic }
   }, [projectId])
 
@@ -76,6 +64,17 @@ export function useGanttData(projectId: string | null): GanttRow[] {
           tasks.push(task)
         }
       }
+
+      tasks.sort((a, b) => {
+        const aDate = a.startDate ?? a.dueDate
+        const bDate = b.startDate ?? b.dueDate
+        if (aDate && !bDate) return -1
+        if (!aDate && bDate) return 1
+        if (aDate && bDate && aDate.getTime() !== bDate.getTime()) {
+          return aDate.getTime() - bDate.getTime()
+        }
+        return a.title.localeCompare(b.title, 'ja')
+      })
 
       return { topic, tasks }
     })
