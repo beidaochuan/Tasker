@@ -33,7 +33,7 @@ export const KanbanColumn = memo(function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex w-64 shrink-0 flex-col rounded-lg border border-border bg-muted/30',
+        'flex min-w-64 flex-1 flex-col rounded-lg border border-border bg-muted/30',
         isOver && 'ring-2 ring-primary/60'
       )}
     >
