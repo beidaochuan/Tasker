@@ -133,7 +133,6 @@ export function calcGanttRange(rows: { tasks: Task[] }[]): { startDate: Date; to
   const allDates: Date[] = [startOfDay(new Date())]
   for (const row of rows) {
     for (const task of row.tasks) {
-      if (task.id.includes('_')) continue // 仮想インスタンスは表示幅の計算から除外
       if (task.startDate) allDates.push(startOfDay(task.startDate))
       if (task.dueDate) allDates.push(startOfDay(task.dueDate))
     }

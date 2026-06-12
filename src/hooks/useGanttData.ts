@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { addMonths, startOfDay } from 'date-fns'
+import { startOfDay, addDays } from 'date-fns'
 import { db } from '@/db/schema'
 import { rowToTask } from '@/repositories/taskRepository'
 import { fromUnixMs } from '@/utils/dateUtils'
@@ -17,10 +17,6 @@ interface RawGanttData {
   topics: Topic[]
   tasksByTopic: Record<string, Task[]>
 }
-
-// 繰り返し展開の対象ウィンドウ: 今日の前後 6 ヶ月
-const EXPAND_MONTHS_BEFORE = 6
-const EXPAND_MONTHS_AFTER = 6
 
 export function useGanttData(projectId: string | null): GanttRow[] {
   // #9: 型パラメータを明示して RawGanttData | null の型推論を確定させる
@@ -48,8 +44,6 @@ export function useGanttData(projectId: string | null): GanttRow[] {
     if (!raw) return []
 
     const today = startOfDay(new Date())
-    const rangeStart = addMonths(today, -EXPAND_MONTHS_BEFORE)
-    const rangeEnd = addMonths(today, EXPAND_MONTHS_AFTER)
 
     return raw.topics.map((topic) => {
       const baseTasks = raw.tasksByTopic[topic.id] ?? []
@@ -57,17 +51,17 @@ export function useGanttData(projectId: string | null): GanttRow[] {
 
       for (const task of baseTasks) {
         if (hasRepeatRule(task.repeatRule) && task.dueDate) {
-          const occurrences = expandOccurrences(task.repeatRule, task.dueDate, rangeStart, rangeEnd)
-          for (const date of occurrences) {
-            tasks.push({
-              ...task,
-              id: `${task.id}_${date.getTime()}`,
-              dueDate: date,
-              startDate: task.startDate
-                ? new Date(date.getTime() - (task.dueDate.getTime() - task.startDate.getTime()))
-                : null,
-            })
-          }
+          // 今日以降の直近1件だけ表示（今日を含む次の発生日を expandOccurrences で取得）
+          const farFuture = addDays(today, 3650)
+          const upcoming = expandOccurrences(task.repeatRule, task.dueDate, today, farFuture)
+          const nextDate = upcoming[0] ?? task.dueDate
+          const duration = task.startDate ? task.dueDate.getTime() - task.startDate.getTime() : null
+          tasks.push({
+            ...task,
+            id: `${task.id}_${nextDate.getTime()}`,
+            dueDate: nextDate,
+            startDate: duration !== null ? new Date(nextDate.getTime() - duration) : null,
+          })
         } else {
           tasks.push(task)
         }

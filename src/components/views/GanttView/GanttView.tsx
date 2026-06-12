@@ -22,7 +22,7 @@ const TOPIC_ROW_HEIGHT = 28
 interface FlatRow {
   type: 'topic' | 'task-row'
   label: string
-  tasks: Task[]
+  tasks: Task[] // task-row の場合は必ず1要素
 }
 
 export function GanttView() {
@@ -44,7 +44,9 @@ export function GanttView() {
     const rows: FlatRow[] = []
     for (const { topic, tasks } of ganttRows) {
       rows.push({ type: 'topic', label: topic.name, tasks: [] })
-      rows.push({ type: 'task-row', label: '', tasks })
+      for (const task of tasks) {
+        rows.push({ type: 'task-row', label: task.title, tasks: [task] })
+      }
     }
     return rows
   }, [ganttRows])
@@ -90,12 +92,12 @@ export function GanttView() {
     })
   }, [])
 
-  // #4: parentRef は未使用のため削除。useVirtualizer は rightScrollRef を直接参照する
   const rowVirtualizer = useVirtualizer({
     count: flatRows.length,
     getScrollElement: () => rightScrollRef.current,
     estimateSize: (i) => (flatRows[i].type === 'topic' ? TOPIC_ROW_HEIGHT : ROW_HEIGHT),
     overscan: 5,
+    scrollPaddingStart: HEADER_HEIGHT,
   })
 
   if (!selectedProjectId) {
@@ -133,84 +135,76 @@ export function GanttView() {
       <div className="flex flex-1 overflow-hidden">
         {/* 左ペイン: タスク名リスト */}
         <div
-          className="shrink-0 overflow-hidden border-r border-border"
+          className="relative shrink-0 overflow-y-auto overflow-x-hidden border-r border-border"
+          ref={leftScrollRef}
           style={{ width: LEFT_PANE_WIDTH }}
+          onScroll={syncLeft}
         >
-          <div className="border-b border-border bg-muted/50" style={{ height: HEADER_HEIGHT }} />
           <div
-            ref={leftScrollRef}
-            className="overflow-y-auto overflow-x-hidden"
-            style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
-            onScroll={syncLeft}
-          >
-            <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
-              {rowVirtualizer.getVirtualItems().map((vi) => {
-                const row = flatRows[vi.index]
-                return (
-                  <div
-                    key={vi.index}
-                    className={`absolute left-0 right-0 flex items-center border-b border-border px-3 ${
-                      row.type === 'topic'
-                        ? 'bg-muted/50 text-xs font-semibold text-muted-foreground'
-                        : 'text-sm text-foreground'
-                    }`}
-                    style={{ top: vi.start, height: vi.size }}
-                  >
-                    {row.type === 'topic' && <span className="truncate">{row.label}</span>}
-                  </div>
-                )
-              })}
-            </div>
+            className="sticky top-0 z-10 border-b border-border bg-muted/50"
+            style={{ height: HEADER_HEIGHT }}
+          />
+          <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
+            {rowVirtualizer.getVirtualItems().map((vi) => {
+              const row = flatRows[vi.index]
+              return (
+                <div
+                  key={vi.index}
+                  className={`absolute left-0 right-0 flex items-center border-b border-border px-3 ${
+                    row.type === 'topic'
+                      ? 'bg-muted/50 text-xs font-semibold text-muted-foreground'
+                      : 'text-sm text-foreground'
+                  }`}
+                  style={{ top: vi.start, height: vi.size }}
+                >
+                  <span className="truncate">{row.label}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
 
-        {/* 右ペイン: タイムライン */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div
-            className="overflow-x-auto overflow-y-hidden shrink-0"
-            style={{ height: HEADER_HEIGHT }}
-          >
-            <div style={{ width: totalWidth }}>
-              <GanttHeader startDate={startDate} totalDays={totalDays} scale={scale} />
-            </div>
+        {/* 右ペイン: タイムライン（ヘッダー + 本体を同一スクロールコンテナに入れ横スクロールを同期） */}
+        <div ref={rightScrollRef} className="flex-1 overflow-auto" onScroll={syncRight}>
+          {/* sticky ヘッダー: 縦スクロールで固定、横は本体と同期 */}
+          <div className="sticky top-0 z-10" style={{ width: totalWidth, height: HEADER_HEIGHT }}>
+            <GanttHeader startDate={startDate} totalDays={totalDays} scale={scale} />
           </div>
 
-          <div ref={rightScrollRef} className="flex-1 overflow-auto" onScroll={syncRight}>
-            <div
-              className="relative"
-              style={{ width: totalWidth, height: rowVirtualizer.getTotalSize() }}
-            >
-              <GanttTodayLine ganttStart={startDate} totalDays={totalDays} scale={scale} />
+          <div
+            className="relative"
+            style={{ width: totalWidth, height: rowVirtualizer.getTotalSize() }}
+          >
+            <GanttTodayLine ganttStart={startDate} totalDays={totalDays} scale={scale} />
 
-              {rowVirtualizer.getVirtualItems().map((vi) => {
-                const row = displayedFlatRows[vi.index] // #7: プレビュー適用済みのデータを使用
-                if (row.type === 'topic') {
-                  return (
-                    <div
-                      key={vi.index}
-                      className="absolute left-0 right-0 border-b border-border bg-muted/30"
-                      style={{ top: vi.start, height: vi.size, width: totalWidth }}
-                    />
-                  )
-                }
+            {rowVirtualizer.getVirtualItems().map((vi) => {
+              const row = displayedFlatRows[vi.index]
+              if (row.type === 'topic') {
                 return (
                   <div
                     key={vi.index}
-                    className="absolute left-0"
+                    className="absolute left-0 right-0 border-b border-border bg-muted/30"
                     style={{ top: vi.start, height: vi.size, width: totalWidth }}
-                  >
-                    <GanttRow
-                      tasks={row.tasks}
-                      totalDays={totalDays}
-                      ganttStart={startDate}
-                      scale={scale}
-                      onBarPointerDown={onBarPointerDown}
-                      onBarClick={openTaskDrawer}
-                    />
-                  </div>
+                  />
                 )
-              })}
-            </div>
+              }
+              return (
+                <div
+                  key={vi.index}
+                  className="absolute left-0"
+                  style={{ top: vi.start, height: vi.size, width: totalWidth }}
+                >
+                  <GanttRow
+                    tasks={row.tasks}
+                    totalDays={totalDays}
+                    ganttStart={startDate}
+                    scale={scale}
+                    onBarPointerDown={onBarPointerDown}
+                    onBarClick={openTaskDrawer}
+                  />
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
