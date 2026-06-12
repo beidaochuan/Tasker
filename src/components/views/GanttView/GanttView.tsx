@@ -32,7 +32,7 @@ interface FlatRow {
 export function GanttView() {
   const { selectedProjectId, openTaskDrawer } = useUIStore()
   const ganttRows = useGanttData(selectedProjectId)
-  const [scale, setScale] = useState<GanttScale>('week')
+  const [scale, setScale] = useState<GanttScale>('day')
 
   const ppd = PIXELS_PER_DAY[scale]
 
