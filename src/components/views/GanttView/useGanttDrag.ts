@@ -50,15 +50,17 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
       newStartDate = drag.originalStartDate ? addDays(drag.originalStartDate, daysDelta) : null
       newDueDate = drag.originalDueDate ? addDays(drag.originalDueDate, daysDelta) : null
     } else if (drag.handle === 'left') {
-      if (drag.originalStartDate) {
-        const candidate = addDays(drag.originalStartDate, daysDelta)
-        const due = drag.originalDueDate ?? drag.originalStartDate
+      const baseStart = drag.originalStartDate ?? drag.originalDueDate
+      if (baseStart) {
+        const candidate = addDays(baseStart, daysDelta)
+        const due = drag.originalDueDate ?? baseStart
         newStartDate = candidate <= due ? candidate : due
       }
     } else if (drag.handle === 'right') {
-      if (drag.originalDueDate) {
-        const candidate = addDays(drag.originalDueDate, daysDelta)
-        const start = drag.originalStartDate ?? drag.originalDueDate
+      const baseDue = drag.originalDueDate ?? drag.originalStartDate
+      if (baseDue) {
+        const candidate = addDays(baseDue, daysDelta)
+        const start = drag.originalStartDate ?? baseDue
         newDueDate = candidate >= start ? candidate : start
       }
     }
@@ -89,16 +91,14 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
   }, [])
 
   const onBarPointerDown = useCallback(
-    (e: React.PointerEvent, task: Task, handle: Handle, element: HTMLElement) => {
+    (e: React.PointerEvent, task: Task, handle: Handle, _element: HTMLElement) => {
       e.preventDefault()
-      const target = element
-      target.setPointerCapture(e.pointerId)
 
       dragRef.current = {
         taskId: resolveTaskId(task.id),
         handle,
         startX: e.clientX,
-        ppd: PIXELS_PER_DAY[scale], // #2: 開始時のスケールを確定
+        ppd: PIXELS_PER_DAY[scale],
         originalStartDate: task.startDate ? startOfDay(task.startDate) : null,
         originalDueDate: task.dueDate ? startOfDay(task.dueDate) : null,
         previewStartDate: task.startDate,
@@ -106,24 +106,21 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
       }
 
       const handleMove = (ev: PointerEvent) => onPointerMove(ev)
-      const handleUp = async () => {
-        await onPointerUp()
-        target.removeEventListener('pointermove', handleMove)
-        target.removeEventListener('pointerup', handleUp)
-        target.removeEventListener('pointercancel', handleCancel) // #1
-      }
-      // #1: pointercancel でドラッグ状態を確実にリセット（タッチスクロール割り込み等）
-      const handleCancel = () => {
-        dragRef.current = null
-        setPreview(new Map())
-        target.removeEventListener('pointermove', handleMove)
-        target.removeEventListener('pointerup', handleUp)
-        target.removeEventListener('pointercancel', handleCancel)
+      const cleanup = async (ev?: PointerEvent) => {
+        window.removeEventListener('pointermove', handleMove)
+        window.removeEventListener('pointerup', cleanup)
+        window.removeEventListener('pointercancel', cleanup)
+        if (ev?.type === 'pointercancel') {
+          dragRef.current = null
+          setPreview(new Map())
+        } else {
+          await onPointerUp()
+        }
       }
 
-      target.addEventListener('pointermove', handleMove)
-      target.addEventListener('pointerup', handleUp)
-      target.addEventListener('pointercancel', handleCancel)
+      window.addEventListener('pointermove', handleMove)
+      window.addEventListener('pointerup', cleanup)
+      window.addEventListener('pointercancel', cleanup)
     },
     [scale, onPointerMove, onPointerUp]
   )

@@ -45,8 +45,10 @@ export const GanttBar = memo(function GanttBar({
   const durationDays = start && end ? Math.max(1, differenceInDays(end, start) + 1) : 1
   const width = durationDays * ppd
 
-  // バー幅に応じてハンドル幅を決定（小さいバーでも端1/3をリサイズ領域とする）
-  const handleWidth = Math.min(RESIZE_HANDLE_WIDTH, Math.floor(width / 3))
+  // move 領域が確保できる最小幅（ハンドル×2 + 1px）
+  const minMoveWidth = RESIZE_HANDLE_WIDTH * 2 + 1
+  // バーが小さいときは左右を均等に二分割してリサイズ専用にする
+  const handleWidth = width >= minMoveWidth ? RESIZE_HANDLE_WIDTH : Math.ceil(width / 2)
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
