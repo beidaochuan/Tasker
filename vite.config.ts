@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 export default defineConfig({
+  base: '/Tasker/',
   plugins: [
     tailwindcss(),
     react(),
@@ -18,10 +19,10 @@ export default defineConfig({
         theme_color: '#863bff',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
+        start_url: '/Tasker/',
         icons: [
           {
-            src: '/favicon.svg',
+            src: '/Tasker/favicon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any maskable',

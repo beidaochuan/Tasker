@@ -1,0 +1,59 @@
+name: Release & Deploy
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      # ライセンス情報を JSON として生成（ビルド前に public/ へ）
+      - name: Generate third-party licenses
+        run: |
+          npx license-checker --production --json \
+            --fields licenses,repository \
+            > public/third-party-licenses.json
+
+      - run: npm run build
+
+      # CHANGELOG から最新バージョンのセクションを抽出
+      - name: Extract release notes
+        run: awk '/^## \[/{if(p)exit; p=1} p' CHANGELOG.md > RELEASE_NOTES.md
+
+      # dist/ を zip 化
+      - name: Create zip archive
+        run: cd dist && zip -r ../tasker-${{ github.ref_name }}.zip .
+
+      # GitHub Pages デプロイ
+      - uses: actions/configure-pages@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      # GitHub Release 作成（zip 添付）
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: tasker-${{ github.ref_name }}.zip

@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Trash2,
+  Info,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ import { useThemeStore } from '@/store/themeStore'
 import { TagManager } from '@/components/task/TagManager'
 import { exportAllData, importAllData } from '@/utils/exportUtils'
 import { projectRepo, topicRepo, taskRepo } from '@/repositories'
+import { LicensesDialog } from './LicensesDialog'
 
 type DialogState =
   | { type: 'none' }
@@ -33,6 +35,7 @@ export function Sidebar() {
   const { selectedProjectId, setSelectedProjectId, openProjectForm } = useUIStore()
   const { isDark, toggleDark } = useThemeStore()
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false)
+  const [isLicensesOpen, setIsLicensesOpen] = useState(false)
   const [dialogState, setDialogState] = useState<DialogState>({ type: 'none' })
   const importInputRef = useRef<HTMLInputElement>(null)
 
@@ -154,6 +157,15 @@ export function Sidebar() {
         >
           <Upload className="h-4 w-4" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsLicensesOpen(true)}
+          title="ライセンス情報"
+          aria-label="ライセンス情報"
+        >
+          <Info className="h-4 w-4" />
+        </Button>
         <input
           ref={importInputRef}
           type="file"
@@ -164,6 +176,7 @@ export function Sidebar() {
       </div>
 
       {isTagManagerOpen && <TagManager onClose={() => setIsTagManagerOpen(false)} />}
+      {isLicensesOpen && <LicensesDialog onClose={() => setIsLicensesOpen(false)} />}
 
       {/* インポート確認 / 結果ダイアログ */}
       <Dialog.Root
