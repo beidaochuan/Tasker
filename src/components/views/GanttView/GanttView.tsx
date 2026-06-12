@@ -45,7 +45,7 @@ export function GanttView() {
   const { preview, onBarPointerDown } = useGanttDrag(startDate, scale)
 
   const handleCreateBar = useCallback(async (taskId: string, startDate: Date, dueDate: Date) => {
-    await taskRepo.update(resolveTaskId(taskId), { startDate, dueDate })
+    await taskRepo.update(resolveTaskId(taskId), { startDate, dueDate, status: 'todo' })
   }, [])
 
   const flatRows = useMemo<FlatRow[]>(() => {

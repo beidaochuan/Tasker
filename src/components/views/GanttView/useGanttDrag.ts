@@ -21,7 +21,12 @@ interface DragState {
 
 interface GanttDragResult {
   preview: Map<string, { startDate: Date | null; dueDate: Date | null }>
-  onBarPointerDown: (e: React.PointerEvent, task: Task, handle: Handle) => void
+  onBarPointerDown: (
+    e: React.PointerEvent,
+    task: Task,
+    handle: Handle,
+    element: HTMLElement
+  ) => void
 }
 
 export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragResult {
@@ -84,10 +89,9 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
   }, [])
 
   const onBarPointerDown = useCallback(
-    (e: React.PointerEvent, task: Task, handle: Handle) => {
+    (e: React.PointerEvent, task: Task, handle: Handle, element: HTMLElement) => {
       e.preventDefault()
-      // #1: e.currentTarget でキャプチャ元を確実に取得
-      const target = e.currentTarget as HTMLElement
+      const target = element
       target.setPointerCapture(e.pointerId)
 
       dragRef.current = {

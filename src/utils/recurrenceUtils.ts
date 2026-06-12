@@ -118,6 +118,10 @@ export function hasRepeatRule(rruleStr: string | null | undefined): rruleStr is 
   return typeof rruleStr === 'string' && rruleStr.length > 0
 }
 
+export function isVirtualTask(id: string): boolean {
+  return id !== resolveTaskId(id)
+}
+
 // #11: Record マップで網羅性チェックを TypeScript に委ねる
 export function describeRRule(rruleStr: string | null): string {
   if (!rruleStr) return ''

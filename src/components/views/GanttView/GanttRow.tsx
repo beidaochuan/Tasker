@@ -10,7 +10,12 @@ interface Props {
   totalDays: number
   ganttStart: Date
   scale: GanttScale
-  onBarPointerDown?: (e: React.PointerEvent, task: Task, handle: 'move' | 'left' | 'right') => void
+  onBarPointerDown?: (
+    e: React.PointerEvent,
+    task: Task,
+    handle: 'move' | 'left' | 'right',
+    element: HTMLElement
+  ) => void
   onBarClick?: (taskId: string) => void
   onCreateBar?: (taskId: string, startDate: Date, dueDate: Date) => void
 }

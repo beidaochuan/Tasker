@@ -3,7 +3,7 @@ import { differenceInDays, startOfDay } from 'date-fns'
 import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, RESIZE_HANDLE_WIDTH } from './ganttConstants'
-import { resolveTaskId } from '@/utils/recurrenceUtils'
+import { resolveTaskId, isVirtualTask } from '@/utils/recurrenceUtils'
 
 const STATUS_COLORS: Record<Exclude<Task['status'], 'cancelled'>, string> = {
   todo: 'bg-indigo-500',
@@ -15,7 +15,12 @@ interface Props {
   task: Task
   ganttStart: Date
   scale: GanttScale
-  onBarPointerDown?: (e: React.PointerEvent, task: Task, handle: 'move' | 'left' | 'right') => void
+  onBarPointerDown?: (
+    e: React.PointerEvent,
+    task: Task,
+    handle: 'move' | 'left' | 'right',
+    element: HTMLElement
+  ) => void
   onClick?: (taskId: string) => void
 }
 
@@ -28,68 +33,74 @@ export const GanttBar = memo(function GanttBar({
 }: Props) {
   const didDragRef = useRef(false)
 
+  const isVirtual = isVirtualTask(task.id)
+
+  const ppd = PIXELS_PER_DAY[scale]
+  const hasDate = !!(task.startDate || task.dueDate)
+  const start = hasDate ? startOfDay(task.startDate ?? task.dueDate!) : null
+  const end = hasDate ? startOfDay(task.dueDate ?? task.startDate!) : null
+  const barStart = startOfDay(ganttStart)
+
+  const left = start ? differenceInDays(start, barStart) * ppd : 0
+  const durationDays = start && end ? Math.max(1, differenceInDays(end, start) + 1) : 1
+  const width = durationDays * ppd
+
+  // バー幅に応じてハンドル幅を決定（小さいバーでも端1/3をリサイズ領域とする）
+  const handleWidth = Math.min(RESIZE_HANDLE_WIDTH, Math.floor(width / 3))
+
   const handlePointerDown = useCallback(
-    (e: React.PointerEvent, handle: 'move' | 'left' | 'right') => {
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (isVirtual || !onBarPointerDown) return
       e.stopPropagation()
       didDragRef.current = false
+
+      // e.currentTarget はハンドラ終了後 null になるため先に保存
+      const el = e.currentTarget
+
+      // バー内のX座標で handle を判定
+      const rect = el.getBoundingClientRect()
+      const xInBar = e.clientX - rect.left
+      let handle: 'move' | 'left' | 'right'
+      if (xInBar <= handleWidth) {
+        handle = 'left'
+      } else if (xInBar >= width - handleWidth) {
+        handle = 'right'
+      } else {
+        handle = 'move'
+      }
+
       const startX = e.clientX
       const onMove = (ev: PointerEvent) => {
         if (Math.abs(ev.clientX - startX) > 4) didDragRef.current = true
       }
-      const onUp = () => {
+      const cleanup = () => {
         window.removeEventListener('pointermove', onMove)
-        window.removeEventListener('pointerup', onUp)
+        window.removeEventListener('pointerup', cleanup)
+        window.removeEventListener('pointercancel', cleanup)
       }
       window.addEventListener('pointermove', onMove)
-      window.addEventListener('pointerup', onUp)
-      onBarPointerDown?.(e, task, handle)
+      window.addEventListener('pointerup', cleanup)
+      window.addEventListener('pointercancel', cleanup)
+
+      onBarPointerDown(e, task, handle, el)
     },
-    [onBarPointerDown, task]
+    [isVirtual, onBarPointerDown, task, handleWidth, width]
   )
 
-  if (!task.startDate && !task.dueDate) return null
-
-  const isVirtual = /^\S+_\d+$/.test(task.id)
-
-  const ppd = PIXELS_PER_DAY[scale]
-  const start = startOfDay(task.startDate ?? task.dueDate!)
-  const end = startOfDay(task.dueDate ?? task.startDate!)
-  const barStart = startOfDay(ganttStart)
-
-  const left = differenceInDays(start, barStart) * ppd
-  const durationDays = Math.max(1, differenceInDays(end, start) + 1)
-  const width = durationDays * ppd
+  if (!hasDate || task.status === 'cancelled') return null
 
   const barHeight = ROW_HEIGHT - 12
-
-  if (task.status === 'cancelled') return null
-
   const colorClass = STATUS_COLORS[task.status]
 
   return (
     <div
-      className={`absolute top-[6px] rounded cursor-pointer select-none flex items-center overflow-hidden ${colorClass}`}
-      style={{ left, width, height: barHeight }}
-      onPointerDown={isVirtual ? undefined : (e) => handlePointerDown(e, 'move')}
+      className={`absolute top-[6px] rounded select-none flex items-center overflow-hidden ${colorClass}`}
+      style={{ left, width, height: barHeight, cursor: isVirtual ? 'default' : 'grab' }}
+      onPointerDown={handlePointerDown}
       onClick={() => {
         if (!didDragRef.current) onClick?.(resolveTaskId(task.id))
       }}
       title={task.title}
-    >
-      {!isVirtual && (
-        <div
-          className="absolute left-0 top-0 h-full cursor-ew-resize z-10 hover:bg-black/20"
-          style={{ width: RESIZE_HANDLE_WIDTH }}
-          onPointerDown={(e) => handlePointerDown(e, 'left')}
-        />
-      )}
-      {!isVirtual && (
-        <div
-          className="absolute right-0 top-0 h-full cursor-ew-resize z-10 hover:bg-black/20"
-          style={{ width: RESIZE_HANDLE_WIDTH }}
-          onPointerDown={(e) => handlePointerDown(e, 'right')}
-        />
-      )}
-    </div>
+    />
   )
 })
