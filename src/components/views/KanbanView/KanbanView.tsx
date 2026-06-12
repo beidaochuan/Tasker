@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -6,6 +6,9 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  pointerWithin,
+  rectIntersection,
+  type CollisionDetection,
   type DragStartEvent,
   type DragOverEvent,
   type DragEndEvent,
@@ -47,10 +50,20 @@ export function KanbanView() {
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
   const [overColumnId, setOverColumnId] = useState<TaskStatus | null>(null)
   const [localTasksByStatus, setLocalTasksByStatus] = useState<TasksByStatus | null>(null)
+  const localTasksByStatusRef = useRef<TasksByStatus | null>(null)
 
   const displayed = localTasksByStatus ?? tasksByStatus
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  // ポインタが列に入った瞬間を優先し、なければ矩形交差、最後に角距離で判定
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const pointer = pointerWithin(args)
+    if (pointer.length > 0) return pointer
+    const rect = rectIntersection(args)
+    if (rect.length > 0) return rect
+    return closestCorners(args)
+  }, [])
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const task = event.active.data.current?.task as Task | undefined
@@ -84,11 +97,13 @@ export function KanbanView() {
         const activeTask = base[currentCol].find((t) => t.id === activeId)
         if (!activeTask) return prev
 
-        return {
+        const next = {
           ...base,
           [currentCol]: base[currentCol].filter((t) => t.id !== activeId),
           [targetCol]: [...base[targetCol], { ...activeTask, status: targetCol }],
         }
+        localTasksByStatusRef.current = next
+        return next
       })
     },
     [tasksByStatus]
@@ -97,29 +112,46 @@ export function KanbanView() {
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
       const { active, over } = event
-      const currentLocal = localTasksByStatus // リセット前にキャプチャ
+      const currentLocal = localTasksByStatusRef.current
 
       setDraggingTask(null)
       setOverColumnId(null)
-      setLocalTasksByStatus(null)
 
-      if (!over) return
+      const clearLocal = () => {
+        setLocalTasksByStatus(null)
+        localTasksByStatusRef.current = null
+      }
+
+      if (!over) {
+        clearLocal()
+        return
+      }
 
       const activeTask = active.data.current?.task as Task | undefined
-      if (!activeTask) return
+      if (!activeTask) {
+        clearLocal()
+        return
+      }
 
-      // ターゲット列は DB 状態ではなくローカル状態から解決（Issue #3 修正）
       const base = currentLocal ?? tasksByStatus
       const targetCol = resolveTargetColumn(over.id as string, base)
-      if (!targetCol || targetCol === activeTask.status) return
+      const originalCol = findColumnOfTask(activeTask.id, tasksByStatus)
+      if (!targetCol || targetCol === originalCol) {
+        clearLocal()
+        return
+      }
 
-      // WIP制限: DB 状態の件数で最終確認
       const wipLimit = WIP_LIMITS[targetCol]
-      if (wipLimit > 0 && tasksByStatus[targetCol].length >= wipLimit) return
+      if (wipLimit > 0 && tasksByStatus[targetCol].length >= wipLimit) {
+        clearLocal()
+        return
+      }
 
+      // DB書き込み完了後にローカル状態をクリア（先にクリアすると元列への残像が出る）
       await taskRepo.update(activeTask.id, { status: targetCol })
+      clearLocal()
     },
-    [localTasksByStatus, tasksByStatus]
+    [tasksByStatus]
   )
 
   if (!selectedProjectId) {
@@ -138,7 +170,7 @@ export function KanbanView() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
