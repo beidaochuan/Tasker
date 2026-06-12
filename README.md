@@ -52,7 +52,24 @@
 | テスト | Vitest + Testing Library |
 | PWA | vite-plugin-pwa |
 
-## セットアップ
+## 使い方
+
+### オンライン（GitHub Pages）
+
+[https://beidaochuan.github.io/Tasker/](https://beidaochuan.github.io/Tasker/) をブラウザで開くだけで使用できます。インストール不要。
+
+### ローカル（配布ビルドを使う）
+
+[Releases](https://github.com/beidaochuan/Tasker/releases) から最新の `tasker-vX.X.X.zip` をダウンロードして展開し、以下を実行します。
+
+```bash
+npx serve <展開したフォルダのパス>
+# 例: npx serve C:\Users\you\Downloads\tasker-v0.1.0
+```
+
+→ `http://localhost:3000` をブラウザで開く
+
+### ローカル（ソースコードから開発）
 
 ```bash
 # 依存パッケージのインストール
@@ -65,16 +82,16 @@ npm run dev
 ## コマンド一覧
 
 ```bash
-npm run dev          # 開発サーバー
-npm run build        # プロダクションビルド
-npm run preview      # ビルド結果をローカルでプレビュー
-npm run test         # テスト実行
-npm run test:watch   # テストをウォッチモードで実行
-npm run test:ui      # Vitest UI を開く
+npm run dev           # 開発サーバー
+npm run build         # プロダクションビルド（ローカル用、base=/）
+npm run preview       # ビルド結果をローカルでプレビュー
+npm run test          # テスト実行
+npm run test:watch    # テストをウォッチモードで実行
+npm run test:ui       # Vitest UI を開く
 npm run test:coverage # カバレッジ計測
-npm run lint         # ESLint チェック
-npm run lint:fix     # ESLint 自動修正
-npm run format       # Prettier フォーマット
+npm run lint          # ESLint チェック
+npm run lint:fix      # ESLint 自動修正
+npm run format        # Prettier フォーマット
 ```
 
 ## ディレクトリ構成
