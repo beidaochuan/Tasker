@@ -177,7 +177,7 @@ export function TaskDrawer() {
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={closeTaskDrawer} />
-      <div className="relative z-10 flex h-full w-full max-w-md flex-col bg-background shadow-xl">
+      <div className="relative z-10 flex h-full w-full max-w-md flex-col border-l border-border bg-background shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="font-semibold">{isNew ? 'タスクを作成' : 'タスクを編集'}</h2>
           <div className="flex gap-1">

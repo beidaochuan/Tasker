@@ -39,7 +39,7 @@ export class TaskerDB extends Dexie {
   task_completions!: EntityTable<TaskCompletionRow, 'id'>
 
   constructor(indexedDB?: IDBFactory) {
-    super('TaskerDB', { indexedDB })
+    super('TaskerDB', indexedDB ? { indexedDB } : undefined)
     this.version(1).stores({
       projects: 'id, status, isArchived, createdAt',
       topics: 'id, projectId, order',

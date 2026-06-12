@@ -64,13 +64,13 @@ export function Sidebar() {
         </Button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2">
+      <nav className="flex-1 overflow-y-auto px-2 py-1">
         {projects.map((project) => (
           <button
             key={project.id}
             onClick={() => setSelectedProjectId(project.id)}
             className={cn(
-              'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+              'flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors border-b border-border/40',
               selectedProjectId === project.id
                 ? 'bg-accent text-accent-foreground'
                 : 'text-foreground hover:bg-accent/50'
