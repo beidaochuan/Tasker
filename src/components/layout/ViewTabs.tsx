@@ -14,16 +14,16 @@ export function ViewTabs() {
   const { activeView, setActiveView } = useUIStore()
 
   return (
-    <div className="flex border-b border-border bg-background">
+    <div className="flex shrink-0 border-b border-border bg-card px-3">
       {TABS.map(({ value, label, Icon }) => (
         <button
           key={value}
           onClick={() => setActiveView(value)}
           className={cn(
-            'flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors',
+            'flex h-11 items-center gap-1.5 border-b-2 px-4 text-sm font-medium transition-colors',
             activeView === value
               ? 'border-b-2 border-primary text-primary'
-              : 'text-muted-foreground hover:text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
           )}
         >
           <Icon className="h-4 w-4" />

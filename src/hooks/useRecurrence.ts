@@ -1,6 +1,8 @@
 import { useCallback } from 'react'
-import { taskRepo, taskCompletionRepo } from '@/repositories'
+import { nanoid } from 'nanoid'
+import { db } from '@/db/schema'
 import { getNextOccurrence, hasRepeatRule } from '@/utils/recurrenceUtils'
+import { toUnixMs } from '@/utils/dateUtils'
 import type { Task } from '@/types'
 
 export interface UseRecurrenceResult {
@@ -9,42 +11,43 @@ export interface UseRecurrenceResult {
 
 export function useRecurrence(): UseRecurrenceResult {
   const completeRecurringTask = useCallback(async (task: Task) => {
-    if (!hasRepeatRule(task.repeatRule)) {
-      // 繰り返しなし: 完了に更新 → 記録
-      await taskRepo.update(task.id, { status: 'done' })
-      await taskCompletionRepo.create(task.id)
-      return
-    }
-
     const base = task.dueDate ?? new Date()
-    const nextDue = getNextOccurrence(task.repeatRule, base)
+    const nextDue = hasRepeatRule(task.repeatRule) ? getNextOccurrence(task.repeatRule, base) : null
+    const duration =
+      nextDue && task.startDate && task.dueDate
+        ? task.dueDate.getTime() - task.startDate.getTime()
+        : null
+    const nextStart = nextDue && duration !== null ? new Date(nextDue.getTime() - duration) : null
 
-    if (!nextDue) {
-      // 次回日付が計算できない場合も同様
-      await taskRepo.update(task.id, { status: 'done' })
-      await taskCompletionRepo.create(task.id)
-      return
-    }
+    await db.transaction('rw', db.tasks, db.task_completions, async () => {
+      const updated = await db.tasks.update(task.id, { status: 'done', updatedAt: Date.now() })
+      if (updated === 0) throw new Error(`Task ${task.id} not found`)
 
-    // 元タスク完了 → 完了記録 → 次回インスタンス作成の順で副作用を最小化
-    // （completion より先に update が失敗しても孤立記録が残らない）
-    await taskRepo.update(task.id, { status: 'done' })
-    await taskCompletionRepo.create(task.id)
+      await db.task_completions.add({
+        id: nanoid(10),
+        taskId: task.id,
+        completedAt: Date.now(),
+      })
 
-    const existing = await taskRepo.getByTopicId(task.topicId)
-    const order = existing.ok ? existing.data.length : 0
+      if (!nextDue || !hasRepeatRule(task.repeatRule)) return
 
-    await taskRepo.create({
-      topicId: task.topicId,
-      title: task.title,
-      description: task.description,
-      status: 'todo',
-      priority: task.priority,
-      dueDate: nextDue,
-      startDate: task.startDate,
-      order,
-      tags: task.tags,
-      repeatRule: task.repeatRule,
+      const order = await db.tasks.where('topicId').equals(task.topicId).count()
+      const now = Date.now()
+      await db.tasks.add({
+        id: nanoid(10),
+        topicId: task.topicId,
+        title: task.title,
+        description: task.description,
+        status: 'todo',
+        priority: task.priority,
+        dueDate: toUnixMs(nextDue),
+        startDate: nextStart ? toUnixMs(nextStart) : null,
+        order,
+        tags: task.tags,
+        repeatRule: task.repeatRule,
+        createdAt: now,
+        updatedAt: now,
+      })
     })
   }, [])
 

@@ -94,5 +94,29 @@ describe('TaskRepository', () => {
       const get = await taskRepo.getById(created.data.id)
       expect(get.ok).toBe(false)
     })
+
+    it('タスク削除時にサブタスクと完了履歴も削除する', async () => {
+      const created = await taskRepo.create(baseTask())
+      if (!created.ok) return
+      await db.subtasks.add({
+        id: 'sub-1',
+        taskId: created.data.id,
+        title: 'sub',
+        isDone: 0,
+        order: 0,
+        createdAt: Date.now(),
+      })
+      await db.task_completions.add({
+        id: 'completion-1',
+        taskId: created.data.id,
+        completedAt: Date.now(),
+      })
+
+      const result = await taskRepo.delete(created.data.id)
+
+      expect(result.ok).toBe(true)
+      expect(await db.subtasks.where('taskId').equals(created.data.id).count()).toBe(0)
+      expect(await db.task_completions.where('taskId').equals(created.data.id).count()).toBe(0)
+    })
   })
 })

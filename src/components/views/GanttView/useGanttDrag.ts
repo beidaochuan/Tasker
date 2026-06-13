@@ -5,6 +5,7 @@ import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY } from './ganttConstants'
 import { taskRepo } from '@/repositories'
 import { resolveTaskId } from '@/utils/recurrenceUtils'
+import { unwrapResult } from '@/utils/resultUtils'
 
 type Handle = 'move' | 'left' | 'right'
 
@@ -87,7 +88,7 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
     if (startChanged) patch.startDate = previewStartDate
     if (dueChanged) patch.dueDate = previewDueDate
 
-    await taskRepo.update(taskId, patch)
+    unwrapResult(await taskRepo.update(taskId, patch))
   }, [])
 
   const onBarPointerDown = useCallback(
@@ -114,7 +115,11 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
           dragRef.current = null
           setPreview(new Map())
         } else {
-          await onPointerUp()
+          try {
+            await onPointerUp()
+          } catch (err) {
+            console.error('ガントバーの更新に失敗しました', err)
+          }
         }
       }
 

@@ -33,14 +33,14 @@ export const KanbanColumn = memo(function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex min-w-64 flex-1 flex-col rounded-lg border border-border bg-muted/30',
+        'flex min-w-72 flex-1 flex-col rounded-md border border-border bg-card',
         isOver && 'ring-2 ring-primary/60'
       )}
     >
       {/* ヘッダー */}
       <div
         className={cn(
-          'flex items-center justify-between rounded-t-lg px-3 py-2.5',
+          'flex items-center justify-between border-b border-border/70 px-3 py-2.5',
           isOverWip && 'bg-destructive/10'
         )}
       >
@@ -50,7 +50,7 @@ export const KanbanColumn = memo(function KanbanColumn({
           </span>
           <span
             className={cn(
-              'rounded-full px-1.5 py-0.5 text-xs font-medium',
+              'rounded-full px-2 py-0.5 text-xs font-medium',
               isOverWip
                 ? 'bg-destructive text-destructive-foreground'
                 : 'bg-muted text-muted-foreground'
@@ -62,7 +62,7 @@ export const KanbanColumn = memo(function KanbanColumn({
         </div>
         {status === 'todo' && defaultTopicId && (
           <button
-            className="rounded p-0.5 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            className="rounded-md p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             title="タスクを追加"
             onClick={() => openNewTaskDrawer(defaultTopicId)}
           >
@@ -72,17 +72,15 @@ export const KanbanColumn = memo(function KanbanColumn({
       </div>
 
       {/* カードリスト */}
-      <div
-        className={cn('flex-1 space-y-2 overflow-y-auto p-2', tasks.length === 0 && 'min-h-[80px]')}
-      >
+      <div className={cn('flex-1 space-y-2 overflow-y-auto p-3', tasks.length === 0 && 'min-h-28')}>
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <KanbanCard key={task.id} task={task} />
           ))}
         </SortableContext>
         {tasks.length === 0 && (
-          <div className="flex items-center justify-center py-6">
-            <p className="text-xs text-muted-foreground/60">ここにドロップ</p>
+          <div className="flex items-center justify-center rounded-md border border-dashed border-border/80 py-8">
+            <p className="text-xs text-muted-foreground/70">ここにドロップ</p>
           </div>
         )}
       </div>

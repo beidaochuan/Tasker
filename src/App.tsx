@@ -69,12 +69,14 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <ExportWarning />
-      <AppShell>
-        <ErrorBoundary>
-          <MainContent />
-        </ErrorBoundary>
-      </AppShell>
+      <div className="flex h-screen flex-col overflow-hidden">
+        <ExportWarning />
+        <AppShell>
+          <ErrorBoundary>
+            <MainContent />
+          </ErrorBoundary>
+        </AppShell>
+      </div>
       <ErrorBoundary>
         <TaskDrawer />
       </ErrorBoundary>

@@ -93,7 +93,19 @@ export class TaskRepository {
 
   async delete(id: string): Promise<Result<void>> {
     try {
-      await this.#db.tasks.delete(id)
+      await this.#db.transaction(
+        'rw',
+        this.#db.tasks,
+        this.#db.subtasks,
+        this.#db.task_completions,
+        async () => {
+          await Promise.all([
+            this.#db.subtasks.where('taskId').equals(id).delete(),
+            this.#db.task_completions.where('taskId').equals(id).delete(),
+          ])
+          await this.#db.tasks.delete(id)
+        }
+      )
       return { ok: true, data: undefined }
     } catch (e) {
       return { ok: false, error: { code: 'DB_ERROR', message: String(e) } }
@@ -102,7 +114,25 @@ export class TaskRepository {
 
   async deleteByTopicId(topicId: string): Promise<Result<void>> {
     try {
-      await this.#db.tasks.where('topicId').equals(topicId).delete()
+      await this.#db.transaction(
+        'rw',
+        this.#db.tasks,
+        this.#db.subtasks,
+        this.#db.task_completions,
+        async () => {
+          const taskIds = (await this.#db.tasks
+            .where('topicId')
+            .equals(topicId)
+            .primaryKeys()) as string[]
+          if (taskIds.length > 0) {
+            await Promise.all([
+              this.#db.subtasks.where('taskId').anyOf(taskIds).delete(),
+              this.#db.task_completions.where('taskId').anyOf(taskIds).delete(),
+            ])
+            await this.#db.tasks.bulkDelete(taskIds)
+          }
+        }
+      )
       return { ok: true, data: undefined }
     } catch (e) {
       return { ok: false, error: { code: 'DB_ERROR', message: String(e) } }

@@ -122,5 +122,59 @@ describe('ProjectRepository', () => {
       const get = await repo.getById(created.data.id)
       expect(get.ok).toBe(false)
     })
+
+    it('プロジェクト削除時に配下のトピック、タスク、サブタスク、完了履歴も削除する', async () => {
+      const created = await repo.create({
+        name: 'Cascade',
+        description: '',
+        color: '#000',
+        status: 'active',
+        isArchived: false,
+      })
+      if (!created.ok) return
+      await db.topics.add({
+        id: 'topic-1',
+        projectId: created.data.id,
+        name: 'Topic',
+        order: 0,
+        createdAt: Date.now(),
+      })
+      await db.tasks.add({
+        id: 'task-1',
+        topicId: 'topic-1',
+        title: 'Task',
+        description: '',
+        status: 'todo',
+        priority: 'medium',
+        dueDate: null,
+        startDate: null,
+        order: 0,
+        tags: [],
+        repeatRule: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+      await db.subtasks.add({
+        id: 'sub-1',
+        taskId: 'task-1',
+        title: 'Sub',
+        isDone: 0,
+        order: 0,
+        createdAt: Date.now(),
+      })
+      await db.task_completions.add({
+        id: 'completion-1',
+        taskId: 'task-1',
+        completedAt: Date.now(),
+      })
+
+      const result = await repo.delete(created.data.id)
+
+      expect(result.ok).toBe(true)
+      expect(await db.topics.count()).toBe(0)
+      expect(await db.tasks.count()).toBe(0)
+      expect(await db.subtasks.count()).toBe(0)
+      expect(await db.task_completions.count()).toBe(0)
+    })
   })
 })

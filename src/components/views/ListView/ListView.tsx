@@ -4,13 +4,17 @@ import { Button } from '@/components/ui/button'
 import { TopicRow } from './TopicRow'
 import { FilterPanel } from '@/components/filter/FilterPanel'
 import { ListViewSkeleton } from '@/components/ui/skeleton'
-import { useTopics } from '@/hooks/useTasks'
+import { useKanbanData, useTopics } from '@/hooks/useTasks'
+import { useProject } from '@/hooks/useProjects'
 import { useUIStore } from '@/store/uiStore'
 import { topicRepo } from '@/repositories'
+import { unwrapResult } from '@/utils/resultUtils'
 
 export function ListView() {
   const { selectedProjectId, openNewTaskDrawer } = useUIStore()
   const topics = useTopics(selectedProjectId)
+  const { tasksByStatus } = useKanbanData(selectedProjectId)
+  const selectedProject = useProject(selectedProjectId)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [topicName, setTopicName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -26,7 +30,9 @@ export function ListView() {
     setIsSubmitting(true)
     try {
       const maxOrder = (topics ?? []).reduce((m, t) => Math.max(m, t.order), -1)
-      await topicRepo.create({ projectId: selectedProjectId, name, order: maxOrder + 1 })
+      unwrapResult(
+        await topicRepo.create({ projectId: selectedProjectId, name, order: maxOrder + 1 })
+      )
       setIsDialogOpen(false)
     } finally {
       setIsSubmitting(false)
@@ -54,10 +60,19 @@ export function ListView() {
     return <ListViewSkeleton />
   }
 
+  const taskCount = Object.values(tasksByStatus).reduce((count, tasks) => count + tasks.length, 0)
+
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2">
-        <h2 className="text-sm font-semibold">タスク一覧</h2>
+      <div className="flex items-center justify-between border-b border-border bg-card px-5 py-3">
+        <div>
+          <h2 className="text-base font-semibold leading-6">
+            {selectedProject?.name ?? 'タスク一覧'}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {topics.length} トピック / {taskCount} タスク
+          </p>
+        </div>
         <Button variant="outline" size="sm" onClick={openDialog}>
           <Plus className="h-3.5 w-3.5" />
           トピックを追加
@@ -65,7 +80,7 @@ export function ListView() {
       </div>
       <FilterPanel />
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+      <div className="flex-1 overflow-y-auto px-4 py-3">
         {topics.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <p className="text-sm text-muted-foreground">まだトピックがありません</p>
@@ -75,9 +90,11 @@ export function ListView() {
             </Button>
           </div>
         )}
-        {topics.map((topic) => (
-          <TopicRow key={topic.id} topic={topic} onAddTask={openNewTaskDrawer} />
-        ))}
+        <div className="space-y-2">
+          {topics.map((topic) => (
+            <TopicRow key={topic.id} topic={topic} onAddTask={openNewTaskDrawer} />
+          ))}
+        </div>
       </div>
       {isDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">

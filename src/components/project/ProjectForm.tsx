@@ -5,6 +5,8 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/uiStore'
 import { projectRepo } from '@/repositories'
+import { unwrapResult } from '@/utils/resultUtils'
+import { useState } from 'react'
 
 const PROJECT_COLORS = [
   '#3b82f6',
@@ -27,6 +29,7 @@ type FormValues = z.infer<typeof schema>
 
 export function ProjectForm() {
   const { isProjectFormOpen, closeProjectForm } = useUIStore()
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const {
     register,
@@ -43,18 +46,22 @@ export function ProjectForm() {
   const selectedColor = watch('color')
 
   async function onSubmit(values: FormValues) {
+    setSubmitError(null)
     try {
-      await projectRepo.create({
-        name: values.name,
-        description: values.description,
-        color: values.color,
-        status: 'active',
-        isArchived: false,
-      })
+      unwrapResult(
+        await projectRepo.create({
+          name: values.name,
+          description: values.description,
+          color: values.color,
+          status: 'active',
+          isArchived: false,
+        })
+      )
       reset()
       closeProjectForm()
     } catch (err) {
       console.error('プロジェクトの作成に失敗しました', err)
+      setSubmitError(err instanceof Error ? err.message : 'プロジェクトの作成に失敗しました')
     }
   }
 
@@ -118,6 +125,11 @@ export function ProjectForm() {
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             作成する
           </Button>
+          {submitError && (
+            <p role="alert" className="text-xs text-destructive">
+              {submitError}
+            </p>
+          )}
         </form>
       </div>
     </div>

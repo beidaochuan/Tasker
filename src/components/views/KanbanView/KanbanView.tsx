@@ -21,6 +21,7 @@ import { COLUMN_ORDER, WIP_LIMITS } from './kanbanConstants'
 import { useKanbanData } from '@/hooks/useTasks'
 import { useUIStore } from '@/store/uiStore'
 import { taskRepo } from '@/repositories'
+import { unwrapResult } from '@/utils/resultUtils'
 import type { Task, TaskStatus } from '@/types'
 
 type TasksByStatus = Record<TaskStatus, Task[]>
@@ -147,9 +148,14 @@ export function KanbanView() {
         return
       }
 
-      // DB書き込み完了後にローカル状態をクリア（先にクリアすると元列への残像が出る）
-      await taskRepo.update(activeTask.id, { status: targetCol })
-      clearLocal()
+      try {
+        // DB書き込み完了後にローカル状態をクリア（先にクリアすると元列への残像が出る）
+        unwrapResult(await taskRepo.update(activeTask.id, { status: targetCol }))
+      } catch (err) {
+        console.error('カンバンのステータス更新に失敗しました', err)
+      } finally {
+        clearLocal()
+      }
     },
     [tasksByStatus]
   )
@@ -175,7 +181,7 @@ export function KanbanView() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-full gap-3 overflow-x-auto p-4">
+      <div className="flex h-full gap-3 overflow-x-auto bg-background p-4">
         {COLUMN_ORDER.map((status) => (
           <KanbanColumn
             key={status}

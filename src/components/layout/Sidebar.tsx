@@ -20,7 +20,8 @@ import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
 import { TagManager } from '@/components/task/TagManager'
 import { exportAllData, importAllData } from '@/utils/exportUtils'
-import { projectRepo, topicRepo, taskRepo } from '@/repositories'
+import { projectRepo } from '@/repositories'
+import { unwrapResult } from '@/utils/resultUtils'
 import { LicensesDialog } from './LicensesDialog'
 
 type DialogState =
@@ -50,14 +51,13 @@ export function Sidebar() {
     if (dialogState.type !== 'deleteConfirm') return
     const { projectId } = dialogState
     setDialogState({ type: 'none' })
-
-    // トピックIDを取得してタスクを連鎖削除
-    const topicIds = await topicRepo.getIdsByProjectId(projectId)
-    await Promise.all(topicIds.map((id) => taskRepo.deleteByTopicId(id)))
-    await topicRepo.deleteByProjectId(projectId)
-    await projectRepo.delete(projectId)
-
-    if (selectedProjectId === projectId) setSelectedProjectId(null)
+    try {
+      unwrapResult(await projectRepo.delete(projectId))
+      if (selectedProjectId === projectId) setSelectedProjectId(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'プロジェクトの削除に失敗しました'
+      setDialogState({ type: 'error', message })
+    }
   }
 
   async function handleConfirmImport() {
@@ -264,7 +264,7 @@ export function Sidebar() {
                 <div className="mb-4 flex items-start gap-3">
                   <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
                   <div>
-                    <Dialog.Title className="text-sm font-semibold">インポートエラー</Dialog.Title>
+                    <Dialog.Title className="text-sm font-semibold">エラー</Dialog.Title>
                     <Dialog.Description className="mt-1 text-xs text-muted-foreground">
                       {dialogState.message}
                     </Dialog.Description>

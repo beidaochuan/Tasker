@@ -4,12 +4,12 @@ import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, RESIZE_HANDLE_WIDTH } from './ganttConstants'
 import { resolveTaskId, isVirtualTask } from '@/utils/recurrenceUtils'
-
-const STATUS_COLORS: Record<Exclude<Task['status'], 'cancelled'>, string> = {
-  todo: 'bg-indigo-500',
-  in_progress: 'bg-green-500',
-  done: 'bg-gray-400',
-}
+import {
+  GANTT_STATUS_BAR_CLASSES,
+  PRIORITY_DOT_CLASSES,
+  PRIORITY_LABELS,
+  STATUS_LABELS,
+} from '@/utils/taskPresentation'
 
 interface Props {
   task: Task
@@ -92,17 +92,19 @@ export const GanttBar = memo(function GanttBar({
   if (!hasDate || task.status === 'cancelled') return null
 
   const barHeight = ROW_HEIGHT - 12
-  const colorClass = STATUS_COLORS[task.status]
+  const colorClass = GANTT_STATUS_BAR_CLASSES[task.status]
 
   return (
     <div
-      className={`absolute top-[6px] rounded select-none flex items-center overflow-hidden ${colorClass}`}
+      className={`absolute top-[6px] flex select-none items-center overflow-hidden rounded-md shadow-xs ${colorClass}`}
       style={{ left, width, height: barHeight, cursor: isVirtual ? 'default' : 'grab' }}
       onPointerDown={handlePointerDown}
       onClick={() => {
         if (!didDragRef.current) onClick?.(resolveTaskId(task.id))
       }}
-      title={task.title}
-    />
+      title={`${task.title} / ${STATUS_LABELS[task.status]} / 優先度: ${PRIORITY_LABELS[task.priority]}`}
+    >
+      <span className={`h-full w-1.5 shrink-0 ${PRIORITY_DOT_CLASSES[task.priority]}`} />
+    </div>
   )
 })

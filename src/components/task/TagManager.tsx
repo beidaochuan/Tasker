@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useTags } from '@/hooks/useTags'
 import { tagRepo } from '@/repositories'
 import { useFilterStore } from '@/store/filterStore'
+import { unwrapResult } from '@/utils/resultUtils'
 
 const PRESET_COLORS = [
   '#ef4444',
@@ -37,17 +38,25 @@ export function TagManager({ onClose }: TagManagerProps) {
       setError('同じ名前のタグが既に存在します')
       return
     }
-    await tagRepo.create({ name: trimmed, color })
-    setName('')
-    setError('')
+    try {
+      unwrapResult(await tagRepo.create({ name: trimmed, color }))
+      setName('')
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'タグの作成に失敗しました')
+    }
   }
 
   async function handleDelete(id: string) {
     if (!window.confirm('このタグを削除しますか？タスクへの紐付けも解除されます。')) return
-    await tagRepo.delete(id)
-    // filterStore に残った孤立IDを除去
-    if (tagIds.includes(id)) {
-      setTagIds(tagIds.filter((x) => x !== id))
+    try {
+      unwrapResult(await tagRepo.delete(id))
+      // filterStore に残った孤立IDを除去
+      if (tagIds.includes(id)) {
+        setTagIds(tagIds.filter((x) => x !== id))
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'タグの削除に失敗しました')
     }
   }
 

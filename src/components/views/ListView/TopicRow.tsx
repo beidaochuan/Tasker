@@ -14,9 +14,9 @@ import { Button } from '@/components/ui/button'
 import { SortableTaskRow } from '@/components/task/SortableTaskRow'
 import { useFilteredTasksByTopic } from '@/hooks/useFilteredTasks'
 import { useFilterStore, selectIsFiltering } from '@/store/filterStore'
-import { taskRepo } from '@/repositories'
-import { db } from '@/db/schema'
+import { taskRepo, topicRepo } from '@/repositories'
 import { reorderItems } from '@/utils/sortUtils'
+import { unwrapResult } from '@/utils/resultUtils'
 import type { Topic } from '@/types'
 
 interface TopicRowProps {
@@ -39,26 +39,7 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
     setIsDeleting(true)
     setDeleteError(null)
     try {
-      await db.transaction(
-        'rw',
-        db.tasks,
-        db.subtasks,
-        db.task_completions,
-        db.topics,
-        async () => {
-          const taskIds = await db.tasks.where('topicId').equals(topic.id).primaryKeys()
-          await db.subtasks
-            .where('taskId')
-            .anyOf(taskIds as string[])
-            .delete()
-          await db.task_completions
-            .where('taskId')
-            .anyOf(taskIds as string[])
-            .delete()
-          await db.tasks.bulkDelete(taskIds as string[])
-          await db.topics.delete(topic.id)
-        }
-      )
+      unwrapResult(await topicRepo.delete(topic.id))
       setIsConfirmOpen(false)
     } catch {
       setDeleteError('削除に失敗しました。再試行してください。')
@@ -76,15 +57,21 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
     if (fromIndex === -1 || toIndex === -1) return
 
     const reordered = reorderItems(tasks, fromIndex, toIndex)
-    await Promise.all(reordered.map((t) => taskRepo.update(t.id, { order: t.order })))
+    try {
+      for (const task of reordered) {
+        unwrapResult(await taskRepo.update(task.id, { order: task.order }))
+      }
+    } catch (err) {
+      console.error('タスクの並び替えに失敗しました', err)
+    }
   }
 
   return (
-    <div className="group">
-      <div className="flex items-center gap-1 px-2 py-1.5">
+    <section className="group rounded-md border border-border bg-card">
+      <div className="flex items-center gap-1 border-b border-border/70 px-3 py-2">
         <button
           onClick={() => setIsOpen((v) => !v)}
-          className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium hover:bg-accent/40"
+          className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold hover:bg-accent/50"
         >
           {isOpen ? (
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -92,7 +79,9 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           )}
           <span>{topic.name}</span>
-          <span className="ml-1 text-xs text-muted-foreground">({tasks.length})</span>
+          <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            {tasks.length}
+          </span>
         </button>
         <button
           onClick={() => onAddTask(topic.id)}
@@ -157,7 +146,7 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
       )}
 
       {isOpen && (
-        <div className={cn('ml-4 space-y-0.5', tasks.length === 0 && 'py-1')}>
+        <div className={cn('py-1', tasks.length === 0 && 'py-2')}>
           {tasks.length === 0 && (
             <p className="px-5 py-2 text-xs text-muted-foreground">
               {isFiltering ? 'フィルタに一致するタスクがありません' : 'タスクがありません'}
@@ -181,6 +170,6 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
           )}
         </div>
       )}
-    </div>
+    </section>
   )
 }

@@ -17,7 +17,7 @@ interface Props {
     element: HTMLElement
   ) => void
   onBarClick?: (taskId: string) => void
-  onCreateBar?: (taskId: string, startDate: Date, dueDate: Date) => void
+  onCreateBar?: (taskId: string, startDate: Date, dueDate: Date) => void | Promise<void>
 }
 
 export const GanttRow = memo(function GanttRow({
@@ -92,7 +92,9 @@ export const GanttRow = memo(function GanttRow({
         const ganttStartDay = startOfDay(ganttStart)
         const startDate = addDays(ganttStartDay, s)
         const dueDate = addDays(ganttStartDay, d)
-        onCreateBar(task.id, startDate, dueDate)
+        Promise.resolve(onCreateBar(task.id, startDate, dueDate)).catch((err) => {
+          console.error('ガントバーの作成に失敗しました', err)
+        })
       }
       row.addEventListener('pointermove', onMove)
       row.addEventListener('pointerup', onUp)
@@ -120,7 +122,7 @@ export const GanttRow = memo(function GanttRow({
       {/* ドラッグ作成プレビュー */}
       <div
         ref={previewRef}
-        className="absolute top-[6px] rounded pointer-events-none bg-indigo-400/60 border border-indigo-500"
+        className="pointer-events-none absolute top-[6px] rounded-md border border-blue-500 bg-blue-400/50"
         style={{ display: 'none', height: ROW_HEIGHT - 12 }}
       />
       {tasks.map((t) => (

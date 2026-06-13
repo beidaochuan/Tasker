@@ -12,6 +12,8 @@ import { useGanttDrag, calcGanttRange } from './useGanttDrag'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, HEADER_HEIGHT, LEFT_PANE_WIDTH } from './ganttConstants'
 import type { Task } from '@/types'
+import { PRIORITY_DOT_CLASSES, PRIORITY_LABELS, STATUS_LABELS } from '@/utils/taskPresentation'
+import { unwrapResult } from '@/utils/resultUtils'
 
 const SCALE_LABELS: Record<GanttScale, string> = {
   day: '日',
@@ -45,7 +47,9 @@ export function GanttView() {
   const { preview, onBarPointerDown } = useGanttDrag(startDate, scale)
 
   const handleCreateBar = useCallback(async (taskId: string, startDate: Date, dueDate: Date) => {
-    await taskRepo.update(resolveTaskId(taskId), { startDate, dueDate, status: 'todo' })
+    unwrapResult(
+      await taskRepo.update(resolveTaskId(taskId), { startDate, dueDate, status: 'todo' })
+    )
   }, [])
 
   const flatRows = useMemo<FlatRow[]>(() => {
@@ -122,21 +126,49 @@ export function GanttView() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* スケール切替ツールバー */}
-      <div className="flex shrink-0 items-center gap-1 border-b border-border px-4 py-2">
-        <span className="mr-2 text-xs text-muted-foreground">スケール:</span>
-        {(['day', 'week', 'month'] as GanttScale[]).map((s) => (
-          <button
-            key={s}
-            onClick={() => setScale(s)}
-            className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-              scale === s
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            {SCALE_LABELS[s]}
-          </button>
-        ))}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-5 py-2.5">
+        <div className="flex items-center gap-1">
+          <span className="mr-2 text-xs text-muted-foreground">スケール:</span>
+          {(['day', 'week', 'month'] as GanttScale[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setScale(s)}
+              className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                scale === s
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {SCALE_LABELS[s]}
+            </button>
+          ))}
+        </div>
+        <div className="hidden items-center gap-5 text-xs text-muted-foreground lg:flex">
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-semibold">状態</span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-slate-400" />
+              {STATUS_LABELS.todo}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              {STATUS_LABELS.in_progress}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {STATUS_LABELS.done}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-semibold">優先度</span>
+            {(['urgent', 'high', 'medium', 'low'] as const).map((priority) => (
+              <span key={priority} className="flex items-center gap-1.5">
+                <span className={`h-3 w-1.5 rounded-sm ${PRIORITY_DOT_CLASSES[priority]}`} />
+                {PRIORITY_LABELS[priority]}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* メインエリア（左ペイン + 右ペイン） */}
@@ -149,7 +181,7 @@ export function GanttView() {
           onScroll={syncLeft}
         >
           <div
-            className="sticky top-0 z-10 border-b border-border bg-muted/50"
+            className="sticky top-0 z-10 border-b border-border bg-card"
             style={{ height: HEADER_HEIGHT }}
           />
           <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
@@ -160,7 +192,7 @@ export function GanttView() {
                   key={vi.index}
                   className={`absolute left-0 right-0 flex items-center border-b border-border ${
                     row.type === 'topic'
-                      ? 'bg-muted/50 px-3 text-xs font-semibold text-muted-foreground'
+                      ? 'bg-muted/60 px-3 text-xs font-semibold text-muted-foreground'
                       : 'pl-6 pr-3 text-sm text-foreground'
                   }`}
                   style={{ top: vi.start, height: vi.size }}
@@ -191,7 +223,7 @@ export function GanttView() {
                 return (
                   <div
                     key={vi.index}
-                    className="absolute left-0 right-0 border-b border-border bg-muted/30"
+                    className="absolute left-0 right-0 border-b border-border bg-muted/40"
                     style={{ top: vi.start, height: vi.size, width: totalWidth }}
                   />
                 )

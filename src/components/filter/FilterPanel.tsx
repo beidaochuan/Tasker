@@ -5,21 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useFilterStore } from '@/store/filterStore'
 import { useTags } from '@/hooks/useTags'
+import { PRIORITY_LABELS, STATUS_LABELS } from '@/utils/taskPresentation'
 import type { TaskStatus, Priority } from '@/types'
-
-const STATUS_LABELS: Record<TaskStatus, string> = {
-  todo: '未着手',
-  in_progress: '進行中',
-  done: '完了',
-  cancelled: 'キャンセル',
-}
-
-const PRIORITY_LABELS: Record<Priority, string> = {
-  urgent: '緊急',
-  high: '高',
-  medium: '中',
-  low: '低',
-}
 
 const ALL_STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done', 'cancelled']
 const ALL_PRIORITIES: Priority[] = ['urgent', 'high', 'medium', 'low']
@@ -63,16 +50,16 @@ export function FilterPanel() {
   }
 
   return (
-    <div className="border-b border-border">
+    <div className="border-b border-border bg-card">
       {/* 検索バー + フィルタトグル */}
-      <div className="flex items-center gap-2 px-4 py-2">
+      <div className="flex items-center gap-2 px-5 py-3">
         <input
           id="search-input"
           type="search"
           placeholder="タスクを検索... (/)"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
-          className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
+          className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
         />
         <Button
           variant={isOpen ? 'secondary' : 'outline'}
@@ -97,7 +84,7 @@ export function FilterPanel() {
 
       {/* 展開パネル */}
       {isOpen && (
-        <div className="space-y-3 px-4 pb-3">
+        <div className="space-y-3 px-5 pb-4">
           {/* ステータス */}
           <div>
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">ステータス</p>
@@ -107,7 +94,7 @@ export function FilterPanel() {
                   key={s}
                   onClick={() => toggleStatus(s)}
                   className={cn(
-                    'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+                    'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
                     statuses.includes(s)
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
@@ -128,7 +115,7 @@ export function FilterPanel() {
                   key={p}
                   onClick={() => togglePriority(p)}
                   className={cn(
-                    'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+                    'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
                     priorities.includes(p)
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
@@ -150,7 +137,7 @@ export function FilterPanel() {
                     key={tag.id}
                     onClick={() => toggleTag(tag.id)}
                     className={cn(
-                      'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+                      'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
                       tagIds.includes(tag.id)
                         ? 'border-primary bg-primary text-primary-foreground'
                         : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
@@ -170,7 +157,7 @@ export function FilterPanel() {
 
       {/* アクティブフィルタのサマリバッジ */}
       {!isOpen && activeCount > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-4 pb-2">
+        <div className="flex flex-wrap gap-1.5 px-5 pb-3">
           {searchText && (
             <Badge variant="secondary" className="gap-1 text-xs">
               「{searchText}」

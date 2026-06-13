@@ -30,7 +30,18 @@ export class TagRepository {
 
   async delete(id: string): Promise<Result<void>> {
     try {
-      await this.#db.tags.delete(id)
+      await this.#db.transaction('rw', this.#db.tags, this.#db.tasks, async () => {
+        const taskRows = await this.#db.tasks.where('tags').equals(id).toArray()
+        await Promise.all(
+          taskRows.map((task) =>
+            this.#db.tasks.update(task.id, {
+              tags: task.tags.filter((tagId) => tagId !== id),
+              updatedAt: Date.now(),
+            })
+          )
+        )
+        await this.#db.tags.delete(id)
+      })
       return { ok: true, data: undefined }
     } catch (e) {
       return { ok: false, error: { code: 'DB_ERROR', message: String(e) } }

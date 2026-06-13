@@ -77,7 +77,37 @@ export class ProjectRepository {
 
   async delete(id: string): Promise<Result<void>> {
     try {
-      await this.#db.projects.delete(id)
+      await this.#db.transaction(
+        'rw',
+        [
+          this.#db.projects,
+          this.#db.topics,
+          this.#db.tasks,
+          this.#db.subtasks,
+          this.#db.task_completions,
+        ],
+        async () => {
+          const topicIds = (await this.#db.topics
+            .where('projectId')
+            .equals(id)
+            .primaryKeys()) as string[]
+          if (topicIds.length > 0) {
+            const taskIds = (await this.#db.tasks
+              .where('topicId')
+              .anyOf(topicIds)
+              .primaryKeys()) as string[]
+            if (taskIds.length > 0) {
+              await Promise.all([
+                this.#db.subtasks.where('taskId').anyOf(taskIds).delete(),
+                this.#db.task_completions.where('taskId').anyOf(taskIds).delete(),
+              ])
+              await this.#db.tasks.bulkDelete(taskIds)
+            }
+            await this.#db.topics.bulkDelete(topicIds)
+          }
+          await this.#db.projects.delete(id)
+        }
+      )
       return { ok: true, data: undefined }
     } catch (e) {
       return { ok: false, error: { code: 'DB_ERROR', message: String(e) } }

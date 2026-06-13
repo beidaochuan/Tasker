@@ -4,16 +4,17 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { cn } from '@/utils/cn'
 import { formatDate, isOverdue, isDueToday } from '@/utils/dateUtils'
 import { useUIStore } from '@/store/uiStore'
+import { useRecurrence } from '@/hooks/useRecurrence'
 import { taskRepo } from '@/repositories'
 import { Button } from '@/components/ui/button'
+import {
+  PRIORITY_DOT_CLASSES,
+  PRIORITY_LABELS,
+  PRIORITY_TEXT_CLASSES,
+} from '@/utils/taskPresentation'
+import { hasRepeatRule } from '@/utils/recurrenceUtils'
+import { unwrapResult } from '@/utils/resultUtils'
 import type { Task } from '@/types'
-
-const PRIORITY_COLORS: Record<string, string> = {
-  low: 'bg-[hsl(var(--priority-low))]',
-  medium: 'bg-[hsl(var(--priority-medium))]',
-  high: 'bg-[hsl(var(--priority-high))]',
-  urgent: 'bg-[hsl(var(--priority-urgent))]',
-}
 
 interface TaskRowProps {
   task: Task
@@ -21,21 +22,34 @@ interface TaskRowProps {
 
 export function TaskRow({ task }: TaskRowProps) {
   const { openTaskDrawer } = useUIStore()
+  const { completeRecurringTask } = useRecurrence()
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const isDone = task.status === 'done'
 
   async function toggleDone(e: React.MouseEvent) {
     e.stopPropagation()
     try {
-      await taskRepo.update(task.id, { status: isDone ? 'todo' : 'done' })
+      if (isDone) {
+        unwrapResult(await taskRepo.update(task.id, { status: 'todo' }))
+      } else if (hasRepeatRule(task.repeatRule)) {
+        await completeRecurringTask(task)
+      } else {
+        unwrapResult(await taskRepo.update(task.id, { status: 'done' }))
+      }
     } catch (err) {
       console.error('ステータス更新に失敗しました', err)
     }
   }
 
   async function handleDelete() {
-    await taskRepo.delete(task.id)
-    setConfirmOpen(false)
+    setDeleteError(null)
+    try {
+      unwrapResult(await taskRepo.delete(task.id))
+      setConfirmOpen(false)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'タスクの削除に失敗しました')
+    }
   }
 
   const overdue = !isDone && isOverdue(task.dueDate)
@@ -44,7 +58,10 @@ export function TaskRow({ task }: TaskRowProps) {
   return (
     <>
       <div
-        className="group flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 hover:bg-accent/40"
+        className={cn(
+          'group flex h-9 cursor-pointer items-center gap-3 rounded-md px-3 text-sm transition-colors hover:bg-accent/60',
+          isDone && 'text-muted-foreground'
+        )}
         onClick={() => openTaskDrawer(task.id)}
       >
         <button
@@ -56,20 +73,32 @@ export function TaskRow({ task }: TaskRowProps) {
         </button>
 
         <span
-          className={cn('h-1.5 w-1.5 shrink-0 rounded-full', PRIORITY_COLORS[task.priority])}
-          title={task.priority}
+          className={cn('h-1.5 w-1.5 shrink-0 rounded-full', PRIORITY_DOT_CLASSES[task.priority])}
+          title={PRIORITY_LABELS[task.priority]}
         />
 
         <span
-          className={cn('flex-1 truncate text-sm', isDone && 'line-through text-muted-foreground')}
+          className={cn(
+            'min-w-0 flex-1 truncate',
+            isDone && 'line-through decoration-foreground/40'
+          )}
         >
           {task.title}
+        </span>
+
+        <span
+          className={cn(
+            'hidden shrink-0 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium sm:inline-flex',
+            PRIORITY_TEXT_CLASSES[task.priority]
+          )}
+        >
+          {PRIORITY_LABELS[task.priority]}
         </span>
 
         {task.dueDate && (
           <span
             className={cn(
-              'flex shrink-0 items-center gap-0.5 text-xs',
+              'flex w-24 shrink-0 items-center justify-end gap-1 text-xs',
               overdue
                 ? 'text-destructive'
                 : today
@@ -110,6 +139,11 @@ export function TaskRow({ task }: TaskRowProps) {
               </div>
             </div>
             <div className="flex justify-end gap-2">
+              {deleteError && (
+                <p role="alert" className="mr-auto self-center text-xs text-destructive">
+                  {deleteError}
+                </p>
+              )}
               <Button variant="outline" size="sm" onClick={() => setConfirmOpen(false)}>
                 キャンセル
               </Button>

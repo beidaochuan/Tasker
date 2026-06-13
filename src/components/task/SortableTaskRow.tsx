@@ -31,7 +31,7 @@ export function SortableTaskRow({ task, disabled }: SortableTaskRowProps) {
       <button
         {...(disabled ? {} : { ...attributes, ...listeners })}
         className={cn(
-          'flex shrink-0 touch-none items-center px-1 py-2 text-muted-foreground transition-opacity',
+          'flex h-9 shrink-0 touch-none items-center px-2 text-muted-foreground transition-opacity',
           disabled
             ? 'invisible'
             : 'cursor-grab opacity-0 group-hover/sortable:opacity-100 active:cursor-grabbing'

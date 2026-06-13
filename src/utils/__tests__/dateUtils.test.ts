@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { toUnixMs, fromUnixMs, isOverdue, isDueToday, isDueSoon, formatDate } from '../dateUtils'
+import {
+  toUnixMs,
+  fromUnixMs,
+  isOverdue,
+  isDueToday,
+  isDueSoon,
+  formatDate,
+  formatDateInput,
+  parseDateInput,
+} from '../dateUtils'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -68,5 +77,21 @@ describe('formatDate', () => {
 
   it('null なら空文字を返す', () => {
     expect(formatDate(null)).toBe('')
+  })
+})
+
+describe('date input helpers', () => {
+  it('ローカル日付として yyyy-MM-dd に整形する', () => {
+    const d = new Date(2024, 0, 5)
+    expect(formatDateInput(d)).toBe('2024-01-05')
+  })
+
+  it('yyyy-MM-dd をローカル日付としてパースする', () => {
+    const d = parseDateInput('2024-01-05')
+    expect(d).toEqual(new Date(2024, 0, 5))
+  })
+
+  it('不正な日付は null を返す', () => {
+    expect(parseDateInput('2024-02-31')).toBeNull()
   })
 })
