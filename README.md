@@ -67,7 +67,7 @@ npx serve <展開したフォルダのパス>
 # 例: npx serve C:\Users\you\Downloads\tasker-v0.1.0
 ```
 
-→ `http://localhost:3000` をブラウザで開く
+→ `http://localhost:3208` をブラウザで開く
 
 ### ローカル（ソースコードから開発）
 
