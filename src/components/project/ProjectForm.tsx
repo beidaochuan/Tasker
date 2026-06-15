@@ -1,12 +1,13 @@
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/uiStore'
+import { useProject } from '@/hooks/useProjects'
 import { projectRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
-import { useState } from 'react'
 
 const PROJECT_COLORS = [
   '#3b82f6',
@@ -28,8 +29,10 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function ProjectForm() {
-  const { isProjectFormOpen, closeProjectForm } = useUIStore()
+  const { isProjectFormOpen, editingProjectId, closeProjectForm } = useUIStore()
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const editingProject = useProject(editingProjectId)
+  const isEditing = editingProjectId !== null
 
   const {
     register,
@@ -43,25 +46,51 @@ export function ProjectForm() {
     defaultValues: { name: '', description: '', color: PROJECT_COLORS[0] },
   })
 
+  const prevFormOpenRef = useRef(false)
+  useEffect(() => {
+    if (isProjectFormOpen && !prevFormOpenRef.current) {
+      if (isEditing && editingProject) {
+        reset({
+          name: editingProject.name,
+          description: editingProject.description,
+          color: editingProject.color,
+        })
+      } else {
+        reset({ name: '', description: '', color: PROJECT_COLORS[0] })
+      }
+    }
+    prevFormOpenRef.current = isProjectFormOpen
+  }, [isProjectFormOpen, isEditing, editingProject, reset])
+
   const selectedColor = watch('color')
 
   async function onSubmit(values: FormValues) {
     setSubmitError(null)
     try {
-      unwrapResult(
-        await projectRepo.create({
-          name: values.name,
-          description: values.description,
-          color: values.color,
-          status: 'active',
-          isArchived: false,
-        })
-      )
+      if (isEditing) {
+        unwrapResult(
+          await projectRepo.update(editingProjectId!, {
+            name: values.name,
+            description: values.description,
+            color: values.color,
+          })
+        )
+      } else {
+        unwrapResult(
+          await projectRepo.create({
+            name: values.name,
+            description: values.description,
+            color: values.color,
+            status: 'active',
+            isArchived: false,
+          })
+        )
+      }
       reset()
       closeProjectForm()
     } catch (err) {
-      console.error('プロジェクトの作成に失敗しました', err)
-      setSubmitError(err instanceof Error ? err.message : 'プロジェクトの作成に失敗しました')
+      console.error('プロジェクトの保存に失敗しました', err)
+      setSubmitError(err instanceof Error ? err.message : 'プロジェクトの保存に失敗しました')
     }
   }
 
@@ -72,7 +101,9 @@ export function ProjectForm() {
       <div className="absolute inset-0 bg-black/40" onClick={closeProjectForm} />
       <div className="relative z-10 w-full max-w-sm rounded-lg bg-background p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold">プロジェクトを作成</h2>
+          <h2 className="font-semibold">
+            {isEditing ? 'プロジェクトを編集' : 'プロジェクトを作成'}
+          </h2>
           <Button variant="ghost" size="icon" onClick={closeProjectForm}>
             <X className="h-4 w-4" />
           </Button>
@@ -123,7 +154,7 @@ export function ProjectForm() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            作成する
+            {isEditing ? '保存する' : '作成する'}
           </Button>
           {submitError && (
             <p role="alert" className="text-xs text-destructive">

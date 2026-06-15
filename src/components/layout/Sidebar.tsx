@@ -12,6 +12,7 @@ import {
   CheckCircle,
   Trash2,
   Info,
+  Pencil,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/button'
@@ -33,7 +34,8 @@ type DialogState =
 
 export function Sidebar() {
   const projects = useProjects()
-  const { selectedProjectId, setSelectedProjectId, openProjectForm } = useUIStore()
+  const { selectedProjectId, setSelectedProjectId, openProjectForm, openProjectEditForm } =
+    useUIStore()
   const { isDark, toggleDark } = useThemeStore()
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false)
   const [isLicensesOpen, setIsLicensesOpen] = useState(false)
@@ -106,6 +108,14 @@ export function Sidebar() {
               <span className="truncate">{project.name}</span>
             </button>
             <button
+              className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+              onClick={() => openProjectEditForm(project.id)}
+              title="プロジェクトを編集"
+              aria-label={`${project.name} を編集`}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
               className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
               onClick={() =>
                 setDialogState({
@@ -115,6 +125,7 @@ export function Sidebar() {
                 })
               }
               title="プロジェクトを削除"
+              aria-label={`${project.name} を削除`}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
