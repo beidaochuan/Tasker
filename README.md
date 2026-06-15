@@ -60,14 +60,17 @@
 
 ### ローカル（配布ビルドを使う）
 
-[Releases](https://github.com/beidaochuan/Tasker/releases) から最新の `tasker-vX.X.X.zip` をダウンロードして展開し、以下を実行します。
+[Releases](https://github.com/beidaochuan/Tasker/releases) から最新の `tasker-vX.X.X-local.zip` をダウンロードして展開し、以下を実行します。
 
 ```bash
-npx serve <展開したフォルダのパス>
-# 例: npx serve C:\Users\you\Downloads\tasker-v0.1.0
+cd <展開したフォルダのパス>
+# 例: cd C:\Users\you\Downloads\tasker-v0.2.1-local
+npx serve . -p 3208
 ```
 
 → `http://localhost:3208` をブラウザで開く
+
+> `npx` がない場合は [Node.js](https://nodejs.org) をインストールしてください。
 
 ### ローカル（ソースコードから開発）
 
@@ -75,7 +78,7 @@ npx serve <展開したフォルダのパス>
 # 依存パッケージのインストール
 npm install
 
-# 開発サーバー起動（http://localhost:5173）
+# 開発サーバー起動（http://localhost:3208）
 npm run dev
 ```
 
@@ -83,7 +86,7 @@ npm run dev
 
 ```bash
 npm run dev           # 開発サーバー
-npm run build         # プロダクションビルド（ローカル用、base=/）
+npm run build         # プロダクションビルド（VITE_BASE_PATH で配布先を切替）
 npm run preview       # ビルド結果をローカルでプレビュー
 npm run test          # テスト実行
 npm run test:watch    # テストをウォッチモードで実行

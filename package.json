@@ -1,7 +1,7 @@
 {
   "name": "tasker",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "scripts": {
     "licenses:generate": "license-checker-rseidelsohn --json --excludePrivatePackages --out public/third-party-licenses.json",
