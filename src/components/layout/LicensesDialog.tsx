@@ -51,7 +51,7 @@ export function LicensesDialog({ onClose }: { onClose: () => void }) {
   }, [])
 
   const entries = licenses
-    ? Object.entries(licenses).filter(([name]) => name !== 'tasker@0.1.0')
+    ? Object.entries(licenses).filter(([name]) => !name.startsWith('tasker@'))
     : []
 
   return (
@@ -76,7 +76,12 @@ export function LicensesDialog({ onClose }: { onClose: () => void }) {
           <div className="flex-1 overflow-y-auto p-6 text-xs space-y-6">
             {/* Tasker 本体 */}
             <section>
-              <h2 className="mb-2 text-sm font-semibold">Tasker</h2>
+              <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                Tasker
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  v{__APP_VERSION__}
+                </span>
+              </h2>
               <pre className="whitespace-pre-wrap rounded-md bg-muted p-4 font-mono text-xs leading-relaxed text-muted-foreground">
                 {MIT_LICENSE_TEXT}
               </pre>

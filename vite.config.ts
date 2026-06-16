@@ -3,11 +3,17 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { createRequire } from 'node:module'
 
 const base = process.env.VITE_BASE_PATH ?? '/'
+const require = createRequire(import.meta.url)
+const pkg = require('./package.json') as { version: string }
 
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   server: {
     port: 3208,
   },

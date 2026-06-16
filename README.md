@@ -74,7 +74,7 @@
 
 ```bash
 cd <展開したフォルダのパス>
-# 例: cd C:\Users\you\Downloads\tasker-v0.2.1-local
+# 例: cd C:\Users\you\Downloads\tasker-v0.3.0-local
 npx serve . -p 3208
 ```
 
