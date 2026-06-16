@@ -18,9 +18,10 @@ import type { Task } from '@/types'
 
 interface TaskRowProps {
   task: Task
+  canEdit?: boolean
 }
 
-export function TaskRow({ task }: TaskRowProps) {
+export function TaskRow({ task, canEdit = true }: TaskRowProps) {
   const { openTaskDrawer } = useUIStore()
   const { completeRecurringTask } = useRecurrence()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -29,6 +30,7 @@ export function TaskRow({ task }: TaskRowProps) {
 
   async function toggleDone(e: React.MouseEvent) {
     e.stopPropagation()
+    if (!canEdit) return
     try {
       if (isDone) {
         unwrapResult(await taskRepo.update(task.id, { status: 'todo' }))
@@ -43,6 +45,7 @@ export function TaskRow({ task }: TaskRowProps) {
   }
 
   async function handleDelete() {
+    if (!canEdit) return
     setDeleteError(null)
     try {
       unwrapResult(await taskRepo.delete(task.id))
@@ -64,13 +67,19 @@ export function TaskRow({ task }: TaskRowProps) {
         )}
         onClick={() => openTaskDrawer(task.id)}
       >
-        <button
-          onClick={toggleDone}
-          className="shrink-0 text-muted-foreground hover:text-primary"
-          title={isDone ? '未完了に戻す' : '完了にする'}
-        >
-          {isDone ? <Check className="h-4 w-4 text-primary" /> : <Circle className="h-4 w-4" />}
-        </button>
+        {canEdit ? (
+          <button
+            onClick={toggleDone}
+            className="shrink-0 text-muted-foreground hover:text-primary"
+            title={isDone ? '未完了に戻す' : '完了にする'}
+          >
+            {isDone ? <Check className="h-4 w-4 text-primary" /> : <Circle className="h-4 w-4" />}
+          </button>
+        ) : (
+          <span className="shrink-0 text-muted-foreground">
+            {isDone ? <Check className="h-4 w-4 text-primary" /> : <Circle className="h-4 w-4" />}
+          </span>
+        )}
 
         <span
           className={cn('h-1.5 w-1.5 shrink-0 rounded-full', PRIORITY_DOT_CLASSES[task.priority])}
@@ -111,16 +120,18 @@ export function TaskRow({ task }: TaskRowProps) {
           </span>
         )}
 
-        <button
-          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-          onClick={(e) => {
-            e.stopPropagation()
-            setConfirmOpen(true)
-          }}
-          title="タスクを削除"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        {canEdit && (
+          <button
+            className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+            onClick={(e) => {
+              e.stopPropagation()
+              setConfirmOpen(true)
+            }}
+            title="タスクを削除"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
 
         <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
       </div>

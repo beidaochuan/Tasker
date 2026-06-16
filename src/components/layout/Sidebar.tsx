@@ -13,12 +13,16 @@ import {
   Trash2,
   Info,
   Pencil,
+  LogIn,
+  LogOut,
+  Eye,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/button'
 import { useProjects } from '@/hooks/useProjects'
 import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
+import { useAuthStore } from '@/store/authStore'
 import { TagManager } from '@/components/task/TagManager'
 import { exportAllData, importAllData } from '@/utils/exportUtils'
 import { projectRepo } from '@/repositories'
@@ -37,6 +41,7 @@ export function Sidebar() {
   const { selectedProjectId, setSelectedProjectId, openProjectForm, openProjectEditForm } =
     useUIStore()
   const { isDark, toggleDark } = useThemeStore()
+  const { isAuthenticated, openLoginDialog, logout } = useAuthStore()
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false)
   const [isLicensesOpen, setIsLicensesOpen] = useState(false)
   const [dialogState, setDialogState] = useState<DialogState>({ type: 'none' })
@@ -50,6 +55,10 @@ export function Sidebar() {
   }
 
   async function handleDeleteProject() {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
     if (dialogState.type !== 'deleteConfirm') return
     const { projectId } = dialogState
     setDialogState({ type: 'none' })
@@ -63,6 +72,10 @@ export function Sidebar() {
   }
 
   async function handleConfirmImport() {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
     if (dialogState.type !== 'confirm') return
     const { file } = dialogState
     setDialogState({ type: 'none' })
@@ -77,14 +90,49 @@ export function Sidebar() {
 
   const isDialogOpen = dialogState.type !== 'none'
 
+  function handleOpenProjectForm() {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
+    openProjectForm()
+  }
+
+  function handleOpenTagManager() {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
+    setIsTagManagerOpen(true)
+  }
+
+  function handleImportClick() {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
+    importInputRef.current?.click()
+  }
+
   return (
     <aside className="flex w-56 flex-col border-r border-border bg-background">
       <div className="flex items-center justify-between p-4">
         <span className="text-sm font-semibold text-muted-foreground">プロジェクト</span>
-        <Button variant="ghost" size="icon" onClick={openProjectForm} title="新規プロジェクト">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleOpenProjectForm}
+          title={isAuthenticated ? '新規プロジェクト' : 'ログインして新規プロジェクト'}
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
+      {!isAuthenticated && (
+        <div className="mx-3 mb-2 flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-xs text-muted-foreground">
+          <Eye className="h-3.5 w-3.5" />
+          閲覧モード
+        </div>
+      )}
 
       <nav className="flex-1 overflow-y-auto px-2 py-1">
         {projects.map((project) => (
@@ -107,28 +155,32 @@ export function Sidebar() {
               />
               <span className="truncate">{project.name}</span>
             </button>
-            <button
-              className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-              onClick={() => openProjectEditForm(project.id)}
-              title="プロジェクトを編集"
-              aria-label={`${project.name} を編集`}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-              onClick={() =>
-                setDialogState({
-                  type: 'deleteConfirm',
-                  projectId: project.id,
-                  projectName: project.name,
-                })
-              }
-              title="プロジェクトを削除"
-              aria-label={`${project.name} を削除`}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            {isAuthenticated && (
+              <>
+                <button
+                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                  onClick={() => openProjectEditForm(project.id)}
+                  title="プロジェクトを編集"
+                  aria-label={`${project.name} を編集`}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                  onClick={() =>
+                    setDialogState({
+                      type: 'deleteConfirm',
+                      projectId: project.id,
+                      projectName: project.name,
+                    })
+                  }
+                  title="プロジェクトを削除"
+                  aria-label={`${project.name} を削除`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
           </div>
         ))}
 
@@ -140,15 +192,15 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className="flex items-center gap-1 border-t border-border p-3">
+      <div className="grid grid-cols-4 gap-1 border-t border-border p-3">
         <Button variant="ghost" size="icon" onClick={toggleDark} title="テーマ切替">
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setIsTagManagerOpen(true)}
-          title="タグ管理"
+          onClick={handleOpenTagManager}
+          title={isAuthenticated ? 'タグ管理' : 'ログインしてタグ管理'}
         >
           <Tag className="h-4 w-4" />
         </Button>
@@ -163,8 +215,8 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => importInputRef.current?.click()}
-          title="JSONインポート"
+          onClick={handleImportClick}
+          title={isAuthenticated ? 'JSONインポート' : 'ログインしてJSONインポート'}
         >
           <Upload className="h-4 w-4" />
         </Button>
@@ -176,6 +228,15 @@ export function Sidebar() {
           aria-label="ライセンス情報"
         >
           <Info className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={isAuthenticated ? logout : openLoginDialog}
+          title={isAuthenticated ? 'ログアウト' : 'ログイン'}
+          aria-label={isAuthenticated ? 'ログアウト' : 'ログイン'}
+        >
+          {isAuthenticated ? <LogOut className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
         </Button>
         <input
           ref={importInputRef}

@@ -7,6 +7,7 @@ import type { EventClickArg, EventDropArg, DateSelectArg, DatesSetArg } from '@f
 import { FolderOpen } from 'lucide-react'
 import { useCalendarTasks } from '@/hooks/useCalendarTasks'
 import { useUIStore } from '@/store/uiStore'
+import { useAuthStore } from '@/store/authStore'
 import { taskRepo } from '@/repositories'
 import { resolveTaskId } from '@/utils/recurrenceUtils'
 import './calendar.css'
@@ -30,6 +31,7 @@ const FC_BUTTON_TEXT = {
 export function CalendarView() {
   // Hooks はすべて early return より前に呼ぶ（React の規則）
   const { selectedProjectId, openTaskDrawer } = useUIStore()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [rangeStart, setRangeStart] = useState<Date | null>(null)
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null)
   const events = useCalendarTasks(selectedProjectId, rangeStart, rangeEnd)
@@ -49,23 +51,30 @@ export function CalendarView() {
 
   // Issue #6: try/catch で uncaught promise rejection を防ぎ、失敗時は必ず revert
   // 繰り返し展開イベントのドロップは基準 dueDate を更新する
-  const handleEventDrop = useCallback(async (arg: EventDropArg) => {
-    const newDate = arg.event.start
-    if (!newDate) {
-      arg.revert()
-      return
-    }
-    try {
-      const result = await taskRepo.update(resolveTaskId(arg.event.id), { dueDate: newDate })
-      if (!result.ok) {
+  const handleEventDrop = useCallback(
+    async (arg: EventDropArg) => {
+      if (!isAuthenticated) {
         arg.revert()
-        console.error('[CalendarView] dueDate 更新失敗:', result.error)
+        return
       }
-    } catch (e) {
-      arg.revert()
-      console.error('[CalendarView] dueDate 更新中に予期しないエラー:', e)
-    }
-  }, [])
+      const newDate = arg.event.start
+      if (!newDate) {
+        arg.revert()
+        return
+      }
+      try {
+        const result = await taskRepo.update(resolveTaskId(arg.event.id), { dueDate: newDate })
+        if (!result.ok) {
+          arg.revert()
+          console.error('[CalendarView] dueDate 更新失敗:', result.error)
+        }
+      } catch (e) {
+        arg.revert()
+        console.error('[CalendarView] dueDate 更新中に予期しないエラー:', e)
+      }
+    },
+    [isAuthenticated]
+  )
 
   const handleDateSelect = useCallback((arg: DateSelectArg) => {
     // topicId が不明なため新規タスク作成は行わず選択解除のみ
@@ -90,8 +99,8 @@ export function CalendarView() {
         locale="ja"
         height="100%"
         events={events}
-        editable
-        selectable
+        editable={isAuthenticated}
+        selectable={isAuthenticated}
         selectMirror
         dayMaxEvents
         eventClick={handleEventClick}

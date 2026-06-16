@@ -97,7 +97,12 @@ export const GanttBar = memo(function GanttBar({
   return (
     <div
       className={`absolute top-[6px] flex select-none items-center overflow-hidden rounded-md shadow-xs ${colorClass}`}
-      style={{ left, width, height: barHeight, cursor: isVirtual ? 'default' : 'grab' }}
+      style={{
+        left,
+        width,
+        height: barHeight,
+        cursor: isVirtual ? 'default' : onBarPointerDown ? 'grab' : 'pointer',
+      }}
       onPointerDown={handlePointerDown}
       onClick={() => {
         if (!didDragRef.current) onClick?.(resolveTaskId(task.id))

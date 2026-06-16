@@ -6,6 +6,7 @@ import { ListView } from '@/components/views/ListView/ListView'
 import { KanbanView } from '@/components/views/KanbanView/KanbanView'
 import { TaskDrawer } from '@/components/task/TaskDrawer'
 import { ProjectForm } from '@/components/project/ProjectForm'
+import { LoginDialog } from '@/components/auth/LoginDialog'
 import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
@@ -82,6 +83,9 @@ function App() {
       </ErrorBoundary>
       <ErrorBoundary>
         <ProjectForm />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <LoginDialog />
       </ErrorBoundary>
     </ErrorBoundary>
   )

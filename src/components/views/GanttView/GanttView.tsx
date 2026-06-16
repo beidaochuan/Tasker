@@ -2,6 +2,7 @@ import { useRef, useCallback, useState, useMemo } from 'react'
 import { FolderOpen } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useUIStore } from '@/store/uiStore'
+import { useAuthStore } from '@/store/authStore'
 import { taskRepo } from '@/repositories'
 import { resolveTaskId } from '@/utils/recurrenceUtils'
 import { useGanttData } from '@/hooks/useGanttData'
@@ -33,6 +34,7 @@ interface FlatRow {
 
 export function GanttView() {
   const { selectedProjectId, openTaskDrawer } = useUIStore()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const ganttRows = useGanttData(selectedProjectId)
   const [scale, setScale] = useState<GanttScale>('day')
 
@@ -47,10 +49,11 @@ export function GanttView() {
   const { preview, onBarPointerDown } = useGanttDrag(startDate, scale)
 
   const handleCreateBar = useCallback(async (taskId: string, startDate: Date, dueDate: Date) => {
+    if (!isAuthenticated) return
     unwrapResult(
       await taskRepo.update(resolveTaskId(taskId), { startDate, dueDate, status: 'todo' })
     )
-  }, [])
+  }, [isAuthenticated])
 
   const flatRows = useMemo<FlatRow[]>(() => {
     const rows: FlatRow[] = []
@@ -239,9 +242,9 @@ export function GanttView() {
                     totalDays={totalDays}
                     ganttStart={startDate}
                     scale={scale}
-                    onBarPointerDown={onBarPointerDown}
+                    onBarPointerDown={isAuthenticated ? onBarPointerDown : undefined}
                     onBarClick={openTaskDrawer}
-                    onCreateBar={handleCreateBar}
+                    onCreateBar={isAuthenticated ? handleCreateBar : undefined}
                   />
                 </div>
               )

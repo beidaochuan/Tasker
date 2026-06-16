@@ -8,13 +8,15 @@ import type { Task } from '@/types'
 
 interface KanbanCardProps {
   task: Task
+  canEdit: boolean
 }
 
-export const KanbanCard = memo(function KanbanCard({ task }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ task, canEdit }: KanbanCardProps) {
   const { openTaskDrawer } = useUIStore()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: 'card', task },
+    disabled: !canEdit,
   })
   // isDragging が true → false に変わった直後の click イベントを無視するフラグ
   const wasDragging = useRef(false)
@@ -34,9 +36,11 @@ export const KanbanCard = memo(function KanbanCard({ task }: KanbanCardProps) {
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className={cn('cursor-grab active:cursor-grabbing', isDragging && 'opacity-40')}
+      {...(canEdit ? { ...attributes, ...listeners } : {})}
+      className={cn(
+        canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+        isDragging && 'opacity-40'
+      )}
       onClick={(e) => {
         if (wasDragging.current) {
           wasDragging.current = false

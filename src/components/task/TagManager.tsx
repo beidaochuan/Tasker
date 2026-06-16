@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useTags } from '@/hooks/useTags'
 import { tagRepo } from '@/repositories'
 import { useFilterStore } from '@/store/filterStore'
+import { useAuthStore } from '@/store/authStore'
 import { unwrapResult } from '@/utils/resultUtils'
 
 const PRESET_COLORS = [
@@ -24,11 +25,16 @@ interface TagManagerProps {
 export function TagManager({ onClose }: TagManagerProps) {
   const tags = useTags()
   const { tagIds, setTagIds } = useFilterStore()
+  const { isAuthenticated, openLoginDialog } = useAuthStore()
   const [name, setName] = useState('')
   const [color, setColor] = useState(PRESET_COLORS[0])
   const [error, setError] = useState('')
 
   async function handleCreate() {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
     const trimmed = name.trim()
     if (!trimmed) {
       setError('タグ名を入力してください')
@@ -48,6 +54,10 @@ export function TagManager({ onClose }: TagManagerProps) {
   }
 
   async function handleDelete(id: string) {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
     if (!window.confirm('このタグを削除しますか？タスクへの紐付けも解除されます。')) return
     try {
       unwrapResult(await tagRepo.delete(id))
@@ -96,8 +106,9 @@ export function TagManager({ onClose }: TagManagerProps) {
               }}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+              disabled={!isAuthenticated}
             />
-            <Button size="sm" onClick={handleCreate}>
+            <Button size="sm" onClick={handleCreate} disabled={!isAuthenticated}>
               <Plus className="h-3.5 w-3.5" />
               追加
             </Button>
@@ -109,6 +120,7 @@ export function TagManager({ onClose }: TagManagerProps) {
                 key={c}
                 onClick={() => setColor(c)}
                 className="h-5 w-5 rounded-full transition-transform hover:scale-110"
+                disabled={!isAuthenticated}
                 style={{
                   backgroundColor: c,
                   outline: color === c ? `2px solid ${c}` : 'none',
@@ -138,6 +150,7 @@ export function TagManager({ onClose }: TagManagerProps) {
                 onClick={() => handleDelete(tag.id)}
                 className="rounded-md p-1 text-muted-foreground hover:text-destructive"
                 title="削除"
+                disabled={!isAuthenticated}
               >
                 <X className="h-3.5 w-3.5" />
               </button>

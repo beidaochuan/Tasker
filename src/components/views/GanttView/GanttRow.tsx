@@ -108,7 +108,7 @@ export const GanttRow = memo(function GanttRow({
       style={{
         width: totalWidth,
         height: ROW_HEIGHT,
-        cursor: hasBar ? 'default' : 'crosshair',
+        cursor: !hasBar && onCreateBar ? 'crosshair' : 'default',
         backgroundImage: `repeating-linear-gradient(
           to right,
           transparent,

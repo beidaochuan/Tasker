@@ -13,6 +13,7 @@ interface KanbanColumnProps {
   tasks: Task[]
   isOver: boolean
   defaultTopicId: string | null
+  canEdit: boolean
 }
 
 export const KanbanColumn = memo(function KanbanColumn({
@@ -20,6 +21,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   tasks,
   isOver,
   defaultTopicId,
+  canEdit,
 }: KanbanColumnProps) {
   const { openNewTaskDrawer } = useUIStore()
   // setNodeRef を列全体に設定してヘッダー部分もドロップゾーンに含める
@@ -60,7 +62,7 @@ export const KanbanColumn = memo(function KanbanColumn({
             {wipLimit > 0 && `/${wipLimit}`}
           </span>
         </div>
-        {status === 'todo' && defaultTopicId && (
+        {canEdit && status === 'todo' && defaultTopicId && (
           <button
             className="rounded-md p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             title="タスクを追加"
@@ -75,12 +77,14 @@ export const KanbanColumn = memo(function KanbanColumn({
       <div className={cn('flex-1 space-y-2 overflow-y-auto p-3', tasks.length === 0 && 'min-h-28')}>
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <KanbanCard key={task.id} task={task} />
+            <KanbanCard key={task.id} task={task} canEdit={canEdit} />
           ))}
         </SortableContext>
         {tasks.length === 0 && (
           <div className="flex items-center justify-center rounded-md border border-dashed border-border/80 py-8">
-            <p className="text-xs text-muted-foreground/70">ここにドロップ</p>
+            <p className="text-xs text-muted-foreground/70">
+              {canEdit ? 'ここにドロップ' : 'タスクなし'}
+            </p>
           </div>
         )}
       </div>

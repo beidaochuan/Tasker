@@ -23,10 +23,11 @@ import type { Topic } from '@/types'
 
 interface TopicRowProps {
   topic: Topic
+  canEdit: boolean
   onAddTask: (topicId: string) => void
 }
 
-export function TopicRow({ topic, onAddTask }: TopicRowProps) {
+export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
   const [isOpen, setIsOpen] = useState(true)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -40,6 +41,7 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   function startEditingName() {
+    if (!canEdit) return
     flushSync(() => {
       setEditName(topic.name)
       setIsEditingName(true)
@@ -48,6 +50,10 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
   }
 
   async function commitEditName() {
+    if (!canEdit) {
+      setIsEditingName(false)
+      return
+    }
     const name = editName.trim()
     setIsEditingName(false)
     if (!name || name === topic.name) return
@@ -64,6 +70,7 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
   }
 
   async function handleDelete() {
+    if (!canEdit) return
     setIsDeleting(true)
     setDeleteError(null)
     try {
@@ -77,6 +84,7 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (!canEdit) return
     const { active, over } = event
     if (!over || active.id === over.id) return
 
@@ -120,7 +128,7 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
           <button
             className="flex flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-sm font-semibold hover:bg-accent/50 text-left"
             onClick={() => setIsOpen((v) => !v)}
-            onDoubleClick={startEditingName}
+            onDoubleClick={canEdit ? startEditingName : undefined}
           >
             <span>{topic.name}</span>
             <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
@@ -128,33 +136,37 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
             </span>
           </button>
         )}
-        <button
-          onClick={() => onAddTask(topic.id)}
-          className="rounded-md p-1 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
-          title="タスクを追加"
-          aria-label={`${topic.name} にタスクを追加`}
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={startEditingName}
-          className="rounded-md p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-accent/40 hover:text-foreground transition-opacity"
-          title="トピック名を編集"
-          aria-label={`${topic.name} を編集`}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => {
-            setDeleteError(null)
-            setIsConfirmOpen(true)
-          }}
-          className="rounded-md p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-accent/40 hover:text-destructive transition-opacity"
-          title="トピックを削除"
-          aria-label={`${topic.name} を削除`}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        {canEdit && (
+          <>
+            <button
+              onClick={() => onAddTask(topic.id)}
+              className="rounded-md p-1 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
+              title="タスクを追加"
+              aria-label={`${topic.name} にタスクを追加`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={startEditingName}
+              className="rounded-md p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-accent/40 hover:text-foreground transition-opacity"
+              title="トピック名を編集"
+              aria-label={`${topic.name} を編集`}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => {
+                setDeleteError(null)
+                setIsConfirmOpen(true)
+              }}
+              className="rounded-md p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-accent/40 hover:text-destructive transition-opacity"
+              title="トピックを削除"
+              aria-label={`${topic.name} を削除`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
       </div>
 
       <Dialog.Root
@@ -213,7 +225,12 @@ export function TopicRow({ topic, onAddTask }: TopicRowProps) {
                 strategy={verticalListSortingStrategy}
               >
                 {tasks.map((task) => (
-                  <SortableTaskRow key={task.id} task={task} disabled={isFiltering} />
+                  <SortableTaskRow
+                    key={task.id}
+                    task={task}
+                    disabled={isFiltering || !canEdit}
+                    canEdit={canEdit}
+                  />
                 ))}
               </SortableContext>
             </DndContext>

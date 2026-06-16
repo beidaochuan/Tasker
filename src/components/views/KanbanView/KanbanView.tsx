@@ -20,6 +20,7 @@ import { KanbanSkeleton } from '@/components/ui/skeleton'
 import { COLUMN_ORDER, WIP_LIMITS } from './kanbanConstants'
 import { useKanbanData } from '@/hooks/useTasks'
 import { useUIStore } from '@/store/uiStore'
+import { useAuthStore } from '@/store/authStore'
 import { taskRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
 import type { Task, TaskStatus } from '@/types'
@@ -46,6 +47,7 @@ function resolveTargetColumn(
 
 export function KanbanView() {
   const { selectedProjectId } = useUIStore()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const { tasksByStatus, defaultTopicId, isLoading } = useKanbanData(selectedProjectId)
 
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
@@ -66,14 +68,19 @@ export function KanbanView() {
     return closestCorners(args)
   }, [])
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const task = event.active.data.current?.task as Task | undefined
-    if (task) setDraggingTask(task)
-    // localTasksByStatus の初期化は handleDragOver の初回に lazy で行う
-  }, []) // tasksByStatus 非依存: 初回 handleDragOver の prev ?? tasksByStatus で取得
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      if (!isAuthenticated) return
+      const task = event.active.data.current?.task as Task | undefined
+      if (task) setDraggingTask(task)
+      // localTasksByStatus の初期化は handleDragOver の初回に lazy で行う
+    },
+    [isAuthenticated]
+  ) // tasksByStatus 非依存: 初回 handleDragOver の prev ?? tasksByStatus で取得
 
   const handleDragOver = useCallback(
     (event: DragOverEvent) => {
+      if (!isAuthenticated) return
       const { active, over } = event
       if (!over) return
 
@@ -107,11 +114,12 @@ export function KanbanView() {
         return next
       })
     },
-    [tasksByStatus]
+    [tasksByStatus, isAuthenticated]
   )
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
+      if (!isAuthenticated) return
       const { active, over } = event
       const currentLocal = localTasksByStatusRef.current
 
@@ -157,7 +165,7 @@ export function KanbanView() {
         clearLocal()
       }
     },
-    [tasksByStatus]
+    [tasksByStatus, isAuthenticated]
   )
 
   if (!selectedProjectId) {
@@ -189,6 +197,7 @@ export function KanbanView() {
             tasks={displayed[status]}
             isOver={overColumnId === status}
             defaultTopicId={defaultTopicId}
+            canEdit={isAuthenticated}
           />
         ))}
       </div>

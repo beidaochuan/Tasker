@@ -8,9 +8,10 @@ import type { Task } from '@/types'
 interface SortableTaskRowProps {
   task: Task
   disabled?: boolean
+  canEdit?: boolean
 }
 
-export function SortableTaskRow({ task, disabled }: SortableTaskRowProps) {
+export function SortableTaskRow({ task, disabled, canEdit = true }: SortableTaskRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     disabled,
@@ -43,7 +44,7 @@ export function SortableTaskRow({ task, disabled }: SortableTaskRowProps) {
         <GripVertical className="h-3.5 w-3.5" />
       </button>
       <div className="flex-1">
-        <TaskRow task={task} />
+        <TaskRow task={task} canEdit={canEdit} />
       </div>
     </div>
   )

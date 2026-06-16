@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/uiStore'
+import { useAuthStore } from '@/store/authStore'
 import { useProject } from '@/hooks/useProjects'
 import { projectRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
@@ -30,6 +31,7 @@ type FormValues = z.infer<typeof schema>
 
 export function ProjectForm() {
   const { isProjectFormOpen, editingProjectId, closeProjectForm } = useUIStore()
+  const { isAuthenticated, openLoginDialog } = useAuthStore()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const editingProject = useProject(editingProjectId)
   const isEditing = editingProjectId !== null
@@ -48,6 +50,11 @@ export function ProjectForm() {
 
   const prevFormOpenRef = useRef(false)
   useEffect(() => {
+    if (isProjectFormOpen && !isAuthenticated) {
+      closeProjectForm()
+      openLoginDialog()
+      return
+    }
     if (isProjectFormOpen && !prevFormOpenRef.current) {
       if (isEditing && editingProject) {
         reset({
@@ -60,11 +67,24 @@ export function ProjectForm() {
       }
     }
     prevFormOpenRef.current = isProjectFormOpen
-  }, [isProjectFormOpen, isEditing, editingProject, reset])
+  }, [
+    isProjectFormOpen,
+    isAuthenticated,
+    isEditing,
+    editingProject,
+    reset,
+    closeProjectForm,
+    openLoginDialog,
+  ])
 
   const selectedColor = watch('color')
 
   async function onSubmit(values: FormValues) {
+    if (!isAuthenticated) {
+      closeProjectForm()
+      openLoginDialog()
+      return
+    }
     setSubmitError(null)
     try {
       if (isEditing) {

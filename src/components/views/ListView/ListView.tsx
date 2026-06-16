@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, FolderOpen, X } from 'lucide-react'
+import { Plus, FolderOpen, X, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TopicRow } from './TopicRow'
 import { FilterPanel } from '@/components/filter/FilterPanel'
@@ -7,11 +7,13 @@ import { ListViewSkeleton } from '@/components/ui/skeleton'
 import { useKanbanData, useTopics } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProjects'
 import { useUIStore } from '@/store/uiStore'
+import { useAuthStore } from '@/store/authStore'
 import { topicRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
 
 export function ListView() {
   const { selectedProjectId, openNewTaskDrawer } = useUIStore()
+  const { isAuthenticated, openLoginDialog } = useAuthStore()
   const topics = useTopics(selectedProjectId)
   const { tasksByStatus } = useKanbanData(selectedProjectId)
   const selectedProject = useProject(selectedProjectId)
@@ -20,11 +22,19 @@ export function ListView() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   function openDialog() {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
     setTopicName('')
     setIsDialogOpen(true)
   }
 
   async function handleAddTopic() {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
     const name = topicName.trim()
     if (!selectedProjectId || !name || isSubmitting) return
     setIsSubmitting(true)
@@ -37,6 +47,14 @@ export function ListView() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  function handleAddTask(topicId: string) {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
+    openNewTaskDrawer(topicId)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -73,10 +91,17 @@ export function ListView() {
             {topics.length} トピック / {taskCount} タスク
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={openDialog}>
-          <Plus className="h-3.5 w-3.5" />
-          トピックを追加
-        </Button>
+        {isAuthenticated ? (
+          <Button variant="outline" size="sm" onClick={openDialog}>
+            <Plus className="h-3.5 w-3.5" />
+            トピックを追加
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={openLoginDialog}>
+            <LogIn className="h-3.5 w-3.5" />
+            ログインして編集
+          </Button>
+        )}
       </div>
       <FilterPanel />
 
@@ -84,15 +109,22 @@ export function ListView() {
         {topics.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <p className="text-sm text-muted-foreground">まだトピックがありません</p>
-            <Button variant="outline" size="sm" onClick={openDialog}>
-              <Plus className="h-3.5 w-3.5" />
-              最初のトピックを作成
-            </Button>
+            {isAuthenticated && (
+              <Button variant="outline" size="sm" onClick={openDialog}>
+                <Plus className="h-3.5 w-3.5" />
+                最初のトピックを作成
+              </Button>
+            )}
           </div>
         )}
         <div className="space-y-2">
           {topics.map((topic) => (
-            <TopicRow key={topic.id} topic={topic} onAddTask={openNewTaskDrawer} />
+            <TopicRow
+              key={topic.id}
+              topic={topic}
+              canEdit={isAuthenticated}
+              onAddTask={handleAddTask}
+            />
           ))}
         </div>
       </div>

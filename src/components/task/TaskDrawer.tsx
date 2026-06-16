@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { X, Trash2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/uiStore'
+import { useAuthStore } from '@/store/authStore'
 import { useTask } from '@/hooks/useTasks'
 import { useRecurrence } from '@/hooks/useRecurrence'
 import { taskRepo } from '@/repositories'
@@ -48,6 +49,7 @@ function repeatRuleFromValues(values: TaskFormValues): string | null {
 
 export function TaskDrawer() {
   const { isTaskDrawerOpen, selectedTaskId, newTaskTopicId, closeTaskDrawer } = useUIStore()
+  const { isAuthenticated, openLoginDialog } = useAuthStore()
   const { completeRecurringTask } = useRecurrence()
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -113,6 +115,10 @@ export function TaskDrawer() {
   }, [existingTask, isNew, reset, isTaskDrawerOpen])
 
   async function onSubmit(values: TaskFormValues) {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
     setSubmitError(null)
     try {
       const startDate = parseDateInput(values.startDate)
@@ -172,6 +178,10 @@ export function TaskDrawer() {
   }
 
   async function handleDelete() {
+    if (!isAuthenticated) {
+      openLoginDialog()
+      return
+    }
     if (!existingTask) return
     try {
       unwrapResult(await taskRepo.delete(existingTask.id))
@@ -189,15 +199,18 @@ export function TaskDrawer() {
   }, [repeatEnabled, repeatFreq, repeatInterval])
 
   if (!isTaskDrawerOpen) return null
+  if (isNew && !isAuthenticated) return null
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={closeTaskDrawer} />
       <div className="relative z-10 flex h-full w-full max-w-lg flex-col border-l border-border bg-card shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold">{isNew ? 'タスクを作成' : 'タスクを編集'}</h2>
+          <h2 className="text-base font-semibold">
+            {!isAuthenticated ? 'タスク詳細' : isNew ? 'タスクを作成' : 'タスクを編集'}
+          </h2>
           <div className="flex gap-1">
-            {!isNew && (
+            {isAuthenticated && !isNew && (
               <Button variant="ghost" size="icon" onClick={handleDelete} title="削除">
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
@@ -222,6 +235,7 @@ export function TaskDrawer() {
                 {...register('title')}
                 className={FIELD_CLASS}
                 placeholder="タスク名を入力"
+                disabled={!isAuthenticated}
               />
               {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
             </div>
@@ -236,6 +250,7 @@ export function TaskDrawer() {
                 rows={4}
                 className={TEXTAREA_CLASS}
                 placeholder="説明（省略可）"
+                disabled={!isAuthenticated}
               />
             </div>
 
@@ -244,7 +259,12 @@ export function TaskDrawer() {
                 <label htmlFor="task-status" className={LABEL_CLASS}>
                   ステータス
                 </label>
-                <select id="task-status" {...register('status')} className={FIELD_CLASS}>
+                <select
+                  id="task-status"
+                  {...register('status')}
+                  className={FIELD_CLASS}
+                  disabled={!isAuthenticated}
+                >
                   <option value="todo">未着手</option>
                   <option value="in_progress">進行中</option>
                   <option value="done">完了</option>
@@ -256,7 +276,12 @@ export function TaskDrawer() {
                 <label htmlFor="task-priority" className={LABEL_CLASS}>
                   優先度
                 </label>
-                <select id="task-priority" {...register('priority')} className={FIELD_CLASS}>
+                <select
+                  id="task-priority"
+                  {...register('priority')}
+                  className={FIELD_CLASS}
+                  disabled={!isAuthenticated}
+                >
                   <option value="low">低</option>
                   <option value="medium">中</option>
                   <option value="high">高</option>
@@ -275,6 +300,7 @@ export function TaskDrawer() {
                   {...register('startDate')}
                   type="date"
                   className={FIELD_CLASS}
+                  disabled={!isAuthenticated}
                 />
               </div>
 
@@ -287,6 +313,7 @@ export function TaskDrawer() {
                   {...register('dueDate')}
                   type="date"
                   className={FIELD_CLASS}
+                  disabled={!isAuthenticated}
                 />
               </div>
             </div>
@@ -304,6 +331,7 @@ export function TaskDrawer() {
                       checked={field.value}
                       onChange={field.onChange}
                       className="h-4 w-4 rounded border-input accent-primary"
+                      disabled={!isAuthenticated}
                     />
                   )}
                 />
@@ -321,7 +349,11 @@ export function TaskDrawer() {
 
               {repeatEnabled && (
                 <div className="grid grid-cols-[1fr_auto_72px_auto] items-center gap-2 pt-1">
-                  <select {...register('repeatFreq')} className={FIELD_CLASS}>
+                  <select
+                    {...register('repeatFreq')}
+                    className={FIELD_CLASS}
+                    disabled={!isAuthenticated}
+                  >
                     {FREQ_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
@@ -335,6 +367,7 @@ export function TaskDrawer() {
                     min={1}
                     max={99}
                     className={FIELD_CLASS}
+                    disabled={!isAuthenticated}
                   />
                   <span className="text-sm text-muted-foreground">回</span>
                 </div>
@@ -342,16 +375,18 @@ export function TaskDrawer() {
             </div>
           </div>
 
-          <div className="border-t border-border bg-card p-5">
-            {submitError && (
-              <p role="alert" className="mb-3 text-xs text-destructive">
-                {submitError}
-              </p>
-            )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isNew ? '作成する' : '保存する'}
-            </Button>
-          </div>
+          {isAuthenticated && (
+            <div className="border-t border-border bg-card p-5">
+              {submitError && (
+                <p role="alert" className="mb-3 text-xs text-destructive">
+                  {submitError}
+                </p>
+              )}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isNew ? '作成する' : '保存する'}
+              </Button>
+            </div>
+          )}
         </form>
       </div>
     </div>
