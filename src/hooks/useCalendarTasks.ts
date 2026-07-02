@@ -1,16 +1,14 @@
-import { useMemo } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useState, useEffect, useMemo } from 'react'
 import { addDays } from 'date-fns'
-import { db } from '@/db/schema'
-import { rowToTask } from '@/repositories/taskRepository'
+import { taskRepo } from '@/repositories'
 import { expandOccurrences, hasRepeatRule } from '@/utils/recurrenceUtils'
+import { useRefreshStore } from './useDataRefresh'
 import type { Task, TaskStatus } from '@/types'
 
 export interface CalendarEvent {
   id: string
   title: string
   start: Date
-  // FullCalendar の end は exclusive（終了日の翌日を指定する必要がある）
   end: Date
   allDay: boolean
   extendedProps: { task: Task }
@@ -18,7 +16,6 @@ export interface CalendarEvent {
   borderColor: string
 }
 
-// Issue #1: Record<TaskStatus, string> で型安全に — 新ステータス追加時にコンパイルエラーで検出
 const STATUS_COLORS: Record<TaskStatus, string> = {
   todo: '#6366f1',
   in_progress: '#f59e0b',
@@ -31,27 +28,35 @@ export function useCalendarTasks(
   rangeStart: Date | null,
   rangeEnd: Date | null
 ): CalendarEvent[] {
-  // Issue #3: useLiveQuery<Task[]> で戻り値型を明示
-  const tasks = useLiveQuery<Task[]>(async () => {
-    if (!projectId) return []
-    const topicRows = await db.topics.where('projectId').equals(projectId).toArray()
-    const topicIds = topicRows.map((t) => t.id)
-    if (topicIds.length === 0) return []
-    const taskRows = await db.tasks.where('topicId').anyOf(topicIds).toArray()
-    return taskRows.map(rowToTask)
-  }, [projectId])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const counter = useRefreshStore((s) => s.counter)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!projectId) {
+      Promise.resolve().then(() => {
+        if (!cancelled) setTasks([])
+      })
+      return () => {
+        cancelled = true
+      }
+    }
+    taskRepo.getByProjectId(projectId).then((r) => {
+      if (!cancelled) setTasks(r.ok ? r.data : [])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, counter])
 
   return useMemo(() => {
-    if (!tasks) return []
     const events: CalendarEvent[] = []
-
     for (const task of tasks) {
       if (task.status === 'cancelled') continue
       if (!task.dueDate) continue
       const color = STATUS_COLORS[task.status]
 
       if (hasRepeatRule(task.repeatRule)) {
-        // rangeStart/rangeEnd が確定してから展開（datesSet 未発火の間はスキップ）
         if (!rangeStart || !rangeEnd) continue
         const occurrences = expandOccurrences(task.repeatRule, task.dueDate, rangeStart, rangeEnd)
         for (const date of occurrences) {
@@ -67,9 +72,7 @@ export function useCalendarTasks(
           })
         }
       } else {
-        // 繰り返しなし: そのまま表示
         const start = task.startDate ?? task.dueDate
-        // Issue #2: addDays(date-fns) でイミュータブルに +1日
         const end = addDays(task.dueDate, 1)
         events.push({
           id: task.id,

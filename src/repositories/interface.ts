@@ -32,6 +32,7 @@ export interface ITopicRepository {
 
 export interface ITaskRepository {
   getByTopicId(topicId: string): Promise<Result<Task[]>>
+  getByProjectId(projectId: string): Promise<Result<Task[]>>
   getById(id: string): Promise<Result<Task>>
   create(data: CreateTask): Promise<Result<Task>>
   update(id: string, data: UpdateTask): Promise<Result<Task>>

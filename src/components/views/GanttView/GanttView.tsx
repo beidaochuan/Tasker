@@ -3,6 +3,7 @@ import { FolderOpen } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo } from '@/repositories'
 import { resolveTaskId } from '@/utils/recurrenceUtils'
 import { useGanttData } from '@/hooks/useGanttData'
@@ -37,6 +38,7 @@ export function GanttView() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const ganttRows = useGanttData(selectedProjectId)
   const [scale, setScale] = useState<GanttScale>('day')
+  const refresh = useRefreshStore((s) => s.refresh)
 
   const ppd = PIXELS_PER_DAY[scale]
 
@@ -48,12 +50,16 @@ export function GanttView() {
 
   const { preview, onBarPointerDown } = useGanttDrag(startDate, scale)
 
-  const handleCreateBar = useCallback(async (taskId: string, startDate: Date, dueDate: Date) => {
-    if (!isAuthenticated) return
-    unwrapResult(
-      await taskRepo.update(resolveTaskId(taskId), { startDate, dueDate, status: 'todo' })
-    )
-  }, [isAuthenticated])
+  const handleCreateBar = useCallback(
+    async (taskId: string, startDate: Date, dueDate: Date) => {
+      if (!isAuthenticated) return
+      unwrapResult(
+        await taskRepo.update(resolveTaskId(taskId), { startDate, dueDate, status: 'todo' })
+      )
+      refresh()
+    },
+    [isAuthenticated, refresh]
+  )
 
   const flatRows = useMemo<FlatRow[]>(() => {
     const rows: FlatRow[] = []

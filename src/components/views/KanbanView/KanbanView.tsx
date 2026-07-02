@@ -21,6 +21,7 @@ import { COLUMN_ORDER, WIP_LIMITS } from './kanbanConstants'
 import { useKanbanData } from '@/hooks/useTasks'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
 import type { Task, TaskStatus } from '@/types'
@@ -48,6 +49,7 @@ function resolveTargetColumn(
 export function KanbanView() {
   const { selectedProjectId } = useUIStore()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const refresh = useRefreshStore((s) => s.refresh)
   const { tasksByStatus, defaultTopicId, isLoading } = useKanbanData(selectedProjectId)
 
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
@@ -159,6 +161,7 @@ export function KanbanView() {
       try {
         // DB書き込み完了後にローカル状態をクリア（先にクリアすると元列への残像が出る）
         unwrapResult(await taskRepo.update(activeTask.id, { status: targetCol }))
+        refresh()
       } catch (err) {
         console.error('カンバンのステータス更新に失敗しました', err)
       } finally {

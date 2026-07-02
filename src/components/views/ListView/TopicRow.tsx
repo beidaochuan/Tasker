@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { SortableTaskRow } from '@/components/task/SortableTaskRow'
 import { useFilteredTasksByTopic } from '@/hooks/useFilteredTasks'
 import { useFilterStore, selectIsFiltering } from '@/store/filterStore'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo, topicRepo } from '@/repositories'
 import { reorderItems } from '@/utils/sortUtils'
 import { unwrapResult } from '@/utils/resultUtils'
@@ -37,6 +38,7 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
   const editInputRef = useRef<HTMLInputElement>(null)
   const tasks = useFilteredTasksByTopic(topic.id)
   const isFiltering = useFilterStore(selectIsFiltering)
+  const refresh = useRefreshStore((s) => s.refresh)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -59,6 +61,7 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
     if (!name || name === topic.name) return
     try {
       unwrapResult(await topicRepo.update(topic.id, { name }))
+      refresh()
     } catch (err) {
       console.error('トピック名の更新に失敗しました', err)
     }
@@ -75,6 +78,7 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
     setDeleteError(null)
     try {
       unwrapResult(await topicRepo.delete(topic.id))
+      refresh()
       setIsConfirmOpen(false)
     } catch {
       setDeleteError('削除に失敗しました。再試行してください。')
@@ -97,6 +101,7 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
       await Promise.all(
         reordered.map((task) => taskRepo.update(task.id, { order: task.order }).then(unwrapResult))
       )
+      refresh()
     } catch (err) {
       console.error('タスクの並び替えに失敗しました', err)
     }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X, Plus, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTags } from '@/hooks/useTags'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { tagRepo } from '@/repositories'
 import { useFilterStore } from '@/store/filterStore'
 import { useAuthStore } from '@/store/authStore'
@@ -26,6 +27,7 @@ export function TagManager({ onClose }: TagManagerProps) {
   const tags = useTags()
   const { tagIds, setTagIds } = useFilterStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
+  const refresh = useRefreshStore((s) => s.refresh)
   const [name, setName] = useState('')
   const [color, setColor] = useState(PRESET_COLORS[0])
   const [error, setError] = useState('')
@@ -46,6 +48,7 @@ export function TagManager({ onClose }: TagManagerProps) {
     }
     try {
       unwrapResult(await tagRepo.create({ name: trimmed, color }))
+      refresh()
       setName('')
       setError('')
     } catch (err) {
@@ -61,6 +64,7 @@ export function TagManager({ onClose }: TagManagerProps) {
     if (!window.confirm('このタグを削除しますか？タスクへの紐付けも解除されます。')) return
     try {
       unwrapResult(await tagRepo.delete(id))
+      refresh()
       // filterStore に残った孤立IDを除去
       if (tagIds.includes(id)) {
         setTagIds(tagIds.filter((x) => x !== id))

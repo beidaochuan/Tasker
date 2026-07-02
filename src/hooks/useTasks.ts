@@ -1,10 +1,8 @@
-import { useMemo } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db/schema'
+import { useState, useEffect, useMemo } from 'react'
 import type { Task, Topic, TaskStatus } from '@/types'
-import { rowToTask } from '@/repositories/taskRepository'
-import { fromUnixMs } from '@/utils/dateUtils'
+import { topicRepo, taskRepo } from '@/repositories'
 import { sortByOrder } from '@/utils/sortUtils'
+import { useRefreshStore } from './useDataRefresh'
 
 export interface KanbanData {
   tasksByStatus: Record<TaskStatus, Task[]>
@@ -12,52 +10,113 @@ export interface KanbanData {
 }
 
 export function useTopics(projectId: string | null): Topic[] | undefined {
-  return useLiveQuery(async () => {
-    if (!projectId) return []
-    const rows = await db.topics.where('projectId').equals(projectId).toArray()
-    return sortByOrder(rows.map((r) => ({ ...r, createdAt: fromUnixMs(r.createdAt) })))
-  }, [projectId])
+  const [topics, setTopics] = useState<Topic[] | undefined>(undefined)
+  const counter = useRefreshStore((s) => s.counter)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!projectId) {
+      Promise.resolve().then(() => {
+        if (!cancelled) setTopics([])
+      })
+      return () => {
+        cancelled = true
+      }
+    }
+    topicRepo.getByProjectId(projectId).then((r) => {
+      if (!cancelled) setTopics(r.ok ? sortByOrder(r.data) : [])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, counter])
+
+  return topics
 }
 
 export function useTasksByTopic(topicId: string): Task[] {
-  return (
-    useLiveQuery(async () => {
-      const rows = await db.tasks.where('topicId').equals(topicId).toArray()
-      return sortByOrder(rows.map(rowToTask))
-    }, [topicId]) ?? []
-  )
+  const [tasks, setTasks] = useState<Task[]>([])
+  const counter = useRefreshStore((s) => s.counter)
+
+  useEffect(() => {
+    taskRepo.getByTopicId(topicId).then((r) => {
+      setTasks(r.ok ? sortByOrder(r.data) : [])
+    })
+  }, [topicId, counter])
+
+  return tasks
 }
 
 export function useTask(id: string | null): Task | undefined {
-  return useLiveQuery(async () => {
-    if (!id) return undefined
-    const row = await db.tasks.get(id)
-    if (!row) return undefined
-    return rowToTask(row)
-  }, [id])
+  const [task, setTask] = useState<Task | undefined>(undefined)
+  const counter = useRefreshStore((s) => s.counter)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!id) {
+      Promise.resolve().then(() => {
+        if (!cancelled) setTask(undefined)
+      })
+      return () => {
+        cancelled = true
+      }
+    }
+    taskRepo.getById(id).then((r) => {
+      if (!cancelled) setTask(r.ok ? r.data : undefined)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [id, counter])
+
+  return task
 }
 
-// カンバンビュー用: projectId → topics → tasks を1クエリで取得しステータス別にグループ化
-// 依存配列が [projectId]（文字列）のみになり参照不安定性を回避、DBサブスクリプションも1本
 export interface KanbanDataWithLoading extends KanbanData {
   isLoading: boolean
 }
 
 export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
-  const raw = useLiveQuery(async () => {
-    if (!projectId) return null
-    const topicRows = await db.topics.where('projectId').equals(projectId).toArray()
-    const topicIds = topicRows.map((t) => t.id)
-    const defaultTopicId = topicIds[0] ?? null
-    if (topicIds.length === 0) return { allTasks: [], defaultTopicId }
-    const taskRows = await db.tasks.where('topicId').anyOf(topicIds).toArray()
-    return { allTasks: sortByOrder(taskRows.map(rowToTask)), defaultTopicId }
-  }, [projectId])
+  const [data, setData] = useState<{ allTasks: Task[]; defaultTopicId: string | null } | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const counter = useRefreshStore((s) => s.counter)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!projectId) {
+      Promise.resolve().then(() => {
+        if (!cancelled) setData(null)
+      })
+      return () => {
+        cancelled = true
+      }
+    }
+    const promise = Promise.all([
+      topicRepo.getByProjectId(projectId),
+      taskRepo.getByProjectId(projectId),
+    ])
+    promise.then(([tr, taskR]) => {
+      if (cancelled) return
+      setIsLoading(false)
+      if (!tr.ok || !taskR.ok) {
+        setData(null)
+        return
+      }
+      const defaultTopicId = tr.data[0]?.id ?? null
+      const allTasks = sortByOrder(taskR.data)
+      setData({ allTasks, defaultTopicId })
+    })
+    Promise.resolve().then(() => {
+      if (!cancelled) setIsLoading(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, counter])
 
   return useMemo(() => {
-    const isLoading = raw === undefined && projectId !== null
-    const allTasks = raw?.allTasks ?? []
-    const defaultTopicId = raw?.defaultTopicId ?? null
+    const allTasks = data?.allTasks ?? []
+    const defaultTopicId = data?.defaultTopicId ?? null
     const tasksByStatus: Record<TaskStatus, Task[]> = {
       todo: [],
       in_progress: [],
@@ -67,6 +126,6 @@ export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
     for (const task of allTasks) {
       tasksByStatus[task.status].push(task)
     }
-    return { tasksByStatus, defaultTopicId, isLoading }
-  }, [raw, projectId])
+    return { tasksByStatus, defaultTopicId, isLoading: isLoading && projectId !== null }
+  }, [data, isLoading, projectId])
 }

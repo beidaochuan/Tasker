@@ -1,12 +1,12 @@
-import { useMemo } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useState, useEffect, useMemo } from 'react'
 import { startOfDay, addDays } from 'date-fns'
-import { db } from '@/db/schema'
-import { rowToTask } from '@/repositories/taskRepository'
-import { fromUnixMs } from '@/utils/dateUtils'
+import { topicRepo, taskRepo } from '@/repositories'
 import { sortByOrder } from '@/utils/sortUtils'
 import { expandOccurrences, hasRepeatRule } from '@/utils/recurrenceUtils'
+import { useRefreshStore } from './useDataRefresh'
 import type { Task, Topic } from '@/types'
+
+const GANTT_LOOKAHEAD_DAYS = 3650 // 繰り返しタスクの展開上限: 約10年
 
 export interface GanttRow {
   topic: Topic
@@ -19,27 +19,37 @@ interface RawGanttData {
 }
 
 export function useGanttData(projectId: string | null): GanttRow[] {
-  // #9: 型パラメータを明示して RawGanttData | null の型推論を確定させる
-  const raw = useLiveQuery<RawGanttData | null>(async () => {
-    if (!projectId) return null
-    const topicRows = await db.topics.where('projectId').equals(projectId).toArray()
-    const topics: Topic[] = sortByOrder(
-      topicRows.map((r) => ({ ...r, createdAt: fromUnixMs(r.createdAt) }))
-    )
-    const topicIds = topics.map((t) => t.id)
-    if (topicIds.length === 0) return { topics, tasksByTopic: {} }
-    const taskRows = await db.tasks.where('topicId').anyOf(topicIds).toArray()
-    const tasksByTopic: Record<string, Task[]> = {}
-    for (const row of taskRows) {
-      const task = rowToTask(row)
-      ;(tasksByTopic[task.topicId] ??= []).push(task)
+  const [raw, setRaw] = useState<RawGanttData | null>(null)
+  const counter = useRefreshStore((s) => s.counter)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!projectId) {
+      Promise.resolve().then(() => {
+        if (!cancelled) setRaw(null)
+      })
+      return () => {
+        cancelled = true
+      }
     }
-    return { topics, tasksByTopic }
-  }, [projectId])
+    Promise.all([topicRepo.getByProjectId(projectId), taskRepo.getByProjectId(projectId)]).then(
+      ([tr, taskR]) => {
+        if (cancelled || !tr.ok || !taskR.ok) return
+        const topics: Topic[] = sortByOrder(tr.data)
+        const tasksByTopic: Record<string, Task[]> = {}
+        for (const task of taskR.data) {
+          ;(tasksByTopic[task.topicId] ??= []).push(task)
+        }
+        setRaw({ topics, tasksByTopic })
+      }
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, counter])
 
   return useMemo(() => {
     if (!raw) return []
-
     const today = startOfDay(new Date())
 
     return raw.topics.map((topic) => {
@@ -49,8 +59,7 @@ export function useGanttData(projectId: string | null): GanttRow[] {
       for (const task of baseTasks) {
         if (task.status === 'cancelled') continue
         if (hasRepeatRule(task.repeatRule) && task.dueDate) {
-          // 今日以降の直近1件だけ表示（今日を含む次の発生日を expandOccurrences で取得）
-          const farFuture = addDays(today, 3650)
+          const farFuture = addDays(today, GANTT_LOOKAHEAD_DAYS)
           const upcoming = expandOccurrences(task.repeatRule, task.dueDate, today, farFuture)
           const nextDate = upcoming[0] ?? task.dueDate
           const duration = task.startDate ? task.dueDate.getTime() - task.startDate.getTime() : null

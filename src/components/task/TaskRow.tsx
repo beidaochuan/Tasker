@@ -5,6 +5,7 @@ import { cn } from '@/utils/cn'
 import { formatDate, isOverdue, isDueToday } from '@/utils/dateUtils'
 import { useUIStore } from '@/store/uiStore'
 import { useRecurrence } from '@/hooks/useRecurrence'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo } from '@/repositories'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,6 +25,7 @@ interface TaskRowProps {
 export function TaskRow({ task, canEdit = true }: TaskRowProps) {
   const { openTaskDrawer } = useUIStore()
   const { completeRecurringTask } = useRecurrence()
+  const refresh = useRefreshStore((s) => s.refresh)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const isDone = task.status === 'done'
@@ -39,6 +41,7 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
       } else {
         unwrapResult(await taskRepo.update(task.id, { status: 'done' }))
       }
+      refresh()
     } catch (err) {
       console.error('ステータス更新に失敗しました', err)
     }
@@ -49,6 +52,7 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
     setDeleteError(null)
     try {
       unwrapResult(await taskRepo.delete(task.id))
+      refresh()
       setConfirmOpen(false)
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'タスクの削除に失敗しました')

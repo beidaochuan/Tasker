@@ -4,6 +4,7 @@ import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY } from './ganttConstants'
 import { taskRepo } from '@/repositories'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { resolveTaskId } from '@/utils/recurrenceUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 
@@ -35,6 +36,7 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
   const [preview, setPreview] = useState<
     Map<string, { startDate: Date | null; dueDate: Date | null }>
   >(new Map())
+  const refresh = useRefreshStore((s) => s.refresh)
 
   const onPointerMove = useCallback((e: PointerEvent) => {
     const drag = dragRef.current
@@ -89,7 +91,8 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
     if (dueChanged) patch.dueDate = previewDueDate
 
     unwrapResult(await taskRepo.update(taskId, patch))
-  }, [])
+    refresh()
+  }, [refresh])
 
   const onBarPointerDown = useCallback(
     (e: React.PointerEvent, task: Task, handle: Handle, _element: HTMLElement) => {

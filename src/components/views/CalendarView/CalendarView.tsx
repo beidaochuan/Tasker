@@ -9,6 +9,7 @@ import { useCalendarTasks } from '@/hooks/useCalendarTasks'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { taskRepo } from '@/repositories'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { resolveTaskId } from '@/utils/recurrenceUtils'
 import './calendar.css'
 
@@ -32,6 +33,7 @@ export function CalendarView() {
   // Hooks はすべて early return より前に呼ぶ（React の規則）
   const { selectedProjectId, openTaskDrawer } = useUIStore()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const refresh = useRefreshStore((s) => s.refresh)
   const [rangeStart, setRangeStart] = useState<Date | null>(null)
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null)
   const events = useCalendarTasks(selectedProjectId, rangeStart, rangeEnd)
@@ -67,13 +69,15 @@ export function CalendarView() {
         if (!result.ok) {
           arg.revert()
           console.error('[CalendarView] dueDate 更新失敗:', result.error)
+        } else {
+          refresh()
         }
       } catch (e) {
         arg.revert()
         console.error('[CalendarView] dueDate 更新中に予期しないエラー:', e)
       }
     },
-    [isAuthenticated]
+    [isAuthenticated, refresh]
   )
 
   const handleDateSelect = useCallback((arg: DateSelectArg) => {

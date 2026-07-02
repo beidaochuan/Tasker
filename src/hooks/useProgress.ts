@@ -1,28 +1,31 @@
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db/schema'
+import { useState, useEffect } from 'react'
+import { subtaskRepo, taskRepo } from '@/repositories'
 import { calcProgress, calcProjectProgress } from '@/utils/progressUtils'
+import { useRefreshStore } from './useDataRefresh'
 
 export function useTaskProgress(taskId: string): number {
-  return (
-    useLiveQuery(async () => {
-      const subtasks = await db.subtasks.where('taskId').equals(taskId).toArray()
-      return calcProgress(subtasks.map((s) => s.isDone === 1))
-    }, [taskId]) ?? 0
-  )
+  const [progress, setProgress] = useState(0)
+  const counter = useRefreshStore((s) => s.counter)
+
+  useEffect(() => {
+    subtaskRepo.getByTaskId(taskId).then((r) => {
+      if (r.ok) setProgress(calcProgress(r.data.map((s) => s.isDone)))
+    })
+  }, [taskId, counter])
+
+  return progress
 }
 
-/**
- * 単一プロジェクトの進捗を返す。
- * 複数プロジェクト分を一括計算する場合は別途バルククエリが必要（N+1になるため）。
- */
 export function useProjectProgress(projectId: string): number {
-  return (
-    useLiveQuery(async () => {
-      const topics = await db.topics.where('projectId').equals(projectId).toArray()
-      const topicIds = topics.map((t) => t.id)
-      if (topicIds.length === 0) return 0
-      const tasks = await db.tasks.where('topicId').anyOf(topicIds).toArray()
-      return calcProjectProgress(tasks.map((t) => t.status))
-    }, [projectId]) ?? 0
-  )
+  const [progress, setProgress] = useState(0)
+  const counter = useRefreshStore((s) => s.counter)
+
+  useEffect(() => {
+    taskRepo.getByProjectId(projectId).then((r) => {
+      if (!r.ok) return
+      setProgress(calcProjectProgress(r.data.map((t) => t.status)))
+    })
+  }, [projectId, counter])
+
+  return progress
 }

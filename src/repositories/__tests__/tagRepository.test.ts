@@ -1,41 +1,61 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { IDBFactory } from 'fake-indexeddb'
-import { TaskerDB } from '@/db/schema'
-import { TagRepository } from '../tagRepository'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { ApiTagRepository } from '../apiTagRepository'
 
-let db: TaskerDB
-let tagRepo: TagRepository
+const repo = new ApiTagRepository()
+
+function mockFetch(body: unknown, status = 200) {
+  vi.spyOn(global, 'fetch').mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(body),
+  } as unknown as Response)
+}
 
 beforeEach(() => {
-  db = new TaskerDB(new IDBFactory())
-  tagRepo = new TagRepository(db)
+  vi.restoreAllMocks()
 })
 
-describe('TagRepository', () => {
-  describe('delete', () => {
-    it('タグ削除時にタスクの tags 配列からも削除する', async () => {
-      await db.tags.add({ id: 'tag-1', name: 'Tag', color: '#000' })
-      await db.tasks.add({
-        id: 'task-1',
-        topicId: 'topic-1',
-        title: 'Task',
-        description: '',
-        status: 'todo',
-        priority: 'medium',
-        dueDate: null,
-        startDate: null,
-        order: 0,
-        tags: ['tag-1', 'tag-2'],
-        repeatRule: null,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      })
-
-      const result = await tagRepo.delete('tag-1')
-
+describe('ApiTagRepository', () => {
+  describe('getAll', () => {
+    it('タグ一覧を返す', async () => {
+      mockFetch([{ id: 'tag-1', name: 'Tag', color: '#000' }])
+      const result = await repo.getAll()
       expect(result.ok).toBe(true)
-      const task = await db.tasks.get('task-1')
-      expect(task?.tags).toEqual(['tag-2'])
+      if (!result.ok) return
+      expect(result.data).toHaveLength(1)
+      expect(result.data[0].id).toBe('tag-1')
+    })
+
+    it('空なら空配列を返す', async () => {
+      mockFetch([])
+      const result = await repo.getAll()
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.data).toEqual([])
+    })
+  })
+
+  describe('create', () => {
+    it('タグを作成して返す', async () => {
+      mockFetch({ id: 'tag-new', name: 'NewTag', color: '#f00' }, 201)
+      const result = await repo.create({ name: 'NewTag', color: '#f00' })
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.data.id).toBe('tag-new')
+      expect(result.data.name).toBe('NewTag')
+    })
+  })
+
+  describe('delete', () => {
+    it('タグを削除できる', async () => {
+      vi.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 204,
+        json: () => Promise.resolve({}),
+      } as unknown as Response)
+      const result = await repo.delete('tag-1')
+      expect(result.ok).toBe(true)
+      expect(global.fetch).toHaveBeenCalledWith('/api/tags/tag-1', { method: 'DELETE' })
     })
   })
 })

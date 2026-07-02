@@ -8,12 +8,14 @@ import { useKanbanData, useTopics } from '@/hooks/useTasks'
 import { useProject } from '@/hooks/useProjects'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { topicRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
 
 export function ListView() {
   const { selectedProjectId, openNewTaskDrawer } = useUIStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
+  const refresh = useRefreshStore((s) => s.refresh)
   const topics = useTopics(selectedProjectId)
   const { tasksByStatus } = useKanbanData(selectedProjectId)
   const selectedProject = useProject(selectedProjectId)
@@ -43,6 +45,7 @@ export function ListView() {
       unwrapResult(
         await topicRepo.create({ projectId: selectedProjectId, name, order: maxOrder + 1 })
       )
+      refresh()
       setIsDialogOpen(false)
     } finally {
       setIsSubmitting(false)

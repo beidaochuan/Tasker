@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useTask } from '@/hooks/useTasks'
 import { useRecurrence } from '@/hooks/useRecurrence'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo } from '@/repositories'
 import { buildRRule, parseRRule, describeRRule } from '@/utils/recurrenceUtils'
 import { formatDateInput, parseDateInput } from '@/utils/dateUtils'
@@ -51,6 +52,7 @@ export function TaskDrawer() {
   const { isTaskDrawerOpen, selectedTaskId, newTaskTopicId, closeTaskDrawer } = useUIStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
   const { completeRecurringTask } = useRecurrence()
+  const refresh = useRefreshStore((s) => s.refresh)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const isNew = newTaskTopicId !== null
@@ -170,6 +172,7 @@ export function TaskDrawer() {
         )
       }
 
+      refresh()
       closeTaskDrawer()
     } catch (err) {
       console.error('タスクの保存に失敗しました', err)
@@ -185,6 +188,7 @@ export function TaskDrawer() {
     if (!existingTask) return
     try {
       unwrapResult(await taskRepo.delete(existingTask.id))
+      refresh()
       closeTaskDrawer()
     } catch (err) {
       console.error('タスクの削除に失敗しました', err)

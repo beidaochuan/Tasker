@@ -16,6 +16,9 @@ export default defineConfig({
   },
   server: {
     port: 3208,
+    proxy: {
+      '/api': 'http://localhost:3209',
+    },
   },
   plugins: [
     tailwindcss(),

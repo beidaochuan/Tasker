@@ -25,6 +25,7 @@ import { useThemeStore } from '@/store/themeStore'
 import { useAuthStore } from '@/store/authStore'
 import { TagManager } from '@/components/task/TagManager'
 import { exportAllData, importAllData } from '@/utils/exportUtils'
+import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { projectRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
 import { LicensesDialog } from './LicensesDialog'
@@ -42,6 +43,7 @@ export function Sidebar() {
     useUIStore()
   const { isDark, toggleDark } = useThemeStore()
   const { isAuthenticated, openLoginDialog, logout } = useAuthStore()
+  const refresh = useRefreshStore((s) => s.refresh)
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false)
   const [isLicensesOpen, setIsLicensesOpen] = useState(false)
   const [dialogState, setDialogState] = useState<DialogState>({ type: 'none' })
@@ -64,6 +66,7 @@ export function Sidebar() {
     setDialogState({ type: 'none' })
     try {
       unwrapResult(await projectRepo.delete(projectId))
+      refresh()
       if (selectedProjectId === projectId) setSelectedProjectId(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'プロジェクトの削除に失敗しました'
@@ -81,6 +84,7 @@ export function Sidebar() {
     setDialogState({ type: 'none' })
     try {
       await importAllData(file)
+      refresh()
       setDialogState({ type: 'success' })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'インポートに失敗しました'
