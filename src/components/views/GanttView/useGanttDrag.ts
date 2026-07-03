@@ -23,6 +23,7 @@ interface DragState {
 
 interface GanttDragResult {
   preview: Map<string, { startDate: Date | null; dueDate: Date | null }>
+  clearPreview: () => void
   onBarPointerDown: (
     e: React.PointerEvent,
     task: Task,
@@ -37,6 +38,10 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
     Map<string, { startDate: Date | null; dueDate: Date | null }>
   >(new Map())
   const refresh = useRefreshStore((s) => s.refresh)
+
+  const clearPreview = useCallback(() => {
+    setPreview(new Map())
+  }, [])
 
   const onPointerMove = useCallback((e: PointerEvent) => {
     const drag = dragRef.current
@@ -68,9 +73,13 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
       }
     }
 
+    const previewChanged =
+      newStartDate?.getTime() !== drag.previewStartDate?.getTime() ||
+      newDueDate?.getTime() !== drag.previewDueDate?.getTime()
+    if (!previewChanged) return
+
     drag.previewStartDate = newStartDate
     drag.previewDueDate = newDueDate
-
     setPreview(new Map([[drag.taskId, { startDate: newStartDate, dueDate: newDueDate }]]))
   }, []) // ppd は dragRef に閉じ込めたため依存配列不要
 
@@ -80,19 +89,26 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
 
     const { taskId, previewStartDate, previewDueDate, originalStartDate, originalDueDate } = drag
     dragRef.current = null
-    setPreview(new Map())
 
     const startChanged = previewStartDate?.getTime() !== originalStartDate?.getTime()
     const dueChanged = previewDueDate?.getTime() !== originalDueDate?.getTime()
-    if (!startChanged && !dueChanged) return
+    if (!startChanged && !dueChanged) {
+      clearPreview()
+      return
+    }
 
     const patch: { startDate?: Date | null; dueDate?: Date | null } = {}
     if (startChanged) patch.startDate = previewStartDate
     if (dueChanged) patch.dueDate = previewDueDate
 
-    unwrapResult(await taskRepo.update(taskId, patch))
-    refresh()
-  }, [refresh])
+    try {
+      unwrapResult(await taskRepo.update(taskId, patch))
+      refresh()
+    } catch (err) {
+      clearPreview()
+      throw err
+    }
+  }, [clearPreview, refresh])
 
   const onBarPointerDown = useCallback(
     (e: React.PointerEvent, task: Task, handle: Handle, _element: HTMLElement) => {
@@ -116,7 +132,7 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
         window.removeEventListener('pointercancel', cleanup)
         if (ev?.type === 'pointercancel') {
           dragRef.current = null
-          setPreview(new Map())
+          clearPreview()
         } else {
           try {
             await onPointerUp()
@@ -130,10 +146,10 @@ export function useGanttDrag(_ganttStart: Date, scale: GanttScale): GanttDragRes
       window.addEventListener('pointerup', cleanup)
       window.addEventListener('pointercancel', cleanup)
     },
-    [scale, onPointerMove, onPointerUp]
+    [scale, onPointerMove, onPointerUp, clearPreview]
   )
 
-  return { preview, onBarPointerDown }
+  return { preview, clearPreview, onBarPointerDown }
 }
 
 // ガントの表示範囲を計算するユーティリティ（GanttView で使用）

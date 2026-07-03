@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { X } from 'lucide-react'
@@ -41,7 +41,7 @@ export function ProjectForm() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     reset,
     formState: { errors, isSubmitting },
@@ -79,7 +79,7 @@ export function ProjectForm() {
     openLoginDialog,
   ])
 
-  const selectedColor = watch('color')
+  const selectedColor = useWatch({ control, name: 'color' })
 
   async function onSubmit(values: FormValues) {
     if (!isAuthenticated) {

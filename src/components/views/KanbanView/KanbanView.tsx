@@ -168,7 +168,7 @@ export function KanbanView() {
         clearLocal()
       }
     },
-    [tasksByStatus, isAuthenticated]
+    [tasksByStatus, isAuthenticated, refresh]
   )
 
   if (!selectedProjectId) {

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { X, Trash2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
-import { useTask } from '@/hooks/useTasks'
+import { useTask, useTopics } from '@/hooks/useTasks'
+import { useProjects } from '@/hooks/useProjects'
 import { useRecurrence } from '@/hooks/useRecurrence'
 import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo } from '@/repositories'
@@ -29,17 +30,37 @@ const TEXTAREA_CLASS =
 
 const LABEL_CLASS = 'text-xs font-semibold text-muted-foreground'
 
-const taskSchema = z.object({
-  title: z.string().min(1, 'タイトルは必須です'),
-  description: z.string(),
-  status: z.enum(['todo', 'in_progress', 'done', 'cancelled'] as const),
-  priority: z.enum(['low', 'medium', 'high', 'urgent'] as const),
-  startDate: z.string(),
-  dueDate: z.string(),
-  repeatEnabled: z.boolean(),
-  repeatFreq: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const),
-  repeatInterval: z.coerce.number().int().min(1).max(99),
-})
+const dateTextSchema = z
+  .string()
+  .refine((value) => value.trim() === '' || parseDateInput(value) !== null, {
+    message: '日付を正しく入力してください',
+  })
+
+const taskSchema = z
+  .object({
+    title: z.string().min(1, 'タイトルは必須です'),
+    projectId: z.string().min(1, 'プロジェクトを選択してください'),
+    topicId: z.string().min(1, 'トピックを選択してください'),
+    description: z.string(),
+    status: z.enum(['todo', 'in_progress', 'done', 'cancelled'] as const),
+    priority: z.enum(['low', 'medium', 'high', 'urgent'] as const),
+    startDate: dateTextSchema,
+    dueDate: dateTextSchema,
+    repeatEnabled: z.boolean(),
+    repeatFreq: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const),
+    repeatInterval: z.coerce.number().int().min(1).max(99),
+  })
+  .superRefine((values, ctx) => {
+    const startDate = parseDateInput(values.startDate)
+    const dueDate = parseDateInput(values.dueDate)
+    if (startDate && dueDate && startDate.getTime() > dueDate.getTime()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dueDate'],
+        message: '期日は開始日以降にしてください',
+      })
+    }
+  })
 
 type TaskFormValues = z.infer<typeof taskSchema>
 
@@ -49,7 +70,8 @@ function repeatRuleFromValues(values: TaskFormValues): string | null {
 }
 
 export function TaskDrawer() {
-  const { isTaskDrawerOpen, selectedTaskId, newTaskTopicId, closeTaskDrawer } = useUIStore()
+  const { isTaskDrawerOpen, selectedProjectId, selectedTaskId, newTaskTopicId, closeTaskDrawer } =
+    useUIStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
   const { completeRecurringTask } = useRecurrence()
   const refresh = useRefreshStore((s) => s.refresh)
@@ -62,13 +84,15 @@ export function TaskDrawer() {
     register,
     handleSubmit,
     reset,
-    watch,
+    setValue,
     control,
     formState: { errors, isSubmitting },
   } = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
       title: '',
+      projectId: '',
+      topicId: '',
       description: '',
       status: 'todo',
       priority: 'medium',
@@ -80,18 +104,24 @@ export function TaskDrawer() {
     },
   })
 
-  const repeatEnabled = watch('repeatEnabled')
-  const repeatFreq = watch('repeatFreq')
-  const repeatInterval = watch('repeatInterval')
+  const repeatEnabled = useWatch({ control, name: 'repeatEnabled' })
+  const repeatFreq = useWatch({ control, name: 'repeatFreq' })
+  const repeatInterval = useWatch({ control, name: 'repeatInterval' })
+  const selectedFormProjectId = useWatch({ control, name: 'projectId' })
+  const selectedFormTopicId = useWatch({ control, name: 'topicId' })
+
+  const projects = useProjects()
+  const projectTopics = useTopics(selectedFormProjectId || null)
 
   // #6: isTaskDrawerOpen を依存配列に含め、開くたびに確実に reset する
   useEffect(() => {
     if (!isTaskDrawerOpen) return
-    setSubmitError(null)
     if (existingTask) {
       const parsed = parseRRule(existingTask.repeatRule)
       reset({
         title: existingTask.title,
+        projectId: selectedProjectId ?? '',
+        topicId: existingTask.topicId,
         description: existingTask.description,
         status: existingTask.status,
         priority: existingTask.priority,
@@ -102,19 +132,33 @@ export function TaskDrawer() {
         repeatInterval: parsed?.interval ?? 1,
       })
     } else if (isNew) {
+      const defaultDate = formatDateInput(new Date())
       reset({
         title: '',
+        projectId: selectedProjectId ?? '',
+        topicId: newTaskTopicId ?? '',
         description: '',
         status: 'todo',
         priority: 'medium',
-        startDate: '',
-        dueDate: '',
+        startDate: defaultDate,
+        dueDate: defaultDate,
         repeatEnabled: false,
         repeatFreq: 'DAILY',
         repeatInterval: 1,
       })
     }
-  }, [existingTask, isNew, reset, isTaskDrawerOpen])
+  }, [existingTask, isNew, reset, isTaskDrawerOpen, selectedProjectId, newTaskTopicId])
+
+  useEffect(() => {
+    if (!isTaskDrawerOpen || !isNew || projectTopics === undefined) return
+    if (projectTopics.some((topic) => topic.id === selectedFormTopicId)) return
+    setValue('topicId', projectTopics[0]?.id ?? '', { shouldDirty: true, shouldValidate: true })
+  }, [isTaskDrawerOpen, isNew, projectTopics, selectedFormTopicId, setValue])
+
+  function handleClose() {
+    setSubmitError(null)
+    closeTaskDrawer()
+  }
 
   async function onSubmit(values: TaskFormValues) {
     if (!isAuthenticated) {
@@ -128,12 +172,12 @@ export function TaskDrawer() {
       // #7: existingTask.repeatRule（DB値）ではなくフォームの現在値で判定
       const repeatRule = repeatRuleFromValues(values)
 
-      if (isNew && newTaskTopicId) {
-        const existing = unwrapResult(await taskRepo.getByTopicId(newTaskTopicId))
+      if (isNew) {
+        const existing = unwrapResult(await taskRepo.getByTopicId(values.topicId))
         const order = existing.length
         unwrapResult(
           await taskRepo.create({
-            topicId: newTaskTopicId,
+            topicId: values.topicId,
             title: values.title,
             description: values.description,
             status: values.status,
@@ -156,7 +200,7 @@ export function TaskDrawer() {
             dueDate,
             repeatRule,
           })
-          closeTaskDrawer()
+          handleClose()
           return
         }
         unwrapResult(
@@ -173,7 +217,7 @@ export function TaskDrawer() {
       }
 
       refresh()
-      closeTaskDrawer()
+      handleClose()
     } catch (err) {
       console.error('タスクの保存に失敗しました', err)
       setSubmitError(err instanceof Error ? err.message : 'タスクの保存に失敗しました')
@@ -189,7 +233,7 @@ export function TaskDrawer() {
     try {
       unwrapResult(await taskRepo.delete(existingTask.id))
       refresh()
-      closeTaskDrawer()
+      handleClose()
     } catch (err) {
       console.error('タスクの削除に失敗しました', err)
       setSubmitError(err instanceof Error ? err.message : 'タスクの削除に失敗しました')
@@ -207,7 +251,7 @@ export function TaskDrawer() {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={closeTaskDrawer} />
+      <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
       <div className="relative z-10 flex h-full w-full max-w-lg flex-col border-l border-border bg-card shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold">
@@ -219,7 +263,7 @@ export function TaskDrawer() {
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={closeTaskDrawer}>
+            <Button variant="ghost" size="icon" onClick={handleClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -227,6 +271,7 @@ export function TaskDrawer() {
 
         <form
           onSubmit={handleSubmit(onSubmit)}
+          noValidate
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
           <div className="flex-1 space-y-5 overflow-y-auto p-5">
@@ -243,6 +288,61 @@ export function TaskDrawer() {
               />
               {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
             </div>
+
+            {isNew && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="task-project" className={LABEL_CLASS}>
+                    プロジェクト
+                  </label>
+                  <select
+                    id="task-project"
+                    {...register('projectId')}
+                    className={FIELD_CLASS}
+                    disabled={!isAuthenticated}
+                  >
+                    <option value="">プロジェクトを選択</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.projectId && (
+                    <p className="text-xs text-destructive">{errors.projectId.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="task-topic" className={LABEL_CLASS}>
+                    トピック
+                  </label>
+                  <select
+                    id="task-topic"
+                    {...register('topicId')}
+                    className={FIELD_CLASS}
+                    disabled={
+                      !isAuthenticated || projectTopics === undefined || projectTopics.length === 0
+                    }
+                  >
+                    {projectTopics === undefined ? (
+                      <option value="">読み込み中</option>
+                    ) : projectTopics.length === 0 ? (
+                      <option value="">トピックがありません</option>
+                    ) : (
+                      projectTopics.map((topic) => (
+                        <option key={topic.id} value={topic.id}>
+                          {topic.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {errors.topicId && (
+                    <p className="text-xs text-destructive">{errors.topicId.message}</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label htmlFor="task-description" className={LABEL_CLASS}>
@@ -306,6 +406,9 @@ export function TaskDrawer() {
                   className={FIELD_CLASS}
                   disabled={!isAuthenticated}
                 />
+                {errors.startDate && (
+                  <p className="text-xs text-destructive">{errors.startDate.message}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -319,6 +422,9 @@ export function TaskDrawer() {
                   className={FIELD_CLASS}
                   disabled={!isAuthenticated}
                 />
+                {errors.dueDate && (
+                  <p className="text-xs text-destructive">{errors.dueDate.message}</p>
+                )}
               </div>
             </div>
 
@@ -386,7 +492,11 @@ export function TaskDrawer() {
                   {submitError}
                 </p>
               )}
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSubmitting || (isNew && !selectedFormTopicId)}
+              >
                 {isNew ? '作成する' : '保存する'}
               </Button>
             </div>

@@ -2,18 +2,30 @@ import { useEffect, lazy, Suspense } from 'react'
 import './index.css'
 import { AppShell } from '@/components/layout/AppShell'
 import { ExportWarning } from '@/components/layout/ExportWarning'
-import { ListView } from '@/components/views/ListView/ListView'
-import { KanbanView } from '@/components/views/KanbanView/KanbanView'
-import { TaskDrawer } from '@/components/task/TaskDrawer'
-import { ProjectForm } from '@/components/project/ProjectForm'
-import { LoginDialog } from '@/components/auth/LoginDialog'
 import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
+const ListView = lazy(() =>
+  import('@/components/views/ListView/ListView').then((module) => ({ default: module.ListView }))
+)
+const KanbanView = lazy(() =>
+  import('@/components/views/KanbanView/KanbanView').then((module) => ({
+    default: module.KanbanView,
+  }))
+)
 const CalendarView = lazy(() => import('@/components/views/CalendarView/CalendarView'))
 const GanttView = lazy(() => import('@/components/views/GanttView/GanttView'))
+const TaskDrawer = lazy(() =>
+  import('@/components/task/TaskDrawer').then((module) => ({ default: module.TaskDrawer }))
+)
+const ProjectForm = lazy(() =>
+  import('@/components/project/ProjectForm').then((module) => ({ default: module.ProjectForm }))
+)
+const LoginDialog = lazy(() =>
+  import('@/components/auth/LoginDialog').then((module) => ({ default: module.LoginDialog }))
+)
 
 // #11: 静的 JSX として定義してレンダリングごとの生成を避ける
 const CALENDAR_FALLBACK = (
@@ -24,6 +36,11 @@ const CALENDAR_FALLBACK = (
 const GANTT_FALLBACK = (
   <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
     ガントチャートを読み込み中...
+  </div>
+)
+const VIEW_FALLBACK = (
+  <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+    読み込み中...
   </div>
 )
 
@@ -74,18 +91,18 @@ function App() {
         <ExportWarning />
         <AppShell>
           <ErrorBoundary>
-            <MainContent />
+            <Suspense fallback={VIEW_FALLBACK}>
+              <MainContent />
+            </Suspense>
           </ErrorBoundary>
         </AppShell>
       </div>
       <ErrorBoundary>
-        <TaskDrawer />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <ProjectForm />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <LoginDialog />
+        <Suspense fallback={null}>
+          <TaskDrawer />
+          <ProjectForm />
+          <LoginDialog />
+        </Suspense>
       </ErrorBoundary>
     </ErrorBoundary>
   )

@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useMemo } from 'react'
+import { useRef, useCallback, useEffect, useState, useMemo } from 'react'
 import { FolderOpen } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useUIStore } from '@/store/uiStore'
@@ -48,7 +48,7 @@ export function GanttView() {
     return { startDate: range.startDate, totalDays: Math.max(range.totalDays, MIN_DAYS[scale]) }
   }, [ganttRows, scale])
 
-  const { preview, onBarPointerDown } = useGanttDrag(startDate, scale)
+  const { preview, clearPreview, onBarPointerDown } = useGanttDrag(startDate, scale)
 
   const handleCreateBar = useCallback(
     async (taskId: string, startDate: Date, dueDate: Date) => {
@@ -77,13 +77,36 @@ export function GanttView() {
     if (preview.size === 0) return flatRows
     return flatRows.map((row) => {
       if (row.type === 'topic') return row
+      let hasPreview = false
       const tasks = row.tasks.map((task) => {
         const p = preview.get(task.id)
+        if (p) hasPreview = true
         return p ? { ...task, ...p } : task
       })
-      return { ...row, tasks }
+      return hasPreview ? { ...row, tasks } : row
     })
   }, [flatRows, preview])
+
+  useEffect(() => {
+    if (preview.size === 0) return
+
+    const tasksById = new Map<string, Task>()
+    for (const row of flatRows) {
+      if (row.type !== 'task-row') continue
+      for (const task of row.tasks) tasksById.set(task.id, task)
+    }
+
+    const isSettled = [...preview].every(([taskId, dates]) => {
+      const task = tasksById.get(taskId)
+      return (
+        task &&
+        task.startDate?.getTime() === dates.startDate?.getTime() &&
+        task.dueDate?.getTime() === dates.dueDate?.getTime()
+      )
+    })
+
+    if (isSettled) clearPreview()
+  }, [clearPreview, flatRows, preview])
 
   // 縦スクロール同期用 refs
   const leftScrollRef = useRef<HTMLDivElement>(null)
@@ -113,6 +136,8 @@ export function GanttView() {
     })
   }, [])
 
+  // TanStack Virtual exposes imperative methods that React Compiler intentionally skips.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: flatRows.length,
     getScrollElement: () => rightScrollRef.current,

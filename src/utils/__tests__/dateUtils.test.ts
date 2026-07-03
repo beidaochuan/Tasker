@@ -91,6 +91,16 @@ describe('date input helpers', () => {
     expect(d).toEqual(new Date(2024, 0, 5))
   })
 
+  it('yyyy/MM/dd をローカル日付としてパースする', () => {
+    const d = parseDateInput('2024/01/05')
+    expect(d).toEqual(new Date(2024, 0, 5))
+  })
+
+  it('前後の空白を無視してパースする', () => {
+    const d = parseDateInput(' 2024/1/5 ')
+    expect(d).toEqual(new Date(2024, 0, 5))
+  })
+
   it('不正な日付は null を返す', () => {
     expect(parseDateInput('2024-02-31')).toBeNull()
   })
