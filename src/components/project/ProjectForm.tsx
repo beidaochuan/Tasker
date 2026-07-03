@@ -50,29 +50,39 @@ export function ProjectForm() {
     defaultValues: { name: '', description: '', color: PROJECT_COLORS[0] },
   })
 
-  const prevFormOpenRef = useRef(false)
+  const initializedFormKeyRef = useRef<string | null>(null)
   useEffect(() => {
+    if (!isProjectFormOpen) {
+      initializedFormKeyRef.current = null
+      return
+    }
+
     if (isProjectFormOpen && !isAuthenticated) {
       closeProjectForm()
       openLoginDialog()
       return
     }
-    if (isProjectFormOpen && !prevFormOpenRef.current) {
-      if (isEditing && editingProject) {
-        reset({
-          name: editingProject.name,
-          description: editingProject.description,
-          color: editingProject.color,
-        })
-      } else {
-        reset({ name: '', description: '', color: PROJECT_COLORS[0] })
-      }
+
+    const formKey = isEditing ? `edit:${editingProjectId}` : 'new'
+    if (initializedFormKeyRef.current === formKey) return
+
+    if (isEditing) {
+      if (!editingProject || editingProject.id !== editingProjectId) return
+      reset({
+        name: editingProject.name,
+        description: editingProject.description,
+        color: editingProject.color,
+      })
+    } else {
+      reset({ name: '', description: '', color: PROJECT_COLORS[0] })
     }
-    prevFormOpenRef.current = isProjectFormOpen
+
+    initializedFormKeyRef.current = formKey
   }, [
     isProjectFormOpen,
     isAuthenticated,
     isEditing,
+    editingProjectId,
     editingProject,
     reset,
     closeProjectForm,
