@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-07-04
+
+### Fixed
+- GitHub Release の配布物に API サーバーを同梱し、静的ファイル単体では動作しない問題を修正
+- JSON インポートのサーバー側リクエストサイズ上限を 50 MB に合わせるよう修正
+- 繰り返しタスク完了時の完了履歴記録と次回タスク作成をトランザクション化
+- タグ削除時にタスク内へ残る孤立タグ ID を削除するよう修正
+- API の 400 / 409 系エラーを validation / conflict として扱うよう修正
+
+### Changed
+- ビルド時に API サーバーも型チェックとビルドの対象に含めるよう変更
+
 ## [0.3.0] - 2026-06-16
 
 ### Added
