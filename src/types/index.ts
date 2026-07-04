@@ -60,6 +60,7 @@ export interface TaskCompletion {
 
 export type AppError =
   | { code: 'NOT_FOUND'; message: string }
+  | { code: 'CONFLICT'; message: string }
   | { code: 'DB_ERROR'; message: string }
   | { code: 'VALIDATION_ERROR'; message: string }
 

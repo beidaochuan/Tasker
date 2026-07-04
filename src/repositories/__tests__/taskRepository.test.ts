@@ -97,6 +97,65 @@ describe('ApiTaskRepository', () => {
     })
   })
 
+  describe('completeRecurring', () => {
+    it('完了履歴と次回タスクを返す', async () => {
+      const due = new Date(2024, 5, 16)
+      const nextTask = {
+        ...RAW_TASK,
+        id: 'task-next',
+        status: 'todo',
+        dueDate: due.getTime(),
+        repeatRule: 'RRULE:FREQ=DAILY;INTERVAL=1',
+      }
+      mockFetch(
+        {
+          task: { ...RAW_TASK, status: 'done' },
+          completion: { id: 'completion-1', taskId: 'task-1', completedAt: 1_100_000 },
+          nextTask,
+        },
+        201
+      )
+
+      const result = await repo.completeRecurring('task-1', {
+        topicId: 'topic-1',
+        title: 'タスク1',
+        description: '',
+        status: 'todo',
+        priority: 'medium',
+        dueDate: due,
+        startDate: null,
+        order: 9999,
+        tags: [],
+        repeatRule: 'RRULE:FREQ=DAILY;INTERVAL=1',
+      })
+
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.data.task.status).toBe('done')
+      expect(result.data.completion.completedAt).toBeInstanceOf(Date)
+      expect(result.data.nextTask?.id).toBe('task-next')
+      expect(result.data.nextTask?.dueDate?.getTime()).toBe(due.getTime())
+      expect(global.fetch).toHaveBeenCalledWith('/api/tasks/task-1/complete-recurring', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nextTask: {
+            topicId: 'topic-1',
+            title: 'タスク1',
+            description: '',
+            status: 'todo',
+            priority: 'medium',
+            dueDate: due.getTime(),
+            startDate: null,
+            order: 9999,
+            tags: [],
+            repeatRule: 'RRULE:FREQ=DAILY;INTERVAL=1',
+          },
+        }),
+      })
+    })
+  })
+
   describe('delete', () => {
     it('タスクを削除できる (サーバー側でサブタスク・完了履歴も削除)', async () => {
       vi.spyOn(global, 'fetch').mockResolvedValue({

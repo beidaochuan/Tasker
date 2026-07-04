@@ -5,34 +5,112 @@ import { db } from '../db.js'
 export const tasksRouter = Router()
 
 const PATCH_ALLOWED = new Set([
-  'title', 'description', 'status', 'priority',
-  'dueDate', 'startDate', 'order', 'tags', 'repeatRule', 'updatedAt',
+  'title',
+  'description',
+  'status',
+  'priority',
+  'dueDate',
+  'startDate',
+  'order',
+  'tags',
+  'repeatRule',
+  'updatedAt',
 ])
 
 tasksRouter.get('/', (req, res) => {
   const { topicId, projectId } = req.query
   if (topicId) {
-    const rows = db.prepare('SELECT * FROM tasks WHERE topicId = ? ORDER BY "order" ASC').all(topicId as string)
+    const rows = db
+      .prepare('SELECT * FROM tasks WHERE topicId = ? ORDER BY "order" ASC')
+      .all(topicId as string) as RawTask[]
     return res.json(rows.map(parseTask))
   }
   if (projectId) {
-    const rows = db.prepare(
-      'SELECT t.* FROM tasks t INNER JOIN topics tp ON t.topicId = tp.id WHERE tp.projectId = ? ORDER BY t."order" ASC'
-    ).all(projectId as string)
+    const rows = db
+      .prepare(
+        'SELECT t.* FROM tasks t INNER JOIN topics tp ON t.topicId = tp.id WHERE tp.projectId = ? ORDER BY t."order" ASC'
+      )
+      .all(projectId as string)
     return res.json((rows as RawTask[]).map(parseTask))
   }
-  const rows = db.prepare('SELECT * FROM tasks ORDER BY "order" ASC').all()
+  const rows = db.prepare('SELECT * FROM tasks ORDER BY "order" ASC').all() as RawTask[]
   res.json(rows.map(parseTask))
 })
 
 tasksRouter.get('/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as RawTask | undefined
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as
+    | RawTask
+    | undefined
   if (!row) return res.status(404).json({ error: 'NOT_FOUND' })
   res.json(parseTask(row))
 })
 
+tasksRouter.post('/:id/complete-recurring', (req, res) => {
+  const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as
+    | RawTask
+    | undefined
+  if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
+
+  const nextTask = normalizeNextTask(req.body?.nextTask, existing)
+  const completedAt = Date.now()
+  const completion = { id: nanoid(10), taskId: existing.id, completedAt }
+
+  const result = db.transaction(() => {
+    db.prepare('UPDATE tasks SET status = ?, updatedAt = ? WHERE id = ?').run(
+      'done',
+      completedAt,
+      existing.id
+    )
+    db.prepare(
+      'INSERT INTO task_completions (id, taskId, completedAt) VALUES (@id, @taskId, @completedAt)'
+    ).run(completion)
+
+    let createdNextTask: RawTask | null = null
+    if (nextTask) {
+      createdNextTask = {
+        id: nanoid(10),
+        topicId: existing.topicId,
+        title: nextTask.title,
+        description: nextTask.description,
+        status: 'todo',
+        priority: nextTask.priority,
+        dueDate: nextTask.dueDate,
+        startDate: nextTask.startDate,
+        order: nextTask.order,
+        tags: JSON.stringify(nextTask.tags),
+        repeatRule: nextTask.repeatRule,
+        createdAt: completedAt,
+        updatedAt: completedAt,
+      }
+      db.prepare(
+        'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", tags, repeatRule, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @tags, @repeatRule, @createdAt, @updatedAt)'
+      ).run(createdNextTask)
+    }
+
+    const updatedTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(existing.id) as RawTask
+    return {
+      task: parseTask(updatedTask),
+      completion,
+      nextTask: createdNextTask ? parseTask(createdNextTask) : null,
+    }
+  })()
+
+  res.status(201).json(result)
+})
+
 tasksRouter.post('/', (req, res) => {
-  const { topicId, title, description = '', status = 'todo', priority = 'medium', dueDate = null, startDate = null, order = 0, tags = [], repeatRule = null } = req.body
+  const {
+    topicId,
+    title,
+    description = '',
+    status = 'todo',
+    priority = 'medium',
+    dueDate = null,
+    startDate = null,
+    order = 0,
+    tags = [],
+    repeatRule = null,
+  } = req.body
   if (!topicId || typeof topicId !== 'string') {
     return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'topicId' })
   }
@@ -62,11 +140,14 @@ tasksRouter.post('/', (req, res) => {
 })
 
 tasksRouter.patch('/:id', (req, res) => {
-  const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as RawTask | undefined
+  const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as
+    | RawTask
+    | undefined
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
   const patch: Record<string, unknown> = { updatedAt: Date.now() }
-  const { title, description, status, priority, dueDate, startDate, order, tags, repeatRule } = req.body
+  const { title, description, status, priority, dueDate, startDate, order, tags, repeatRule } =
+    req.body
   if (title !== undefined) patch.title = title
   if (description !== undefined) patch.description = description
   if (status !== undefined) patch.status = status
@@ -116,5 +197,52 @@ function parseTask(row: RawTask) {
   return {
     ...row,
     tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags,
+  }
+}
+
+interface NextTaskInput {
+  title: string
+  description: string
+  priority: string
+  dueDate: number | null
+  startDate: number | null
+  order: number
+  tags: string[]
+  repeatRule: string | null
+}
+
+function normalizeNextTask(value: unknown, existing: RawTask): NextTaskInput | null {
+  if (!value || typeof value !== 'object') return null
+  const input = value as Record<string, unknown>
+  const title =
+    typeof input.title === 'string' && input.title.trim() !== ''
+      ? input.title.trim()
+      : existing.title
+  const description =
+    typeof input.description === 'string' ? input.description : existing.description
+  const priority = typeof input.priority === 'string' ? input.priority : existing.priority
+  const dueDate = typeof input.dueDate === 'number' || input.dueDate === null ? input.dueDate : null
+  const startDate =
+    typeof input.startDate === 'number' || input.startDate === null ? input.startDate : null
+  const order = typeof input.order === 'number' ? input.order : 9999
+  const tags = Array.isArray(input.tags)
+    ? input.tags.filter((tag): tag is string => typeof tag === 'string')
+    : parseTags(existing.tags)
+  const repeatRule =
+    typeof input.repeatRule === 'string' || input.repeatRule === null
+      ? input.repeatRule
+      : existing.repeatRule
+
+  return { title, description, priority, dueDate, startDate, order, tags, repeatRule }
+}
+
+function parseTags(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === 'string')
+      : []
+  } catch {
+    return []
   }
 }

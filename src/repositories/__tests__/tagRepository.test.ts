@@ -44,6 +44,15 @@ describe('ApiTagRepository', () => {
       expect(result.data.id).toBe('tag-new')
       expect(result.data.name).toBe('NewTag')
     })
+
+    it('重複エラーは CONFLICT として返す', async () => {
+      mockFetch({ error: 'DUPLICATE' }, 409)
+      const result = await repo.create({ name: 'Tag', color: '#f00' })
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.error.code).toBe('CONFLICT')
+      expect(result.error.message).toBe('DUPLICATE')
+    })
   })
 
   describe('delete', () => {

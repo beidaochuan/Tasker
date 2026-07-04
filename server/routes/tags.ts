@@ -27,6 +27,30 @@ tagsRouter.post('/', (req, res) => {
 })
 
 tagsRouter.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM tags WHERE id = ?').run(req.params.id)
+  const id = req.params.id
+  db.transaction(() => {
+    db.prepare('DELETE FROM tags WHERE id = ?').run(id)
+
+    const tasks = db.prepare('SELECT id, tags FROM tasks').all() as { id: string; tags: string }[]
+    const updateTaskTags = db.prepare('UPDATE tasks SET tags = ?, updatedAt = ? WHERE id = ?')
+    const now = Date.now()
+
+    for (const task of tasks) {
+      const tags = parseTags(task.tags)
+      if (!tags.includes(id)) continue
+      updateTaskTags.run(JSON.stringify(tags.filter((tagId) => tagId !== id)), now, task.id)
+    }
+  })()
   res.status(204).send()
 })
+
+function parseTags(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === 'string')
+      : []
+  } catch {
+    return []
+  }
+}

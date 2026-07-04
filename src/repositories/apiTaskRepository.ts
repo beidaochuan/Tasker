@@ -1,5 +1,10 @@
 import type { Task, Result } from '@/types'
-import type { ITaskRepository, CreateTask, UpdateTask } from './interface'
+import type {
+  ITaskRepository,
+  CreateTask,
+  UpdateTask,
+  CompleteRecurringTaskResult,
+} from './interface'
 import { fromUnixMs, toUnixMs } from '@/utils/dateUtils'
 import { apiFetch } from './apiFetch'
 
@@ -75,6 +80,36 @@ export class ApiTaskRepository implements ITaskRepository {
     })
     if (!r.ok) return r
     return { ok: true, data: toTask(r.data) }
+  }
+
+  async completeRecurring(
+    id: string,
+    nextTask: CreateTask | null
+  ): Promise<Result<CompleteRecurringTaskResult>> {
+    const r = await apiFetch<{
+      task: Record<string, unknown>
+      completion: Record<string, unknown>
+      nextTask: Record<string, unknown> | null
+    }>(`${BASE}/${id}/complete-recurring`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nextTask: nextTask ? serializeTask(nextTask) : null,
+      }),
+    })
+    if (!r.ok) return r
+    return {
+      ok: true,
+      data: {
+        task: toTask(r.data.task),
+        completion: {
+          id: r.data.completion.id as string,
+          taskId: r.data.completion.taskId as string,
+          completedAt: fromUnixMs(r.data.completion.completedAt as number),
+        },
+        nextTask: r.data.nextTask ? toTask(r.data.nextTask) : null,
+      },
+    }
   }
 
   async delete(id: string): Promise<Result<void>> {

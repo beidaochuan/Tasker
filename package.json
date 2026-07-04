@@ -6,9 +6,12 @@
   "scripts": {
     "licenses:generate": "license-checker-rseidelsohn --json --excludePrivatePackages --out public/third-party-licenses.json",
     "server": "tsx watch server/index.ts",
+    "start": "node dist-server/index.js",
     "dev": "npm run licenses:generate && vite",
     "dev:full": "concurrently \"cross-env PORT=3209 npm run server\" \"npm run dev\"",
-    "build": "npm run licenses:generate && tsc -b && vite build",
+    "typecheck": "tsc -b && tsc -p server/tsconfig.json --noEmit",
+    "build:server": "tsc -p server/tsconfig.json",
+    "build": "npm run licenses:generate && npm run typecheck && npm run build:server && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",

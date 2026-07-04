@@ -8,6 +8,11 @@ export type UpdateTopic = Partial<Omit<Topic, 'id' | 'createdAt'>>
 
 export type CreateTask = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>
 export type UpdateTask = Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>
+export type CompleteRecurringTaskResult = {
+  task: Task
+  completion: TaskCompletion
+  nextTask: Task | null
+}
 
 export type CreateSubtask = Omit<Subtask, 'id' | 'createdAt'>
 export type UpdateSubtask = Partial<Omit<Subtask, 'id' | 'createdAt'>>
@@ -36,6 +41,10 @@ export interface ITaskRepository {
   getById(id: string): Promise<Result<Task>>
   create(data: CreateTask): Promise<Result<Task>>
   update(id: string, data: UpdateTask): Promise<Result<Task>>
+  completeRecurring(
+    id: string,
+    nextTask: CreateTask | null
+  ): Promise<Result<CompleteRecurringTaskResult>>
   delete(id: string): Promise<Result<void>>
 }
 

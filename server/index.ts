@@ -19,17 +19,19 @@ const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
   : ['http://localhost:3208', 'http://localhost:4173', 'http://localhost:5173']
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // 同一オリジン (本番) の場合 origin は undefined
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-      callback(null, true)
-    } else {
-      callback(new Error('Not allowed by CORS'))
-    }
-  },
-}))
-app.use(express.json())
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // 同一オリジン (本番) の場合 origin は undefined
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true)
+      } else {
+        callback(new Error('Not allowed by CORS'))
+      }
+    },
+  })
+)
+app.use(express.json({ limit: '50mb' }))
 
 app.use('/api/projects', projectsRouter)
 app.use('/api/topics', topicsRouter)

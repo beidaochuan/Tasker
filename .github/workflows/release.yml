@@ -1,4 +1,4 @@
-name: Release & Deploy
+name: Release
 
 on:
   push:
@@ -6,15 +6,10 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
-  build-and-deploy:
+  build-and-release:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -27,46 +22,22 @@ jobs:
 
       # ライセンス情報を JSON として生成（ビルド前に public/ へ）
       - name: Generate third-party licenses
-        run: |
-          npx license-checker --production --json \
-            --fields licenses,repository \
-            > public/third-party-licenses.json
+        run: npm run licenses:generate
 
       # CHANGELOG から最新バージョンのセクションを抽出
       - name: Extract release notes
         run: awk '/^## \[/{if(p)exit; p=1} p' CHANGELOG.md > RELEASE_NOTES.md
 
-      # ローカル配布用ビルド（/ ベースパス）
-      - name: Build for local distribution
+      - name: Build app and API server
         run: npm run build
         env:
           VITE_BASE_PATH: /
 
-      - name: Create zip archive (local)
-        run: cd dist && zip -r ../tasker-${{ github.ref_name }}-local.zip .
+      - name: Create release archive
+        run: zip -r tasker-${{ github.ref_name }}.zip dist dist-server package.json package-lock.json README.md LICENSE
 
-      # GitHub Pages 用ビルド（/Tasker/ ベースパス）
-      - name: Build for GitHub Pages
-        run: npm run build
-        env:
-          VITE_BASE_PATH: /Tasker/
-
-      - name: Create zip archive (GitHub Pages)
-        run: cd dist && zip -r ../tasker-${{ github.ref_name }}.zip .
-
-      - uses: actions/configure-pages@v4
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-      - id: deploy
-        uses: actions/deploy-pages@v4
-
-      # GitHub Release 作成（zip 2種添付）
+      # GitHub Release 作成（API サーバー込みの配布 zip を添付）
       - uses: softprops/action-gh-release@v2
         with:
           body_path: RELEASE_NOTES.md
-          files: |
-            tasker-${{ github.ref_name }}.zip
-            tasker-${{ github.ref_name }}-local.zip
+          files: tasker-${{ github.ref_name }}.zip
