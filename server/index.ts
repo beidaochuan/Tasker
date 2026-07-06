@@ -17,13 +17,14 @@ const PORT = Number(process.env.PORT ?? 3208)
 
 const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
-  : ['http://localhost:3208', 'http://localhost:4173', 'http://localhost:5173']
+  : null
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // 同一オリジン (本番) の場合 origin は undefined
-      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      // CORS_ORIGIN 未設定時は全許可（本番：同一サーバーで静的ファイルも配信するため）
+      // CORS_ORIGIN 設定時はその一覧のみ許可（開発時）
+      if (!ALLOWED_ORIGINS || !origin || ALLOWED_ORIGINS.includes(origin)) {
         callback(null, true)
       } else {
         callback(new Error('Not allowed by CORS'))
