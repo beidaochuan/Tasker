@@ -185,6 +185,41 @@ src/
 └── utils/                # 日付、フィルタ、並び替え、エクスポート、繰り返し処理
 ```
 
+## Windows サービス登録
+
+Tasker を Windows サービスとして登録すると、PC 起動時に自動起動し、ログインなしでバックグラウンドで動作します。
+
+### 前提条件
+
+- `npm run build` でビルド済みであること（`dist-server/index.js` が存在すること）
+- **管理者権限**のターミナルで実行すること
+
+### サービスの登録
+
+```bash
+npm run service:install
+```
+
+登録が成功すると自動的にサービスが起動し、`http://localhost:3208/` でアクセスできます。
+
+ポートを変更したい場合は環境変数 `PORT` を指定します。
+
+```bash
+PORT=8080 npm run service:install
+```
+
+### サービスの削除
+
+```bash
+npm run service:uninstall
+```
+
+### 注意事項
+
+- どちらのコマンドも**管理者権限のターミナル**が必要です。権限がない場合はエラーになります。
+- サービスを再インストールする場合は、先に `service:uninstall` を実行してから `service:install` を実行してください。
+- サービスの起動・停止は Windows の「サービス」管理ツール（`services.msc`）でも操作できます。サービス名は `Tasker` です。
+
 ## トラブルシュート
 
 ### `Bad Gateway` が出る
