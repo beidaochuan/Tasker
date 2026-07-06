@@ -34,7 +34,7 @@ jobs:
           VITE_BASE_PATH: /
 
       - name: Create release archive
-        run: zip -r tasker-${{ github.ref_name }}.zip dist dist-server package.json package-lock.json README.md LICENSE
+        run: zip -r tasker-${{ github.ref_name }}.zip dist dist-server scripts package.json package-lock.json README.md LICENSE
 
       # GitHub Release 作成（API サーバー込みの配布 zip を添付）
       - uses: softprops/action-gh-release@v2
