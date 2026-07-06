@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-07-06
+
+### Added
+- Windows サービスへの登録・削除スクリプトを追加 (`npm run service:install` / `npm run service:uninstall`)
+- `node-windows` パッケージを依存関係に追加
+
 ## [0.3.1] - 2026-07-04
 
 ### Fixed

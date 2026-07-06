@@ -1,7 +1,7 @@
 {
   "name": "tasker",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "scripts": {
     "licenses:generate": "license-checker-rseidelsohn --json --excludePrivatePackages --out public/third-party-licenses.json",
@@ -21,7 +21,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky"
+    "prepare": "husky",
+    "service:install": "node scripts/service-install.cjs",
+    "service:uninstall": "node scripts/service-uninstall.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -45,6 +47,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@tanstack/react-virtual": "^3.13.9",
     "better-sqlite3": "^12.11.1",
+    "node-windows": "^0.1.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
