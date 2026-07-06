@@ -48,6 +48,6 @@ app.get('/{*path}', (_req, res) => {
   res.sendFile(path.join(distPath, 'index.html'))
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Tasker server: http://localhost:${PORT}`)
 })
