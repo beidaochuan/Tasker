@@ -77,6 +77,7 @@ export function TaskDrawer() {
   const { completeRecurringTask } = useRecurrence()
   const refresh = useRefreshStore((s) => s.refresh)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [autoSelectTopicProjectId, setAutoSelectTopicProjectId] = useState<string | null>(null)
 
   const isNew = newTaskTopicId !== null
   const existingTask = useTask(isNew ? null : selectedTaskId)
@@ -117,7 +118,7 @@ export function TaskDrawer() {
   // #6: isTaskDrawerOpen を依存配列に含め、開くたびに確実に reset する
   useEffect(() => {
     if (!isTaskDrawerOpen) return
-    if (existingTask) {
+    if (existingTask && existingTask.id === selectedTaskId) {
       const parsed = parseRRule(existingTask.repeatRule)
       reset({
         title: existingTask.title,
@@ -148,13 +149,34 @@ export function TaskDrawer() {
         repeatInterval: 1,
       })
     }
-  }, [existingTask, isNew, reset, isTaskDrawerOpen, selectedProjectId, newTaskTopicId])
+  }, [
+    existingTask,
+    isNew,
+    reset,
+    isTaskDrawerOpen,
+    selectedProjectId,
+    selectedTaskId,
+    newTaskTopicId,
+  ])
 
   useEffect(() => {
     if (!isTaskDrawerOpen || projectTopics === undefined) return
+    if (autoSelectTopicProjectId !== selectedFormProjectId) return
     if (projectTopics.some((topic) => topic.id === selectedFormTopicId)) return
-    setValue('topicId', projectTopics[0]?.id ?? '', { shouldDirty: true, shouldValidate: true })
-  }, [isTaskDrawerOpen, projectTopics, selectedFormTopicId, setValue])
+    const nextTopicId = projectTopics[0]?.id ?? ''
+    if (nextTopicId === selectedFormTopicId) return
+    setValue('topicId', nextTopicId, { shouldDirty: true, shouldValidate: true })
+  }, [
+    autoSelectTopicProjectId,
+    isTaskDrawerOpen,
+    projectTopics,
+    selectedFormProjectId,
+    selectedFormTopicId,
+    setValue,
+  ])
+
+  const hasSelectedFormTopic =
+    projectTopics?.some((topic) => topic.id === selectedFormTopicId) ?? false
 
   function handleClose() {
     setSubmitError(null)
@@ -297,19 +319,33 @@ export function TaskDrawer() {
                 <label htmlFor="task-project" className={LABEL_CLASS}>
                   プロジェクト
                 </label>
-                <select
-                  id="task-project"
-                  {...register('projectId')}
-                  className={FIELD_CLASS}
-                  disabled={!isAuthenticated}
-                >
-                  <option value="">プロジェクトを選択</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  name="projectId"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      id="task-project"
+                      {...field}
+                      onChange={(event) => {
+                        field.onChange(event)
+                        setAutoSelectTopicProjectId(event.target.value)
+                        setValue('topicId', '', {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }}
+                      className={FIELD_CLASS}
+                      disabled={!isAuthenticated}
+                    >
+                      <option value="">プロジェクトを選択</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                />
                 {errors.projectId && (
                   <p className="text-xs text-destructive">{errors.projectId.message}</p>
                 )}
@@ -319,26 +355,34 @@ export function TaskDrawer() {
                 <label htmlFor="task-topic" className={LABEL_CLASS}>
                   トピック
                 </label>
-                <select
-                  id="task-topic"
-                  {...register('topicId')}
-                  className={FIELD_CLASS}
-                  disabled={
-                    !isAuthenticated || projectTopics === undefined || projectTopics.length === 0
-                  }
-                >
-                  {projectTopics === undefined ? (
-                    <option value="">読み込み中</option>
-                  ) : projectTopics.length === 0 ? (
-                    <option value="">トピックがありません</option>
-                  ) : (
-                    projectTopics.map((topic) => (
-                      <option key={topic.id} value={topic.id}>
-                        {topic.name}
-                      </option>
-                    ))
+                <Controller
+                  name="topicId"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      id="task-topic"
+                      {...field}
+                      className={FIELD_CLASS}
+                      disabled={
+                        !isAuthenticated ||
+                        projectTopics === undefined ||
+                        projectTopics.length === 0
+                      }
+                    >
+                      {projectTopics === undefined ? (
+                        <option value="">読み込み中</option>
+                      ) : projectTopics.length === 0 ? (
+                        <option value="">トピックがありません</option>
+                      ) : (
+                        projectTopics.map((topic) => (
+                          <option key={topic.id} value={topic.id}>
+                            {topic.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
                   )}
-                </select>
+                />
                 {errors.topicId && (
                   <p className="text-xs text-destructive">{errors.topicId.message}</p>
                 )}
@@ -498,7 +542,7 @@ export function TaskDrawer() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isSubmitting || !selectedFormTopicId}
+                disabled={isSubmitting || !hasSelectedFormTopic}
               >
                 {isNew ? '作成する' : '保存する'}
               </Button>

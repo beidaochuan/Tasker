@@ -59,12 +59,10 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
 
   const result = db.transaction(() => {
     const targetTopicId = nextTask?.topicId ?? existing.topicId
-    db.prepare('UPDATE tasks SET topicId = ?, status = ?, updatedAt = ? WHERE id = ?').run(
-      targetTopicId,
-      'done',
-      completedAt,
-      existing.id
-    )
+    const targetGanttOrder = targetTopicId === existing.topicId ? existing.ganttOrder : null
+    db.prepare(
+      'UPDATE tasks SET topicId = ?, status = ?, ganttOrder = ?, updatedAt = ? WHERE id = ?'
+    ).run(targetTopicId, 'done', targetGanttOrder, completedAt, existing.id)
     db.prepare(
       'INSERT INTO task_completions (id, taskId, completedAt) VALUES (@id, @taskId, @completedAt)'
     ).run(completion)
@@ -146,6 +144,53 @@ tasksRouter.post('/', (req, res) => {
   res.status(201).json(parseTask(row))
 })
 
+tasksRouter.patch('/gantt-order', (req, res) => {
+  const items = req.body?.items as unknown
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'items' })
+  }
+
+  const updates: Array<{ id: string; ganttOrder: number }> = []
+  const ids = new Set<string>()
+  for (const item of items) {
+    if (!item || typeof item !== 'object') {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'items' })
+    }
+    const { id, ganttOrder } = item as Record<string, unknown>
+    if (
+      typeof id !== 'string' ||
+      id === '' ||
+      typeof ganttOrder !== 'number' ||
+      !Number.isInteger(ganttOrder) ||
+      ganttOrder < 0 ||
+      ids.has(id)
+    ) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'items' })
+    }
+    ids.add(id)
+    updates.push({ id, ganttOrder })
+  }
+
+  const placeholders = updates.map(() => '?').join(', ')
+  const tasks = db
+    .prepare(`SELECT id, topicId FROM tasks WHERE id IN (${placeholders})`)
+    .all(...updates.map((item) => item.id)) as Array<{ id: string; topicId: string }>
+  if (tasks.length !== updates.length) {
+    return res.status(404).json({ error: 'NOT_FOUND' })
+  }
+  if (new Set(tasks.map((task) => task.topicId)).size !== 1) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'items' })
+  }
+
+  const update = db.prepare('UPDATE tasks SET ganttOrder = ?, updatedAt = ? WHERE id = ?')
+  const updatedAt = Date.now()
+  db.transaction(() => {
+    for (const item of updates) update.run(item.ganttOrder, updatedAt, item.id)
+  })()
+
+  res.status(204).send()
+})
+
 tasksRouter.patch('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as
     | RawTask
@@ -166,6 +211,7 @@ tasksRouter.patch('/:id', (req, res) => {
     tags,
     repeatRule,
   } = req.body
+  const topicChanged = topicId !== undefined && topicId !== existing.topicId
   if (topicId !== undefined) patch.topicId = topicId
   if (title !== undefined) patch.title = title
   if (description !== undefined) patch.description = description
@@ -174,7 +220,8 @@ tasksRouter.patch('/:id', (req, res) => {
   if (dueDate !== undefined) patch.dueDate = dueDate
   if (startDate !== undefined) patch.startDate = startDate
   if (order !== undefined) patch.order = order
-  if (ganttOrder !== undefined) patch.ganttOrder = ganttOrder
+  if (topicChanged) patch.ganttOrder = null
+  else if (ganttOrder !== undefined) patch.ganttOrder = ganttOrder
   if (tags !== undefined) patch.tags = JSON.stringify(tags)
   if (repeatRule !== undefined) patch.repeatRule = repeatRule
 

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
   Plus,
@@ -48,6 +48,15 @@ export function Sidebar() {
   const [isLicensesOpen, setIsLicensesOpen] = useState(false)
   const [dialogState, setDialogState] = useState<DialogState>({ type: 'none' })
   const importInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (
+      projects.length > 0 &&
+      (!selectedProjectId || !projects.some((project) => project.id === selectedProjectId))
+    ) {
+      setSelectedProjectId(projects[0].id)
+    }
+  }, [projects, selectedProjectId, setSelectedProjectId])
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

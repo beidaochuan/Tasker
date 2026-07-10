@@ -97,6 +97,29 @@ describe('ApiTaskRepository', () => {
     })
   })
 
+  describe('updateGanttOrder', () => {
+    it('ガント順序を一括更新する', async () => {
+      vi.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 204,
+        json: () => Promise.resolve({}),
+      } as unknown as Response)
+      const items = [
+        { id: 'task-2', ganttOrder: 0 },
+        { id: 'task-1', ganttOrder: 1 },
+      ]
+
+      const result = await repo.updateGanttOrder(items)
+
+      expect(result.ok).toBe(true)
+      expect(global.fetch).toHaveBeenCalledWith('/api/tasks/gantt-order', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      })
+    })
+  })
+
   describe('completeRecurring', () => {
     it('完了履歴と次回タスクを返す', async () => {
       const due = new Date(2024, 5, 16)

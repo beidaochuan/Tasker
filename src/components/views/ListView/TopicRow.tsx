@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { ChevronDown, ChevronRight, Plus, Trash2, Pencil } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
@@ -37,10 +37,51 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
   const [editName, setEditName] = useState('')
   const editInputRef = useRef<HTMLInputElement>(null)
   const tasks = useFilteredTasksByTopic(topic.id)
+  const [pendingTaskOrder, setPendingTaskOrder] = useState<string[] | null>(null)
+  const [isReordering, setIsReordering] = useState(false)
+  const reorderingRef = useRef(false)
   const isFiltering = useFilterStore(selectIsFiltering)
   const refresh = useRefreshStore((s) => s.refresh)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const displayedTasks = useMemo(() => {
+    if (!pendingTaskOrder) return tasks
+
+    const pendingIds = new Set(pendingTaskOrder)
+    const taskById = new Map(tasks.map((task) => [task.id, task]))
+    const orderedPendingTasks = pendingTaskOrder.flatMap((id) => {
+      const task = taskById.get(id)
+      return task ? [task] : []
+    })
+    let taskIndex = 0
+
+    return tasks.map((task) =>
+      pendingIds.has(task.id) ? (orderedPendingTasks[taskIndex++] ?? task) : task
+    )
+  }, [pendingTaskOrder, tasks])
+
+  useEffect(() => {
+    if (!pendingTaskOrder) return
+
+    const savedTaskIds = tasks.map((task) => task.id)
+    const savedTaskIdSet = new Set(savedTaskIds)
+    const pendingIds = new Set(pendingTaskOrder)
+    const hasMissingTask = pendingTaskOrder.some((id) => !savedTaskIdSet.has(id))
+    const savedPendingTaskIds = savedTaskIds.filter((id) => pendingIds.has(id))
+    const isSettled =
+      savedPendingTaskIds.length === pendingTaskOrder.length &&
+      savedPendingTaskIds.every((id, index) => id === pendingTaskOrder[index])
+    if (!hasMissingTask && !isSettled) return
+
+    let cancelled = false
+    Promise.resolve().then(() => {
+      if (!cancelled) setPendingTaskOrder(null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [pendingTaskOrder, tasks])
 
   function startEditingName() {
     if (!canEdit) return
@@ -88,22 +129,33 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
   }
 
   async function handleDragEnd(event: DragEndEvent) {
-    if (!canEdit) return
+    if (!canEdit || reorderingRef.current) return
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    const fromIndex = tasks.findIndex((t) => t.id === active.id)
-    const toIndex = tasks.findIndex((t) => t.id === over.id)
+    const fromIndex = displayedTasks.findIndex((t) => t.id === active.id)
+    const toIndex = displayedTasks.findIndex((t) => t.id === over.id)
     if (fromIndex === -1 || toIndex === -1) return
 
-    const reordered = reorderItems(tasks, fromIndex, toIndex)
+    const normalizedTasks = displayedTasks.map((task, order) => ({ ...task, order }))
+    const reordered = reorderItems(normalizedTasks, fromIndex, toIndex)
+    setPendingTaskOrder(reordered.map((task) => task.id))
+    reorderingRef.current = true
+    setIsReordering(true)
     try {
-      await Promise.all(
+      const results = await Promise.allSettled(
         reordered.map((task) => taskRepo.update(task.id, { order: task.order }).then(unwrapResult))
       )
+      const rejected = results.find((result) => result.status === 'rejected')
+      if (rejected) throw rejected.reason
       refresh()
     } catch (err) {
       console.error('タスクの並び替えに失敗しました', err)
+      setPendingTaskOrder(null)
+      refresh()
+    } finally {
+      reorderingRef.current = false
+      setIsReordering(false)
     }
   }
 
@@ -226,14 +278,14 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={tasks.map((t) => t.id)}
+                items={displayedTasks.map((t) => t.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {tasks.map((task) => (
+                {displayedTasks.map((task) => (
                   <SortableTaskRow
                     key={task.id}
                     task={task}
-                    disabled={isFiltering || !canEdit}
+                    disabled={isFiltering || !canEdit || isReordering}
                     canEdit={canEdit}
                   />
                 ))}

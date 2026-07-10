@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Subtask } from '@/types'
@@ -98,6 +98,17 @@ describe('TaskWorkList', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
+  it('日本語IMEの変換確定Enterでは作業を追加しない', async () => {
+    render(<TaskWorkList taskId="task-1" canEdit />)
+
+    const input = await screen.findByLabelText('新しい作業')
+    fireEvent.change(input, { target: { value: '仕様を確認' } })
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', isComposing: true })
+
+    expect(subtaskRepoMock.create).not.toHaveBeenCalled()
+    expect(input).toHaveValue('仕様を確認')
+  })
+
   it('チェックボックスで完了状態を切り替える', async () => {
     const user = userEvent.setup()
     subtaskRepoMock.update.mockResolvedValue({
@@ -139,6 +150,19 @@ describe('TaskWorkList', () => {
       })
     })
     expect(await screen.findByText('仕様を再確認')).toBeInTheDocument()
+  })
+
+  it('日本語IMEの変換確定Enterでは作業タイトルを保存しない', async () => {
+    const user = userEvent.setup()
+    render(<TaskWorkList taskId="task-1" canEdit />)
+
+    await user.click(await screen.findByRole('button', { name: '「仕様を確認」を編集' }))
+    const input = screen.getByLabelText('作業内容')
+    fireEvent.change(input, { target: { value: '仕様を再確認' } })
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', isComposing: true })
+
+    expect(subtaskRepoMock.update).not.toHaveBeenCalled()
+    expect(input).toHaveValue('仕様を再確認')
   })
 
   it('作業を削除する', async () => {

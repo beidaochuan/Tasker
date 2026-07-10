@@ -10,28 +10,30 @@ export interface KanbanData {
 }
 
 export function useTopics(projectId: string | null): Topic[] | undefined {
-  const [topics, setTopics] = useState<Topic[] | undefined>(undefined)
+  const [loaded, setLoaded] = useState<{ projectId: string | null; topics: Topic[] } | null>(null)
   const counter = useRefreshStore((s) => s.counter)
 
   useEffect(() => {
     let cancelled = false
     if (!projectId) {
       Promise.resolve().then(() => {
-        if (!cancelled) setTopics([])
+        if (!cancelled) setLoaded({ projectId: null, topics: [] })
       })
       return () => {
         cancelled = true
       }
     }
     topicRepo.getByProjectId(projectId).then((r) => {
-      if (!cancelled) setTopics(r.ok ? sortByOrder(r.data) : [])
+      if (!cancelled) {
+        setLoaded({ projectId, topics: r.ok ? sortByOrder(r.data) : [] })
+      }
     })
     return () => {
       cancelled = true
     }
   }, [projectId, counter])
 
-  return topics
+  return loaded?.projectId === projectId ? loaded.topics : undefined
 }
 
 export function useTasksByTopic(topicId: string): Task[] {

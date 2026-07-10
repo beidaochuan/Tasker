@@ -269,7 +269,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
                         value={editingTitle}
                         onChange={(event) => setEditingTitle(event.target.value)}
                         onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
+                          if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
                             event.preventDefault()
                             void handleRename(subtask)
                           } else if (event.key === 'Escape') {
@@ -353,7 +353,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
                   setActionError(null)
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
                     event.preventDefault()
                     void handleAdd()
                   }

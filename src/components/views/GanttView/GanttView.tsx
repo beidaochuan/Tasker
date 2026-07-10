@@ -3,14 +3,16 @@ import { FolderOpen, GripVertical } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useRefreshStore } from '@/hooks/useDataRefresh'
@@ -44,16 +46,28 @@ interface FlatRow {
   topicId: string
 }
 
+interface PendingTaskOrder {
+  topicId: string
+  taskIds: string[]
+}
+
 interface SortableTaskLabelProps {
   row: FlatRow
   top: number
   height: number
   disabled: boolean
+  animatePosition: boolean
 }
 
-function SortableTaskLabel({ row, top, height, disabled }: SortableTaskLabelProps) {
+function SortableTaskLabel({
+  row,
+  top,
+  height,
+  disabled,
+  animatePosition,
+}: SortableTaskLabelProps) {
   const task = row.tasks[0]
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: task.id,
     disabled,
   })
@@ -62,14 +76,9 @@ function SortableTaskLabel({ row, top, height, disabled }: SortableTaskLabelProp
     <div
       ref={setNodeRef}
       className={`group/gantt-task absolute left-0 right-0 flex items-center border-b border-border pl-1 pr-3 text-sm text-foreground ${
-        isDragging ? 'z-20 bg-card opacity-70 shadow-sm' : ''
+        isDragging ? 'opacity-30' : ''
       }`}
-      style={{
-        top,
-        height,
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
+      style={{ top, height, transition: animatePosition ? 'top 250ms ease' : undefined }}
     >
       <button
         {...(disabled ? {} : { ...attributes, ...listeners })}
@@ -93,6 +102,14 @@ export function GanttView() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const ganttRows = useGanttData(selectedProjectId)
   const [scale, setScale] = useState<GanttScale>('day')
+  const [pendingTaskOrder, setPendingTaskOrder] = useState<PendingTaskOrder | null>(null)
+  const [dragTaskOrder, setDragTaskOrder] = useState<PendingTaskOrder | null>(null)
+  const [draggingLabel, setDraggingLabel] = useState<string | null>(null)
+  const [isReordering, setIsReordering] = useState(false)
+  const dragTaskOrderRef = useRef<PendingTaskOrder | null>(null)
+  const dragStartTaskOrderRef = useRef<PendingTaskOrder | null>(null)
+  const lastDragOverIdRef = useRef<string | number | null>(null)
+  const reorderingRef = useRef(false)
   const refresh = useRefreshStore((s) => s.refresh)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -128,48 +145,144 @@ export function GanttView() {
     return rows
   }, [ganttRows])
 
+  const orderedFlatRows = useMemo<FlatRow[]>(() => {
+    const taskOrder = dragTaskOrder ?? pendingTaskOrder
+    if (!taskOrder) return flatRows
+
+    const orderById = new Map(taskOrder.taskIds.map((id, index) => [id, index]))
+    const orderedTopicRows = flatRows
+      .filter((row) => row.type === 'task-row' && row.topicId === taskOrder.topicId)
+      .sort((a, b) => {
+        const aOrder = orderById.get(a.tasks[0].id) ?? Number.MAX_SAFE_INTEGER
+        const bOrder = orderById.get(b.tasks[0].id) ?? Number.MAX_SAFE_INTEGER
+        return aOrder - bOrder
+      })
+    let taskIndex = 0
+
+    return flatRows.map((row) => {
+      if (row.type !== 'task-row' || row.topicId !== taskOrder.topicId) return row
+      return orderedTopicRows[taskIndex++] ?? row
+    })
+  }, [dragTaskOrder, flatRows, pendingTaskOrder])
+
+  useEffect(() => {
+    if (!pendingTaskOrder) return
+    const topicExists = flatRows.some(
+      (row) => row.type === 'topic' && row.topicId === pendingTaskOrder.topicId
+    )
+    const savedTaskIds = flatRows
+      .filter((row) => row.type === 'task-row' && row.topicId === pendingTaskOrder.topicId)
+      .map((row) => row.tasks[0].id)
+    const isSettled =
+      savedTaskIds.length === pendingTaskOrder.taskIds.length &&
+      savedTaskIds.every((id, index) => id === pendingTaskOrder.taskIds[index])
+    if (!topicExists || isSettled) setPendingTaskOrder(null)
+  }, [flatRows, pendingTaskOrder])
+
   const sortableTaskIds = useMemo(
-    () => flatRows.filter((row) => row.type === 'task-row').map((row) => row.tasks[0].id),
-    [flatRows]
+    () => orderedFlatRows.filter((row) => row.type === 'task-row').map((row) => row.tasks[0].id),
+    [orderedFlatRows]
   )
 
-  const handleTaskDragEnd = useCallback(
-    async ({ active, over }: DragEndEvent) => {
-      if (!isAuthenticated || !over || active.id === over.id) return
-      const activeRow = flatRows.find(
-        (row) => row.type === 'task-row' && row.tasks[0].id === active.id
+  const handleTaskDragStart = useCallback(
+    ({ active }: DragStartEvent) => {
+      const row = orderedFlatRows.find(
+        (item) => item.type === 'task-row' && item.tasks[0].id === active.id
       )
-      const overRow = flatRows.find((row) => row.type === 'task-row' && row.tasks[0].id === over.id)
-      if (!activeRow || !overRow || activeRow.topicId !== overRow.topicId) return
+      setDraggingLabel(row?.label ?? null)
+      if (!row) return
 
-      const topicTasks = flatRows
-        .filter((row) => row.type === 'task-row' && row.topicId === activeRow.topicId)
-        .map((row) => row.tasks[0])
-      const fromIndex = topicTasks.findIndex((task) => task.id === active.id)
-      const toIndex = topicTasks.findIndex((task) => task.id === over.id)
-      if (fromIndex < 0 || toIndex < 0) return
+      const taskOrder = {
+        topicId: row.topicId,
+        taskIds: orderedFlatRows
+          .filter((item) => item.type === 'task-row' && item.topicId === row.topicId)
+          .map((item) => item.tasks[0].id),
+      }
+      dragStartTaskOrderRef.current = taskOrder
+      dragTaskOrderRef.current = taskOrder
+      lastDragOverIdRef.current = null
+      setDragTaskOrder(taskOrder)
+    },
+    [orderedFlatRows]
+  )
 
-      const reordered = [...topicTasks]
-      const [moved] = reordered.splice(fromIndex, 1)
-      reordered.splice(toIndex, 0, moved)
+  const handleTaskDragOver = useCallback(({ active, over }: DragOverEvent) => {
+    const currentOrder = dragTaskOrderRef.current
+    if (!currentOrder || !over) return
+    if (active.id === over.id) {
+      lastDragOverIdRef.current = active.id
+      return
+    }
+    if (lastDragOverIdRef.current === over.id) return
+    lastDragOverIdRef.current = over.id
+
+    const fromIndex = currentOrder.taskIds.findIndex((id) => id === active.id)
+    const toIndex = currentOrder.taskIds.findIndex((id) => id === over.id)
+    if (fromIndex < 0 || toIndex < 0) return
+
+    const taskIds = [...currentOrder.taskIds]
+    const [movedId] = taskIds.splice(fromIndex, 1)
+    taskIds.splice(toIndex, 0, movedId)
+    const nextOrder = { ...currentOrder, taskIds }
+    dragTaskOrderRef.current = nextOrder
+    setDragTaskOrder(nextOrder)
+  }, [])
+
+  const handleTaskDragCancel = useCallback(() => {
+    dragTaskOrderRef.current = null
+    dragStartTaskOrderRef.current = null
+    lastDragOverIdRef.current = null
+    setDragTaskOrder(null)
+    setDraggingLabel(null)
+  }, [])
+
+  const handleTaskDragEnd = useCallback(
+    async ({ over }: DragEndEvent) => {
+      const taskOrder = dragTaskOrderRef.current
+      const startTaskOrder = dragStartTaskOrderRef.current
+      dragTaskOrderRef.current = null
+      dragStartTaskOrderRef.current = null
+      lastDragOverIdRef.current = null
+      setDragTaskOrder(null)
+      setDraggingLabel(null)
+      if (!isAuthenticated || reorderingRef.current || !over || !taskOrder || !startTaskOrder) {
+        return
+      }
+      const droppedInTopic = taskOrder.taskIds.some((id) => id === over.id)
+      const orderChanged = taskOrder.taskIds.some(
+        (id, index) => id !== startTaskOrder.taskIds[index]
+      )
+      if (!droppedInTopic || !orderChanged) return
+
+      setPendingTaskOrder(taskOrder)
+      reorderingRef.current = true
+      setIsReordering(true)
       try {
-        await Promise.all(
-          reordered.map((task, ganttOrder) =>
-            taskRepo.update(resolveTaskId(task.id), { ganttOrder }).then(unwrapResult)
+        unwrapResult(
+          await taskRepo.updateGanttOrder(
+            taskOrder.taskIds.map((taskId, ganttOrder) => ({
+              id: resolveTaskId(taskId),
+              ganttOrder,
+            }))
           )
         )
         refresh()
       } catch (error) {
         console.error('ガントのタスク並び替えに失敗しました', error)
+        setPendingTaskOrder(null)
+        refresh()
+      } finally {
+        reorderingRef.current = false
+        setIsReordering(false)
       }
     },
-    [flatRows, isAuthenticated, refresh]
+    [isAuthenticated, refresh]
   )
 
   // #7: preview 適用をここで一括計算（仮想アイテムのレンダリング内で毎回走らせない）
   const displayedFlatRows = useMemo<FlatRow[]>(() => {
-    if (preview.size === 0) return flatRows
-    return flatRows.map((row) => {
+    if (preview.size === 0) return orderedFlatRows
+    return orderedFlatRows.map((row) => {
       if (row.type === 'topic') return row
       let hasPreview = false
       const tasks = row.tasks.map((task) => {
@@ -179,7 +292,7 @@ export function GanttView() {
       })
       return hasPreview ? { ...row, tasks } : row
     })
-  }, [flatRows, preview])
+  }, [orderedFlatRows, preview])
 
   useEffect(() => {
     if (preview.size === 0) return
@@ -233,9 +346,9 @@ export function GanttView() {
   // TanStack Virtual exposes imperative methods that React Compiler intentionally skips.
   // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
-    count: flatRows.length,
+    count: orderedFlatRows.length,
     getScrollElement: () => rightScrollRef.current,
-    estimateSize: (i) => (flatRows[i].type === 'topic' ? TOPIC_ROW_HEIGHT : ROW_HEIGHT),
+    estimateSize: (i) => (orderedFlatRows[i].type === 'topic' ? TOPIC_ROW_HEIGHT : ROW_HEIGHT),
     overscan: 5,
     scrollPaddingStart: HEADER_HEIGHT,
   })
@@ -303,7 +416,10 @@ export function GanttView() {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={handleTaskDragStart}
+        onDragOver={handleTaskDragOver}
         onDragEnd={handleTaskDragEnd}
+        onDragCancel={handleTaskDragCancel}
       >
         <div className="flex flex-1 overflow-hidden">
           {/* 左ペイン: タスク名リスト */}
@@ -320,7 +436,7 @@ export function GanttView() {
             <SortableContext items={sortableTaskIds} strategy={verticalListSortingStrategy}>
               <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
                 {rowVirtualizer.getVirtualItems().map((vi) => {
-                  const row = flatRows[vi.index]
+                  const row = orderedFlatRows[vi.index]
                   if (row.type === 'task-row') {
                     return (
                       <SortableTaskLabel
@@ -328,7 +444,8 @@ export function GanttView() {
                         row={row}
                         top={vi.start}
                         height={vi.size}
-                        disabled={!isAuthenticated}
+                        disabled={!isAuthenticated || isReordering}
+                        animatePosition={dragTaskOrder !== null}
                       />
                     )
                   }
@@ -364,7 +481,7 @@ export function GanttView() {
                 if (row.type === 'topic') {
                   return (
                     <div
-                      key={vi.index}
+                      key={`topic-${row.topicId}`}
                       className="absolute left-0 right-0 border-b border-border bg-muted/40"
                       style={{ top: vi.start, height: vi.size, width: totalWidth }}
                     />
@@ -372,9 +489,14 @@ export function GanttView() {
                 }
                 return (
                   <div
-                    key={vi.index}
+                    key={row.tasks[0].id}
                     className="absolute left-0"
-                    style={{ top: vi.start, height: vi.size, width: totalWidth }}
+                    style={{
+                      top: vi.start,
+                      height: vi.size,
+                      width: totalWidth,
+                      transition: dragTaskOrder ? 'top 250ms ease' : undefined,
+                    }}
                   >
                     <GanttRow
                       tasks={row.tasks}
@@ -391,6 +513,16 @@ export function GanttView() {
             </div>
           </div>
         </div>
+        <DragOverlay>
+          {draggingLabel && (
+            <div
+              className="flex items-center border border-border bg-card px-6 text-sm text-foreground shadow-lg"
+              style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
+            >
+              <span className="truncate">{draggingLabel}</span>
+            </div>
+          )}
+        </DragOverlay>
       </DndContext>
     </div>
   )

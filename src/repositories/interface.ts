@@ -8,6 +8,10 @@ export type UpdateTopic = Partial<Omit<Topic, 'id' | 'createdAt'>>
 
 export type CreateTask = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>
 export type UpdateTask = Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>
+export interface GanttOrderUpdate {
+  id: string
+  ganttOrder: number
+}
 export type CompleteRecurringTaskResult = {
   task: Task
   completion: TaskCompletion
@@ -41,6 +45,7 @@ export interface ITaskRepository {
   getById(id: string): Promise<Result<Task>>
   create(data: CreateTask): Promise<Result<Task>>
   update(id: string, data: UpdateTask): Promise<Result<Task>>
+  updateGanttOrder(items: GanttOrderUpdate[]): Promise<Result<void>>
   completeRecurring(
     id: string,
     nextTask: CreateTask | null

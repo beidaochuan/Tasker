@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project, Task, Topic } from '@/types'
@@ -65,6 +65,13 @@ const TOPICS: Record<string, Topic[]> = {
       projectId: 'project-1',
       name: 'トピック1',
       order: 0,
+      createdAt: new Date(2026, 0, 1),
+    },
+    {
+      id: 'topic-1-second',
+      projectId: 'project-1',
+      name: 'トピック1-2',
+      order: 1,
       createdAt: new Date(2026, 0, 1),
     },
   ],
@@ -160,6 +167,59 @@ describe('TaskDrawer', () => {
     })
 
     expect(useUIStore.getState().isTaskDrawerOpen).toBe(false)
+  })
+
+  it('2番目以降のトピックにある既存タスクの所属を保持する', async () => {
+    const user = userEvent.setup()
+    taskRepoMock.getById.mockResolvedValue({
+      ok: true,
+      data: { ...TASK, topicId: 'topic-1-second' },
+    })
+
+    render(<TaskDrawer />)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('トピック')).toHaveValue('topic-1-second')
+    })
+
+    await user.type(screen.getByLabelText('タイトル'), ' 更新')
+    await user.click(screen.getByRole('button', { name: '保存する' }))
+
+    await waitFor(() => {
+      expect(taskRepoMock.update).toHaveBeenCalledWith(
+        'task-1',
+        expect.objectContaining({ topicId: 'topic-1-second' })
+      )
+    })
+  })
+
+  it('変更先プロジェクトのトピックを読み込むまで保存できない', async () => {
+    const user = userEvent.setup()
+    let resolveProject2: ((value: { ok: true; data: Topic[] }) => void) | undefined
+    const project2Topics = new Promise<{ ok: true; data: Topic[] }>((resolve) => {
+      resolveProject2 = resolve
+    })
+    topicRepoMock.getByProjectId.mockImplementation((projectId: string) => {
+      if (projectId === 'project-2') return project2Topics
+      return Promise.resolve({ ok: true, data: TOPICS[projectId] ?? [] })
+    })
+
+    render(<TaskDrawer />)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('トピック')).toHaveValue('topic-1')
+    })
+    await user.selectOptions(screen.getByLabelText('プロジェクト'), 'project-2')
+
+    expect(screen.getByRole('button', { name: '保存する' })).toBeDisabled()
+
+    await act(async () => {
+      resolveProject2?.({ ok: true, data: TOPICS['project-2'] })
+    })
+    await waitFor(() => {
+      expect(screen.getByLabelText('トピック')).toHaveValue('topic-2')
+      expect(screen.getByRole('button', { name: '保存する' })).toBeEnabled()
+    })
   })
 
   it('繰り返しタスクを移動と同時に完了しても移動先トピックを引き継ぐ', async () => {

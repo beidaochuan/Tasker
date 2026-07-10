@@ -3,6 +3,7 @@ import type {
   ITaskRepository,
   CreateTask,
   UpdateTask,
+  GanttOrderUpdate,
   CompleteRecurringTaskResult,
 } from './interface'
 import { fromUnixMs, toUnixMs } from '@/utils/dateUtils'
@@ -81,6 +82,14 @@ export class ApiTaskRepository implements ITaskRepository {
     })
     if (!r.ok) return r
     return { ok: true, data: toTask(r.data) }
+  }
+
+  async updateGanttOrder(items: GanttOrderUpdate[]): Promise<Result<void>> {
+    return apiFetch<void>(`${BASE}/gantt-order`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    })
   }
 
   async completeRecurring(
