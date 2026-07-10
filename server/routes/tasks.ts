@@ -5,6 +5,7 @@ import { db } from '../db.js'
 export const tasksRouter = Router()
 
 const PATCH_ALLOWED = new Set([
+  'topicId',
   'title',
   'description',
   'status',
@@ -56,7 +57,9 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
   const completion = { id: nanoid(10), taskId: existing.id, completedAt }
 
   const result = db.transaction(() => {
-    db.prepare('UPDATE tasks SET status = ?, updatedAt = ? WHERE id = ?').run(
+    const targetTopicId = nextTask?.topicId ?? existing.topicId
+    db.prepare('UPDATE tasks SET topicId = ?, status = ?, updatedAt = ? WHERE id = ?').run(
+      targetTopicId,
       'done',
       completedAt,
       existing.id
@@ -69,7 +72,7 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
     if (nextTask) {
       createdNextTask = {
         id: nanoid(10),
-        topicId: existing.topicId,
+        topicId: targetTopicId,
         title: nextTask.title,
         description: nextTask.description,
         status: 'todo',
@@ -146,8 +149,19 @@ tasksRouter.patch('/:id', (req, res) => {
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
   const patch: Record<string, unknown> = { updatedAt: Date.now() }
-  const { title, description, status, priority, dueDate, startDate, order, tags, repeatRule } =
-    req.body
+  const {
+    topicId,
+    title,
+    description,
+    status,
+    priority,
+    dueDate,
+    startDate,
+    order,
+    tags,
+    repeatRule,
+  } = req.body
+  if (topicId !== undefined) patch.topicId = topicId
   if (title !== undefined) patch.title = title
   if (description !== undefined) patch.description = description
   if (status !== undefined) patch.status = status
@@ -201,6 +215,7 @@ function parseTask(row: RawTask) {
 }
 
 interface NextTaskInput {
+  topicId: string
   title: string
   description: string
   priority: string
@@ -214,6 +229,8 @@ interface NextTaskInput {
 function normalizeNextTask(value: unknown, existing: RawTask): NextTaskInput | null {
   if (!value || typeof value !== 'object') return null
   const input = value as Record<string, unknown>
+  const topicId =
+    typeof input.topicId === 'string' && input.topicId !== '' ? input.topicId : existing.topicId
   const title =
     typeof input.title === 'string' && input.title.trim() !== ''
       ? input.title.trim()
@@ -233,7 +250,7 @@ function normalizeNextTask(value: unknown, existing: RawTask): NextTaskInput | n
       ? input.repeatRule
       : existing.repeatRule
 
-  return { title, description, priority, dueDate, startDate, order, tags, repeatRule }
+  return { topicId, title, description, priority, dueDate, startDate, order, tags, repeatRule }
 }
 
 function parseTags(value: string): string[] {

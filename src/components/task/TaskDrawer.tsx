@@ -150,10 +150,10 @@ export function TaskDrawer() {
   }, [existingTask, isNew, reset, isTaskDrawerOpen, selectedProjectId, newTaskTopicId])
 
   useEffect(() => {
-    if (!isTaskDrawerOpen || !isNew || projectTopics === undefined) return
+    if (!isTaskDrawerOpen || projectTopics === undefined) return
     if (projectTopics.some((topic) => topic.id === selectedFormTopicId)) return
     setValue('topicId', projectTopics[0]?.id ?? '', { shouldDirty: true, shouldValidate: true })
-  }, [isTaskDrawerOpen, isNew, projectTopics, selectedFormTopicId, setValue])
+  }, [isTaskDrawerOpen, projectTopics, selectedFormTopicId, setValue])
 
   function handleClose() {
     setSubmitError(null)
@@ -193,6 +193,7 @@ export function TaskDrawer() {
         if (values.status === 'done' && existingTask.status !== 'done' && repeatRule) {
           await completeRecurringTask({
             ...existingTask,
+            topicId: values.topicId,
             title: values.title,
             description: values.description,
             priority: values.priority,
@@ -205,6 +206,7 @@ export function TaskDrawer() {
         }
         unwrapResult(
           await taskRepo.update(existingTask.id, {
+            topicId: values.topicId,
             title: values.title,
             description: values.description,
             status: values.status,
@@ -289,60 +291,58 @@ export function TaskDrawer() {
               {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
             </div>
 
-            {isNew && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="task-project" className={LABEL_CLASS}>
-                    プロジェクト
-                  </label>
-                  <select
-                    id="task-project"
-                    {...register('projectId')}
-                    className={FIELD_CLASS}
-                    disabled={!isAuthenticated}
-                  >
-                    <option value="">プロジェクトを選択</option>
-                    {projects.map((project) => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.projectId && (
-                    <p className="text-xs text-destructive">{errors.projectId.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="task-topic" className={LABEL_CLASS}>
-                    トピック
-                  </label>
-                  <select
-                    id="task-topic"
-                    {...register('topicId')}
-                    className={FIELD_CLASS}
-                    disabled={
-                      !isAuthenticated || projectTopics === undefined || projectTopics.length === 0
-                    }
-                  >
-                    {projectTopics === undefined ? (
-                      <option value="">読み込み中</option>
-                    ) : projectTopics.length === 0 ? (
-                      <option value="">トピックがありません</option>
-                    ) : (
-                      projectTopics.map((topic) => (
-                        <option key={topic.id} value={topic.id}>
-                          {topic.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  {errors.topicId && (
-                    <p className="text-xs text-destructive">{errors.topicId.message}</p>
-                  )}
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="task-project" className={LABEL_CLASS}>
+                  プロジェクト
+                </label>
+                <select
+                  id="task-project"
+                  {...register('projectId')}
+                  className={FIELD_CLASS}
+                  disabled={!isAuthenticated}
+                >
+                  <option value="">プロジェクトを選択</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.projectId && (
+                  <p className="text-xs text-destructive">{errors.projectId.message}</p>
+                )}
               </div>
-            )}
+
+              <div className="space-y-1.5">
+                <label htmlFor="task-topic" className={LABEL_CLASS}>
+                  トピック
+                </label>
+                <select
+                  id="task-topic"
+                  {...register('topicId')}
+                  className={FIELD_CLASS}
+                  disabled={
+                    !isAuthenticated || projectTopics === undefined || projectTopics.length === 0
+                  }
+                >
+                  {projectTopics === undefined ? (
+                    <option value="">読み込み中</option>
+                  ) : projectTopics.length === 0 ? (
+                    <option value="">トピックがありません</option>
+                  ) : (
+                    projectTopics.map((topic) => (
+                      <option key={topic.id} value={topic.id}>
+                        {topic.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                {errors.topicId && (
+                  <p className="text-xs text-destructive">{errors.topicId.message}</p>
+                )}
+              </div>
+            </div>
 
             <div className="space-y-1.5">
               <label htmlFor="task-description" className={LABEL_CLASS}>
@@ -495,7 +495,7 @@ export function TaskDrawer() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isSubmitting || (isNew && !selectedFormTopicId)}
+                disabled={isSubmitting || !selectedFormTopicId}
               >
                 {isNew ? '作成する' : '保存する'}
               </Button>
