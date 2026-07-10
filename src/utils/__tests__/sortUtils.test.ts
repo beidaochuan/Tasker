@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { sortByOrder, sortByDueDate, sortByPriority, reorderItems } from '../sortUtils'
+import {
+  sortByOrder,
+  sortByDueDate,
+  sortByPriority,
+  sortGanttTasks,
+  reorderItems,
+} from '../sortUtils'
 
 type Ordered = { id: string; order: number }
 
@@ -47,6 +53,28 @@ describe('sortByPriority', () => {
       { id: 'h', priority: 'high' as const },
     ]
     expect(sortByPriority(items).map((i) => i.id)).toEqual(['u', 'h', 'm', 'l'])
+  })
+})
+
+describe('sortGanttTasks', () => {
+  const early = { title: '早い', dueDate: new Date(2024, 0, 1), ganttOrder: null }
+  const late = { title: '遅い', dueDate: new Date(2024, 0, 10), ganttOrder: null }
+  const undated = { title: '期日なし', dueDate: null, ganttOrder: null }
+
+  it('手動順序がなければ期日の早い順で、期日なしは末尾にする', () => {
+    expect(sortGanttTasks([undated, late, early]).map((task) => task.title)).toEqual([
+      '早い',
+      '遅い',
+      '期日なし',
+    ])
+  })
+
+  it('手動順序があればガント専用順序を優先する', () => {
+    expect(
+      sortGanttTasks([{ ...early, ganttOrder: 1 }, { ...late, ganttOrder: 0 }, undated]).map(
+        (task) => task.title
+      )
+    ).toEqual(['遅い', '早い', '期日なし'])
   })
 })
 

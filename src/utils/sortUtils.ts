@@ -24,6 +24,25 @@ export function sortByPriority<T extends { priority: Priority }>(items: T[]): T[
   return [...items].sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])
 }
 
+export function sortGanttTasks<
+  T extends { dueDate: Date | null; ganttOrder?: number | null; title: string },
+>(items: T[]): T[] {
+  const hasManualOrder = items.some((item) => item.ganttOrder != null)
+  return [...items].sort((a, b) => {
+    if (hasManualOrder) {
+      const aOrder = a.ganttOrder ?? Number.MAX_SAFE_INTEGER
+      const bOrder = b.ganttOrder ?? Number.MAX_SAFE_INTEGER
+      if (aOrder !== bOrder) return aOrder - bOrder
+    }
+    if (a.dueDate && !b.dueDate) return -1
+    if (!a.dueDate && b.dueDate) return 1
+    if (a.dueDate && b.dueDate && a.dueDate.getTime() !== b.dueDate.getTime()) {
+      return a.dueDate.getTime() - b.dueDate.getTime()
+    }
+    return a.title.localeCompare(b.title, 'ja')
+  })
+}
+
 export function reorderItems<T extends { id: string; order: number }>(
   items: T[],
   fromIndex: number,

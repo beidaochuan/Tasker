@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { startOfDay, addDays } from 'date-fns'
 import { topicRepo, taskRepo } from '@/repositories'
-import { sortByOrder } from '@/utils/sortUtils'
+import { sortByOrder, sortGanttTasks } from '@/utils/sortUtils'
 import { expandOccurrences, hasRepeatRule } from '@/utils/recurrenceUtils'
 import { useRefreshStore } from './useDataRefresh'
 import type { Task, Topic } from '@/types'
@@ -74,18 +74,7 @@ export function useGanttData(projectId: string | null): GanttRow[] {
         }
       }
 
-      tasks.sort((a, b) => {
-        const aDate = a.startDate ?? a.dueDate
-        const bDate = b.startDate ?? b.dueDate
-        if (aDate && !bDate) return -1
-        if (!aDate && bDate) return 1
-        if (aDate && bDate && aDate.getTime() !== bDate.getTime()) {
-          return aDate.getTime() - bDate.getTime()
-        }
-        return a.title.localeCompare(b.title, 'ja')
-      })
-
-      return { topic, tasks }
+      return { topic, tasks: sortGanttTasks(tasks) }
     })
   }, [raw])
 }

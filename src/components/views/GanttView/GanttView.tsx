@@ -1,6 +1,16 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react'
-import { FolderOpen } from 'lucide-react'
+import { FolderOpen, GripVertical } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useRefreshStore } from '@/hooks/useDataRefresh'
@@ -31,6 +41,51 @@ interface FlatRow {
   type: 'topic' | 'task-row'
   label: string
   tasks: Task[] // task-row の場合は必ず1要素
+  topicId: string
+}
+
+interface SortableTaskLabelProps {
+  row: FlatRow
+  top: number
+  height: number
+  disabled: boolean
+}
+
+function SortableTaskLabel({ row, top, height, disabled }: SortableTaskLabelProps) {
+  const task = row.tasks[0]
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    disabled,
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`group/gantt-task absolute left-0 right-0 flex items-center border-b border-border pl-1 pr-3 text-sm text-foreground ${
+        isDragging ? 'z-20 bg-card opacity-70 shadow-sm' : ''
+      }`}
+      style={{
+        top,
+        height,
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      <button
+        {...(disabled ? {} : { ...attributes, ...listeners })}
+        className={`flex h-full w-5 shrink-0 touch-none items-center justify-center text-muted-foreground transition-opacity ${
+          disabled
+            ? 'invisible'
+            : 'cursor-grab opacity-0 group-hover/gantt-task:opacity-100 focus:opacity-100 active:cursor-grabbing'
+        }`}
+        aria-label={`${row.label}をドラッグして並べ替え`}
+        tabIndex={disabled ? -1 : 0}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+      <span className="truncate">{row.label}</span>
+    </div>
+  )
 }
 
 export function GanttView() {
@@ -39,6 +94,7 @@ export function GanttView() {
   const ganttRows = useGanttData(selectedProjectId)
   const [scale, setScale] = useState<GanttScale>('day')
   const refresh = useRefreshStore((s) => s.refresh)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const ppd = PIXELS_PER_DAY[scale]
 
@@ -64,13 +120,51 @@ export function GanttView() {
   const flatRows = useMemo<FlatRow[]>(() => {
     const rows: FlatRow[] = []
     for (const { topic, tasks } of ganttRows) {
-      rows.push({ type: 'topic', label: topic.name, tasks: [] })
+      rows.push({ type: 'topic', label: topic.name, tasks: [], topicId: topic.id })
       for (const task of tasks) {
-        rows.push({ type: 'task-row', label: task.title, tasks: [task] })
+        rows.push({ type: 'task-row', label: task.title, tasks: [task], topicId: topic.id })
       }
     }
     return rows
   }, [ganttRows])
+
+  const sortableTaskIds = useMemo(
+    () => flatRows.filter((row) => row.type === 'task-row').map((row) => row.tasks[0].id),
+    [flatRows]
+  )
+
+  const handleTaskDragEnd = useCallback(
+    async ({ active, over }: DragEndEvent) => {
+      if (!isAuthenticated || !over || active.id === over.id) return
+      const activeRow = flatRows.find(
+        (row) => row.type === 'task-row' && row.tasks[0].id === active.id
+      )
+      const overRow = flatRows.find((row) => row.type === 'task-row' && row.tasks[0].id === over.id)
+      if (!activeRow || !overRow || activeRow.topicId !== overRow.topicId) return
+
+      const topicTasks = flatRows
+        .filter((row) => row.type === 'task-row' && row.topicId === activeRow.topicId)
+        .map((row) => row.tasks[0])
+      const fromIndex = topicTasks.findIndex((task) => task.id === active.id)
+      const toIndex = topicTasks.findIndex((task) => task.id === over.id)
+      if (fromIndex < 0 || toIndex < 0) return
+
+      const reordered = [...topicTasks]
+      const [moved] = reordered.splice(fromIndex, 1)
+      reordered.splice(toIndex, 0, moved)
+      try {
+        await Promise.all(
+          reordered.map((task, ganttOrder) =>
+            taskRepo.update(resolveTaskId(task.id), { ganttOrder }).then(unwrapResult)
+          )
+        )
+        refresh()
+      } catch (error) {
+        console.error('ガントのタスク並び替えに失敗しました', error)
+      }
+    },
+    [flatRows, isAuthenticated, refresh]
+  )
 
   // #7: preview 適用をここで一括計算（仮想アイテムのレンダリング内で毎回走らせない）
   const displayedFlatRows = useMemo<FlatRow[]>(() => {
@@ -206,83 +300,98 @@ export function GanttView() {
       </div>
 
       {/* メインエリア（左ペイン + 右ペイン） */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* 左ペイン: タスク名リスト */}
-        <div
-          className="relative shrink-0 overflow-y-auto overflow-x-hidden border-r border-border"
-          ref={leftScrollRef}
-          style={{ width: LEFT_PANE_WIDTH }}
-          onScroll={syncLeft}
-        >
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleTaskDragEnd}
+      >
+        <div className="flex flex-1 overflow-hidden">
+          {/* 左ペイン: タスク名リスト */}
           <div
-            className="sticky top-0 z-10 border-b border-border bg-card"
-            style={{ height: HEADER_HEIGHT }}
-          />
-          <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
-            {rowVirtualizer.getVirtualItems().map((vi) => {
-              const row = flatRows[vi.index]
-              return (
-                <div
-                  key={vi.index}
-                  className={`absolute left-0 right-0 flex items-center border-b border-border ${
-                    row.type === 'topic'
-                      ? 'bg-muted/60 px-3 text-xs font-semibold text-muted-foreground'
-                      : 'pl-6 pr-3 text-sm text-foreground'
-                  }`}
-                  style={{ top: vi.start, height: vi.size }}
-                >
-                  <span className="truncate">{row.label}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* 右ペイン: タイムライン（ヘッダー + 本体を同一スクロールコンテナに入れ横スクロールを同期） */}
-        <div ref={rightScrollRef} className="flex-1 overflow-auto" onScroll={syncRight}>
-          {/* sticky ヘッダー: 縦スクロールで固定、横は本体と同期 */}
-          <div className="sticky top-0 z-10" style={{ width: totalWidth, height: HEADER_HEIGHT }}>
-            <GanttHeader startDate={startDate} totalDays={totalDays} scale={scale} />
-          </div>
-
-          <div
-            className="relative"
-            style={{ width: totalWidth, height: rowVirtualizer.getTotalSize() }}
+            className="relative shrink-0 overflow-y-auto overflow-x-hidden border-r border-border"
+            ref={leftScrollRef}
+            style={{ width: LEFT_PANE_WIDTH }}
+            onScroll={syncLeft}
           >
-            <GanttTodayLine ganttStart={startDate} totalDays={totalDays} scale={scale} />
+            <div
+              className="sticky top-0 z-10 border-b border-border bg-card"
+              style={{ height: HEADER_HEIGHT }}
+            />
+            <SortableContext items={sortableTaskIds} strategy={verticalListSortingStrategy}>
+              <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
+                {rowVirtualizer.getVirtualItems().map((vi) => {
+                  const row = flatRows[vi.index]
+                  if (row.type === 'task-row') {
+                    return (
+                      <SortableTaskLabel
+                        key={row.tasks[0].id}
+                        row={row}
+                        top={vi.start}
+                        height={vi.size}
+                        disabled={!isAuthenticated}
+                      />
+                    )
+                  }
+                  return (
+                    <div
+                      key={`topic-${row.topicId}`}
+                      className="absolute left-0 right-0 flex items-center border-b border-border bg-muted/60 px-3 text-xs font-semibold text-muted-foreground"
+                      style={{ top: vi.start, height: vi.size }}
+                    >
+                      <span className="truncate">{row.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </SortableContext>
+          </div>
 
-            {rowVirtualizer.getVirtualItems().map((vi) => {
-              const row = displayedFlatRows[vi.index]
-              if (row.type === 'topic') {
+          {/* 右ペイン: タイムライン（ヘッダー + 本体を同一スクロールコンテナに入れ横スクロールを同期） */}
+          <div ref={rightScrollRef} className="flex-1 overflow-auto" onScroll={syncRight}>
+            {/* sticky ヘッダー: 縦スクロールで固定、横は本体と同期 */}
+            <div className="sticky top-0 z-10" style={{ width: totalWidth, height: HEADER_HEIGHT }}>
+              <GanttHeader startDate={startDate} totalDays={totalDays} scale={scale} />
+            </div>
+
+            <div
+              className="relative"
+              style={{ width: totalWidth, height: rowVirtualizer.getTotalSize() }}
+            >
+              <GanttTodayLine ganttStart={startDate} totalDays={totalDays} scale={scale} />
+
+              {rowVirtualizer.getVirtualItems().map((vi) => {
+                const row = displayedFlatRows[vi.index]
+                if (row.type === 'topic') {
+                  return (
+                    <div
+                      key={vi.index}
+                      className="absolute left-0 right-0 border-b border-border bg-muted/40"
+                      style={{ top: vi.start, height: vi.size, width: totalWidth }}
+                    />
+                  )
+                }
                 return (
                   <div
                     key={vi.index}
-                    className="absolute left-0 right-0 border-b border-border bg-muted/40"
+                    className="absolute left-0"
                     style={{ top: vi.start, height: vi.size, width: totalWidth }}
-                  />
+                  >
+                    <GanttRow
+                      tasks={row.tasks}
+                      totalDays={totalDays}
+                      ganttStart={startDate}
+                      scale={scale}
+                      onBarPointerDown={isAuthenticated ? onBarPointerDown : undefined}
+                      onBarClick={openTaskDrawer}
+                      onCreateBar={isAuthenticated ? handleCreateBar : undefined}
+                    />
+                  </div>
                 )
-              }
-              return (
-                <div
-                  key={vi.index}
-                  className="absolute left-0"
-                  style={{ top: vi.start, height: vi.size, width: totalWidth }}
-                >
-                  <GanttRow
-                    tasks={row.tasks}
-                    totalDays={totalDays}
-                    ganttStart={startDate}
-                    scale={scale}
-                    onBarPointerDown={isAuthenticated ? onBarPointerDown : undefined}
-                    onBarClick={openTaskDrawer}
-                    onCreateBar={isAuthenticated ? handleCreateBar : undefined}
-                  />
-                </div>
-              )
-            })}
+              })}
+            </div>
           </div>
         </div>
-      </div>
+      </DndContext>
     </div>
   )
 }

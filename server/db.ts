@@ -41,6 +41,7 @@ db.exec(`
     dueDate INTEGER,
     startDate INTEGER,
     "order" INTEGER NOT NULL DEFAULT 0,
+    ganttOrder INTEGER,
     tags TEXT NOT NULL DEFAULT '[]',
     repeatRule TEXT,
     createdAt INTEGER NOT NULL,
@@ -76,3 +77,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_subtasks_taskId ON subtasks(taskId);
   CREATE INDEX IF NOT EXISTS idx_task_completions_taskId ON task_completions(taskId);
 `)
+
+// Existing databases predate the Gantt-specific manual order.
+const taskColumns = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[]
+if (!taskColumns.some((column) => column.name === 'ganttOrder')) {
+  db.exec('ALTER TABLE tasks ADD COLUMN ganttOrder INTEGER')
+}

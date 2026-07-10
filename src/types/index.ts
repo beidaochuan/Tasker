@@ -31,6 +31,8 @@ export interface Task {
   dueDate: Date | null
   startDate: Date | null
   order: number
+  /** ガントで手動並び替えした場合のみ設定される専用順序 */
+  ganttOrder?: number | null
   tags: string[]
   repeatRule: string | null
   createdAt: Date

@@ -13,6 +13,7 @@ const PATCH_ALLOWED = new Set([
   'dueDate',
   'startDate',
   'order',
+  'ganttOrder',
   'tags',
   'repeatRule',
   'updatedAt',
@@ -80,13 +81,14 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
         dueDate: nextTask.dueDate,
         startDate: nextTask.startDate,
         order: nextTask.order,
+        ganttOrder: null,
         tags: JSON.stringify(nextTask.tags),
         repeatRule: nextTask.repeatRule,
         createdAt: completedAt,
         updatedAt: completedAt,
       }
       db.prepare(
-        'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", tags, repeatRule, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @tags, @repeatRule, @createdAt, @updatedAt)'
+        'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @createdAt, @updatedAt)'
       ).run(createdNextTask)
     }
 
@@ -111,6 +113,7 @@ tasksRouter.post('/', (req, res) => {
     dueDate = null,
     startDate = null,
     order = 0,
+    ganttOrder = null,
     tags = [],
     repeatRule = null,
   } = req.body
@@ -131,13 +134,14 @@ tasksRouter.post('/', (req, res) => {
     dueDate,
     startDate,
     order,
+    ganttOrder,
     tags: JSON.stringify(tags),
     repeatRule,
     createdAt: now,
     updatedAt: now,
   }
   db.prepare(
-    'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", tags, repeatRule, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @tags, @repeatRule, @createdAt, @updatedAt)'
+    'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @createdAt, @updatedAt)'
   ).run(row)
   res.status(201).json(parseTask(row))
 })
@@ -158,6 +162,7 @@ tasksRouter.patch('/:id', (req, res) => {
     dueDate,
     startDate,
     order,
+    ganttOrder,
     tags,
     repeatRule,
   } = req.body
@@ -169,6 +174,7 @@ tasksRouter.patch('/:id', (req, res) => {
   if (dueDate !== undefined) patch.dueDate = dueDate
   if (startDate !== undefined) patch.startDate = startDate
   if (order !== undefined) patch.order = order
+  if (ganttOrder !== undefined) patch.ganttOrder = ganttOrder
   if (tags !== undefined) patch.tags = JSON.stringify(tags)
   if (repeatRule !== undefined) patch.repeatRule = repeatRule
 
@@ -201,6 +207,7 @@ interface RawTask {
   dueDate: number | null
   startDate: number | null
   order: number
+  ganttOrder: number | null
   tags: string
   repeatRule: string | null
   createdAt: number
