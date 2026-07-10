@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- タスク詳細に、項目の追加・名称編集・完了切替・削除ができるチェックボックス付き作業リストを追加
+
 ## [0.3.4] - 2026-07-06
 
 ### Fixed

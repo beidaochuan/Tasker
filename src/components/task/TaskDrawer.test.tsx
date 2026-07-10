@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { TaskDrawer } from './TaskDrawer'
 
-const { projectRepoMock, taskRepoMock, topicRepoMock } = vi.hoisted(() => ({
+const { projectRepoMock, taskRepoMock, topicRepoMock, subtaskRepoMock } = vi.hoisted(() => ({
   projectRepoMock: {
     getAll: vi.fn(),
   },
@@ -20,12 +20,19 @@ const { projectRepoMock, taskRepoMock, topicRepoMock } = vi.hoisted(() => ({
   topicRepoMock: {
     getByProjectId: vi.fn(),
   },
+  subtaskRepoMock: {
+    getByTaskId: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
 }))
 
 vi.mock('@/repositories', () => ({
   projectRepo: projectRepoMock,
   taskRepo: taskRepoMock,
   topicRepo: topicRepoMock,
+  subtaskRepo: subtaskRepoMock,
 }))
 
 const PROJECTS: Project[] = [
@@ -101,6 +108,10 @@ describe('TaskDrawer', () => {
       .mockImplementation((projectId: string) =>
         Promise.resolve({ ok: true, data: TOPICS[projectId] ?? [] })
       )
+    subtaskRepoMock.getByTaskId.mockReset().mockResolvedValue({ ok: true, data: [] })
+    subtaskRepoMock.create.mockReset()
+    subtaskRepoMock.update.mockReset()
+    subtaskRepoMock.delete.mockReset()
     useAuthStore.setState({ isAuthenticated: true, isLoginDialogOpen: false })
     useUIStore.setState({
       selectedProjectId: 'project-1',
@@ -112,6 +123,15 @@ describe('TaskDrawer', () => {
 
   afterEach(() => {
     cleanup()
+  })
+
+  it('既存タスクの作業リストを読み込む', async () => {
+    render(<TaskDrawer />)
+
+    await waitFor(() => {
+      expect(subtaskRepoMock.getByTaskId).toHaveBeenCalledWith('task-1')
+    })
+    expect(screen.getByRole('heading', { name: '作業リスト' })).toBeInTheDocument()
   })
 
   it('既存タスクでもプロジェクトとトピックを変更して保存できる', async () => {

@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { X, Trash2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { TaskWorkList } from '@/components/task/TaskWorkList'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useTask, useTopics } from '@/hooks/useTasks'
@@ -357,6 +358,8 @@ export function TaskDrawer() {
                 disabled={!isAuthenticated}
               />
             </div>
+
+            <TaskWorkList taskId={isNew ? null : selectedTaskId} canEdit={isAuthenticated} />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
