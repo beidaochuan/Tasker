@@ -12,6 +12,7 @@ interface Props {
 
 interface HeaderCell {
   label: string
+  weekday?: string
   left: number
   width: number
 }
@@ -21,6 +22,7 @@ function buildDayCells(startDate: Date, totalDays: number, ppd: number): HeaderC
     const d = addDays(startDate, i)
     return {
       label: format(d, 'd', { locale: ja }),
+      weekday: format(d, 'EEE', { locale: ja }),
       left: i * ppd,
       width: ppd,
     }
@@ -128,7 +130,14 @@ export const GanttHeader = memo(function GanttHeader({ startDate, totalDays, sca
           className="absolute flex items-center border-r border-border px-1 text-xs text-foreground overflow-hidden"
           style={{ left: cell.left, top: halfH, width: cell.width, height: halfH }}
         >
-          <span className="truncate">{cell.label}</span>
+          {cell.weekday ? (
+            <span className="flex min-w-0 flex-col items-center leading-none">
+              <span>{cell.label}</span>
+              <span className="mt-0.5 text-[10px] text-muted-foreground">{cell.weekday}</span>
+            </span>
+          ) : (
+            <span className="truncate">{cell.label}</span>
+          )}
         </div>
       ))}
     </div>
