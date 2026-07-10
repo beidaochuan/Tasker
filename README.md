@@ -14,7 +14,7 @@
 | リスト | トピックごとにタスクを一覧表示。トピックの開閉・作成・名称変更・削除、タスクのドラッグ並び替えに対応 |
 | カンバン | 未着手 / 進行中 / 完了 / キャンセルの列でタスクを管理。ドラッグでステータス変更、進行中列は WIP 5 件制限 |
 | カレンダー | FullCalendar ベースの月・週・日表示。期日付きタスクと繰り返しタスクを表示し、ドラッグで期日変更可能 |
-| ガント | 開始日〜期日をタイムライン表示。日・週・月スケール切替、バーの移動・リサイズ、空行ドラッグで日程作成に対応 |
+| ガント | 開始日〜期日をタイムライン表示。日・週・月スケール切替、タスクのドラッグ並び替え、バーの移動・リサイズ、空行ドラッグで日程作成に対応 |
 
 ### タスク管理
 
@@ -85,26 +85,54 @@
 ### 前提条件
 
 - [Node.js](https://nodejs.org/) v22 以上
+- Windows サービスとして登録する場合は、管理者権限を持つユーザー
 
-### 手順
+### 1. リリースZIPをダウンロードする
 
-1. [GitHub Releases](https://github.com/beidaochuan/Tasker/releases) から最新の `tasker-vX.X.X.zip` をダウンロードして解凍する
-2. 解凍したフォルダ内でターミナルを開き、本番依存関係をインストールする
+1. [GitHub Releases](https://github.com/beidaochuan/Tasker/releases) を開く
+2. 最新リリースの **Assets** から `tasker-vX.X.X.zip` をダウンロードする
+3. `C:\Tasker` など、継続して利用するフォルダへZIPを解凍する
+
+> `Source code (zip)` ではなく、Assets に添付された `tasker-vX.X.X.zip` を使用してください。配布ZIPにはビルド済みの `dist/` と `dist-server/` が含まれています。サービス登録後は、解凍したフォルダを移動・削除しないでください。
+
+### 2. 依存関係をインストールする
+
+解凍したフォルダ内でPowerShellまたはターミナルを開き、次のコマンドを実行します。
 
 ```bash
 npm ci --omit=dev
 ```
 
-3. アプリを起動する
+### 3. 手動起動して動作を確認する
 
 ```bash
 npm start
 ```
 
-ブラウザで `http://localhost:3208/` を開きます。  
-同一ネットワーク内の別端末からは `http://<このPCのIPアドレス>:3208/` でアクセスできます。
+ブラウザで `http://localhost:3208/` を開き、Taskerが表示されることを確認します。確認後はターミナルで `Ctrl+C` を押して終了します。
 
-PC 起動時に自動起動させたい場合は [Windows サービス登録](#windows-サービス登録) を参照してください。
+同一ネットワーク内の別端末からは `http://<このPCのIPアドレス>:3208/` でアクセスできます。必要に応じて、Windows Defender ファイアウォールで使用するポートへの受信接続を許可してください。
+
+### 4. Windowsサービスとして登録する
+
+PCの起動時にTaskerを自動起動する場合は、PowerShellまたはWindows Terminalを**管理者として実行**し、解凍したフォルダ内で次のコマンドを実行します。
+
+```powershell
+npm run service:install
+```
+
+登録が完了すると `Tasker` サービスが自動起動します。ブラウザで `http://localhost:3208/` を開き、利用できることを確認してください。`services.msc` からサービスの状態も確認できます。
+
+ポートを変更して登録する場合は、PowerShellで環境変数を設定してから登録します。
+
+```powershell
+$env:PORT = "8080"
+npm run service:install
+```
+
+この場合は `http://localhost:8080/` へアクセスします。
+
+> リリースZIPはビルド済みのため、`npm run build` は不要です。
 
 ---
 
@@ -181,6 +209,7 @@ JSON エクスポートには全テーブルのデータが含まれます。
 | `/api/projects` | プロジェクト CRUD |
 | `/api/topics` | トピック CRUD（`projectId` 絞り込み対応） |
 | `/api/tasks` | タスク CRUD（`topicId` / `projectId` 絞り込み対応） |
+| `/api/tasks/gantt-order` | 同一トピック内のガント表示順を一括更新 |
 | `/api/tasks/:id/complete-recurring` | 繰り返しタスクの完了履歴記録と次回タスク作成 |
 | `/api/subtasks` | サブタスク CRUD（`taskId` 絞り込み対応） |
 | `/api/tags` | タグ一覧・作成・削除 |
@@ -219,36 +248,37 @@ src/
 
 ---
 
-## Windows サービス登録
+## Windowsサービスの更新・削除
 
-PC 起動時に自動起動させる場合は、Tasker を Windows サービスとして登録します。
+サービスの更新や削除は、PowerShellまたはWindows Terminalを**管理者として実行**し、Taskerを解凍したフォルダ内で行います。
 
-### 前提条件
+### 新しいバージョンへ更新する
 
-- `npm run build` 済みで `dist-server/index.js` が存在すること
-- **管理者権限**のターミナルで実行すること
+1. アプリのJSONエクスポートでバックアップを取得する
+2. 現在のサービスを削除する
 
-### 登録
-
-```bash
-npm run service:install
-```
-
-成功するとサービスが自動起動し、`http://localhost:3208/` でアクセスできます。  
-ポートを変更する場合は `PORT` 環境変数を指定します。
-
-```bash
-PORT=8080 npm run service:install
-```
-
-### 削除
-
-```bash
+```powershell
 npm run service:uninstall
 ```
 
-> サービスを再インストールする場合は、先に `service:uninstall` を実行してから `service:install` を実行してください。  
-> サービス名は `Tasker` です。`services.msc` からも起動・停止を操作できます。
+3. 新しいリリースZIPをダウンロードし、別のフォルダへ解凍する
+4. 以前のフォルダにある `tasker.db` を新しいフォルダへコピーする
+5. 新しいフォルダで依存関係をインストールし、サービスを登録する
+
+```powershell
+npm ci --omit=dev
+npm run service:install
+```
+
+更新後にTaskerを開き、データとバージョンを確認してから以前のフォルダを削除してください。
+
+### サービスを削除する
+
+```powershell
+npm run service:uninstall
+```
+
+サービスを削除しても、Taskerフォルダ内の `tasker.db` は削除されません。再登録やポート変更を行う場合も、先にサービスを削除してから `service:install` を実行してください。
 
 ---
 
