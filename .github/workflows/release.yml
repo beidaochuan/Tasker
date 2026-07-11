@@ -26,7 +26,13 @@ jobs:
 
       # CHANGELOG から最新バージョンのセクションを抽出
       - name: Extract release notes
-        run: awk '/^## \[/{if(p)exit; p=1} p' CHANGELOG.md > RELEASE_NOTES.md
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v version="$VERSION" '
+            index($0, "## [" version "]") == 1 { p=1 }
+            p && /^## \[/ && index($0, "## [" version "]") != 1 { exit }
+            p
+          ' CHANGELOG.md > RELEASE_NOTES.md
 
       - name: Build app and API server
         run: npm run build
