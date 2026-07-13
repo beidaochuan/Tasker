@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-07-13
+
+### Fixed
+- 配布ZIPで `npm ci --omit=dev` を実行すると、同梱されていないHusky初期化スクリプトの読み込みに失敗する問題を修正
+
 ## [0.5.0] - 2026-07-13
 
 ### Added
