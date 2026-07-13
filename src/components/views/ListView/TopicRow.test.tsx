@@ -57,13 +57,13 @@ vi.mock('@/components/task/SortableTaskRow', () => ({
   ),
 }))
 
-function makeTask(id: string, title: string, order: number): Task {
+function makeTask(id: string, title: string, order: number, status: Task['status'] = 'todo'): Task {
   return {
     id,
     topicId: 'topic-1',
     title,
     description: '',
-    status: 'todo',
+    status,
     priority: 'medium',
     dueDate: null,
     startDate: null,
@@ -117,6 +117,24 @@ describe('TopicRow', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+  })
+
+  it('完了タスクを元の相対順序を保ってトピックの最後に表示する', async () => {
+    taskRepoMock.getByTopicId.mockResolvedValue({
+      ok: true,
+      data: [
+        makeTask('task-done-a', '完了A', 0, 'done'),
+        makeTask('task-active-a', '未完了A', 1),
+        makeTask('task-done-b', '完了B', 2, 'done'),
+        makeTask('task-active-b', '未完了B', 3, 'in_progress'),
+      ],
+    })
+
+    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+
+    expect(await screen.findByText('未完了A')).toBeInTheDocument()
+    expect(displayedTaskTitles()).toEqual(['未完了A', '未完了B', '完了A', '完了B'])
+    expect(taskRepoMock.update).not.toHaveBeenCalled()
   })
 
   it('並び替え後の順序を保存・再取得が完了するまで保持する', async () => {
@@ -178,6 +196,43 @@ describe('TopicRow', () => {
       ).toBe(true)
     })
     expect(displayedTaskTitles()).toEqual(['タスクB', 'タスクC', 'タスクA'])
+  })
+
+  it('ドラッグ並び替え後も完了タスクを末尾に維持して保存する', async () => {
+    const update = deferred<{ ok: true; data: Task }>()
+    const tasks = [
+      makeTask('task-active-a', '未完了A', 0),
+      makeTask('task-active-b', '未完了B', 1),
+      makeTask('task-done-a', '完了A', 2, 'done'),
+      makeTask('task-done-b', '完了B', 3, 'done'),
+    ]
+    taskRepoMock.getByTopicId.mockResolvedValue({ ok: true, data: tasks })
+    taskRepoMock.update.mockReturnValue(update.promise)
+
+    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    expect(await screen.findByText('未完了A')).toBeInTheDocument()
+
+    let dragPromise: Promise<void> | undefined
+    act(() => {
+      const result = dragMock.onDragEnd?.({
+        active: { id: 'task-active-a' },
+        over: { id: 'task-done-b' },
+      })
+      dragPromise = Promise.resolve(result).then(() => undefined)
+    })
+
+    expect(displayedTaskTitles()).toEqual(['未完了B', '未完了A', '完了A', '完了B'])
+    expect(taskRepoMock.update.mock.calls.map(([id, updateData]) => [id, updateData])).toEqual([
+      ['task-active-b', { order: 0 }],
+      ['task-active-a', { order: 1 }],
+      ['task-done-a', { order: 2 }],
+      ['task-done-b', { order: 3 }],
+    ])
+
+    await act(async () => {
+      update.resolve({ ok: true, data: tasks[0] })
+      await dragPromise
+    })
   })
 
   it('一部の保存が失敗した場合は全保存の完了後に再取得する', async () => {

@@ -102,6 +102,7 @@ export function GanttView() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const ganttRows = useGanttData(selectedProjectId)
   const [scale, setScale] = useState<GanttScale>('day')
+  const [showCompleted, setShowCompleted] = useState(false)
   const [pendingTaskOrder, setPendingTaskOrder] = useState<PendingTaskOrder | null>(null)
   const [dragTaskOrder, setDragTaskOrder] = useState<PendingTaskOrder | null>(null)
   const [draggingLabel, setDraggingLabel] = useState<string | null>(null)
@@ -115,11 +116,30 @@ export function GanttView() {
 
   const ppd = PIXELS_PER_DAY[scale]
 
+  const completedTaskCount = useMemo(
+    () =>
+      ganttRows.reduce(
+        (count, { tasks }) => count + tasks.filter((task) => task.status === 'done').length,
+        0
+      ),
+    [ganttRows]
+  )
+
+  const visibleGanttRows = useMemo(
+    () =>
+      ganttRows.map(({ topic, tasks }) => ({
+        topic,
+        tasks: showCompleted ? tasks : tasks.filter((task) => task.status !== 'done'),
+      })),
+    [ganttRows, showCompleted]
+  )
+
   const { startDate, totalDays } = useMemo(() => {
-    const range =
-      ganttRows.length > 0 ? calcGanttRange(ganttRows) : { startDate: new Date(), totalDays: 60 }
+    const range = visibleGanttRows.some(({ tasks }) => tasks.length > 0)
+      ? calcGanttRange(visibleGanttRows)
+      : { startDate: new Date(), totalDays: 60 }
     return { startDate: range.startDate, totalDays: Math.max(range.totalDays, MIN_DAYS[scale]) }
-  }, [ganttRows, scale])
+  }, [scale, visibleGanttRows])
 
   const { preview, clearPreview, onBarPointerDown } = useGanttDrag(startDate, scale)
 
@@ -134,7 +154,7 @@ export function GanttView() {
     [isAuthenticated, refresh]
   )
 
-  const flatRows = useMemo<FlatRow[]>(() => {
+  const allFlatRows = useMemo<FlatRow[]>(() => {
     const rows: FlatRow[] = []
     for (const { topic, tasks } of ganttRows) {
       rows.push({ type: 'topic', label: topic.name, tasks: [], topicId: topic.id })
@@ -144,6 +164,17 @@ export function GanttView() {
     }
     return rows
   }, [ganttRows])
+
+  const flatRows = useMemo<FlatRow[]>(() => {
+    const rows: FlatRow[] = []
+    for (const { topic, tasks } of visibleGanttRows) {
+      rows.push({ type: 'topic', label: topic.name, tasks: [], topicId: topic.id })
+      for (const task of tasks) {
+        rows.push({ type: 'task-row', label: task.title, tasks: [task], topicId: topic.id })
+      }
+    }
+    return rows
+  }, [visibleGanttRows])
 
   const orderedFlatRows = useMemo<FlatRow[]>(() => {
     const taskOrder = dragTaskOrder ?? pendingTaskOrder
@@ -167,17 +198,17 @@ export function GanttView() {
 
   useEffect(() => {
     if (!pendingTaskOrder) return
-    const topicExists = flatRows.some(
+    const topicExists = allFlatRows.some(
       (row) => row.type === 'topic' && row.topicId === pendingTaskOrder.topicId
     )
-    const savedTaskIds = flatRows
+    const savedTaskIds = allFlatRows
       .filter((row) => row.type === 'task-row' && row.topicId === pendingTaskOrder.topicId)
       .map((row) => row.tasks[0].id)
     const isSettled =
       savedTaskIds.length === pendingTaskOrder.taskIds.length &&
       savedTaskIds.every((id, index) => id === pendingTaskOrder.taskIds[index])
     if (!topicExists || isSettled) setPendingTaskOrder(null)
-  }, [flatRows, pendingTaskOrder])
+  }, [allFlatRows, pendingTaskOrder])
 
   const sortableTaskIds = useMemo(
     () => orderedFlatRows.filter((row) => row.type === 'task-row').map((row) => row.tasks[0].id),
@@ -192,41 +223,58 @@ export function GanttView() {
       setDraggingLabel(row?.label ?? null)
       if (!row) return
 
+      const savedTaskOrder =
+        pendingTaskOrder?.topicId === row.topicId
+          ? pendingTaskOrder.taskIds
+          : allFlatRows
+              .filter((item) => item.type === 'task-row' && item.topicId === row.topicId)
+              .map((item) => item.tasks[0].id)
       const taskOrder = {
         topicId: row.topicId,
-        taskIds: orderedFlatRows
-          .filter((item) => item.type === 'task-row' && item.topicId === row.topicId)
-          .map((item) => item.tasks[0].id),
+        taskIds: savedTaskOrder,
       }
       dragStartTaskOrderRef.current = taskOrder
       dragTaskOrderRef.current = taskOrder
       lastDragOverIdRef.current = null
       setDragTaskOrder(taskOrder)
     },
-    [orderedFlatRows]
+    [allFlatRows, orderedFlatRows, pendingTaskOrder]
   )
 
-  const handleTaskDragOver = useCallback(({ active, over }: DragOverEvent) => {
-    const currentOrder = dragTaskOrderRef.current
-    if (!currentOrder || !over) return
-    if (active.id === over.id) {
-      lastDragOverIdRef.current = active.id
-      return
-    }
-    if (lastDragOverIdRef.current === over.id) return
-    lastDragOverIdRef.current = over.id
+  const handleTaskDragOver = useCallback(
+    ({ active, over }: DragOverEvent) => {
+      const currentOrder = dragTaskOrderRef.current
+      if (!currentOrder || !over) return
+      if (active.id === over.id) {
+        lastDragOverIdRef.current = active.id
+        return
+      }
+      if (lastDragOverIdRef.current === over.id) return
+      lastDragOverIdRef.current = over.id
 
-    const fromIndex = currentOrder.taskIds.findIndex((id) => id === active.id)
-    const toIndex = currentOrder.taskIds.findIndex((id) => id === over.id)
-    if (fromIndex < 0 || toIndex < 0) return
+      const visibleTaskIdSet = new Set(
+        orderedFlatRows
+          .filter((row) => row.type === 'task-row' && row.topicId === currentOrder.topicId)
+          .map((row) => row.tasks[0].id)
+      )
+      const visibleTaskIds = currentOrder.taskIds.filter((id) => visibleTaskIdSet.has(id))
+      const fromIndex = visibleTaskIds.findIndex((id) => id === active.id)
+      const toIndex = visibleTaskIds.findIndex((id) => id === over.id)
+      if (fromIndex < 0 || toIndex < 0) return
 
-    const taskIds = [...currentOrder.taskIds]
-    const [movedId] = taskIds.splice(fromIndex, 1)
-    taskIds.splice(toIndex, 0, movedId)
-    const nextOrder = { ...currentOrder, taskIds }
-    dragTaskOrderRef.current = nextOrder
-    setDragTaskOrder(nextOrder)
-  }, [])
+      const reorderedVisibleTaskIds = [...visibleTaskIds]
+      const [movedId] = reorderedVisibleTaskIds.splice(fromIndex, 1)
+      reorderedVisibleTaskIds.splice(toIndex, 0, movedId)
+      let visibleIndex = 0
+      const taskIds = currentOrder.taskIds.map((id) =>
+        visibleTaskIdSet.has(id) ? reorderedVisibleTaskIds[visibleIndex++] : id
+      )
+      const nextOrder = { ...currentOrder, taskIds }
+      dragTaskOrderRef.current = nextOrder
+      setDragTaskOrder(nextOrder)
+    },
+    [orderedFlatRows]
+  )
 
   const handleTaskDragCancel = useCallback(() => {
     dragTaskOrderRef.current = null
@@ -298,7 +346,7 @@ export function GanttView() {
     if (preview.size === 0) return
 
     const tasksById = new Map<string, Task>()
-    for (const row of flatRows) {
+    for (const row of allFlatRows) {
       if (row.type !== 'task-row') continue
       for (const task of row.tasks) tasksById.set(task.id, task)
     }
@@ -313,7 +361,7 @@ export function GanttView() {
     })
 
     if (isSettled) clearPreview()
-  }, [clearPreview, flatRows, preview])
+  }, [allFlatRows, clearPreview, preview])
 
   // 縦スクロール同期用 refs
   const leftScrollRef = useRef<HTMLDivElement>(null)
@@ -383,6 +431,22 @@ export function GanttView() {
               {SCALE_LABELS[s]}
             </button>
           ))}
+          <label
+            className={`ml-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground ${
+              isReordering || dragTaskOrder !== null
+                ? 'cursor-not-allowed opacity-50'
+                : 'cursor-pointer'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={showCompleted}
+              disabled={isReordering || dragTaskOrder !== null}
+              onChange={(event) => setShowCompleted(event.target.checked)}
+              className="h-3.5 w-3.5 accent-primary"
+            />
+            完了を表示（{completedTaskCount}）
+          </label>
         </div>
         <div className="hidden items-center gap-5 text-xs text-muted-foreground lg:flex">
           <div className="flex items-center gap-3">

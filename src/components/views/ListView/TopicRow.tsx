@@ -20,12 +20,18 @@ import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo, topicRepo } from '@/repositories'
 import { reorderItems } from '@/utils/sortUtils'
 import { unwrapResult } from '@/utils/resultUtils'
-import type { Topic } from '@/types'
+import type { Task, Topic } from '@/types'
 
 interface TopicRowProps {
   topic: Topic
   canEdit: boolean
   onAddTask: (topicId: string) => void
+}
+
+function moveCompletedTasksToEnd(tasks: Task[]): Task[] {
+  const activeTasks = tasks.filter((task) => task.status !== 'done')
+  const completedTasks = tasks.filter((task) => task.status === 'done')
+  return [...activeTasks, ...completedTasks]
 }
 
 export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
@@ -46,7 +52,7 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const displayedTasks = useMemo(() => {
-    if (!pendingTaskOrder) return tasks
+    if (!pendingTaskOrder) return moveCompletedTasksToEnd(tasks)
 
     const pendingIds = new Set(pendingTaskOrder)
     const taskById = new Map(tasks.map((task) => [task.id, task]))
@@ -56,8 +62,10 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
     })
     let taskIndex = 0
 
-    return tasks.map((task) =>
-      pendingIds.has(task.id) ? (orderedPendingTasks[taskIndex++] ?? task) : task
+    return moveCompletedTasksToEnd(
+      tasks.map((task) =>
+        pendingIds.has(task.id) ? (orderedPendingTasks[taskIndex++] ?? task) : task
+      )
     )
   }, [pendingTaskOrder, tasks])
 
@@ -138,7 +146,10 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
     if (fromIndex === -1 || toIndex === -1) return
 
     const normalizedTasks = displayedTasks.map((task, order) => ({ ...task, order }))
-    const reordered = reorderItems(normalizedTasks, fromIndex, toIndex)
+    const reordered = moveCompletedTasksToEnd(
+      reorderItems(normalizedTasks, fromIndex, toIndex)
+    ).map((task, order) => ({ ...task, order }))
+    if (reordered.every((task, index) => task.id === displayedTasks[index]?.id)) return
     setPendingTaskOrder(reordered.map((task) => task.id))
     reorderingRef.current = true
     setIsReordering(true)
