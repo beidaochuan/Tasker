@@ -42,6 +42,13 @@ jobs:
       - name: Create release archive
         run: zip -r tasker-${{ github.ref_name }}.zip dist dist-server scripts package.json package-lock.json README.md LICENSE
 
+      - name: Verify release archive install
+        run: |
+          mkdir release-smoke
+          unzip tasker-${{ github.ref_name }}.zip -d release-smoke
+          cd release-smoke
+          npm ci --omit=dev
+
       # GitHub Release 作成（API サーバー込みの配布 zip を添付）
       - uses: softprops/action-gh-release@v2
         with:
