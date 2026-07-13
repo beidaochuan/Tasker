@@ -5,9 +5,9 @@ import { useUIStore, type ViewType } from '@/store/uiStore'
 
 const TABS: { value: ViewType; label: string; Icon: FC<SVGProps<SVGSVGElement>> }[] = [
   { value: 'list', label: 'リスト', Icon: LayoutList },
+  { value: 'gantt', label: 'ガント', Icon: GanttChartSquare },
   { value: 'kanban', label: 'カンバン', Icon: KanbanSquare },
   { value: 'calendar', label: 'カレンダー', Icon: Calendar },
-  { value: 'gantt', label: 'ガント', Icon: GanttChartSquare },
 ]
 
 export function ViewTabs() {
