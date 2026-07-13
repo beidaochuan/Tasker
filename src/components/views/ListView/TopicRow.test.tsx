@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Task, Topic } from '@/types'
 import { useFilterStore } from '@/store/filterStore'
+import { useUIStore } from '@/store/uiStore'
 import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { TopicRow } from './TopicRow'
 
@@ -111,6 +112,7 @@ describe('TopicRow', () => {
     topicRepoMock.delete.mockReset()
     dragMock.onDragEnd = null
     useFilterStore.getState().resetFilters()
+    useUIStore.setState({ expandedCompletedTopicIds: {} })
     useRefreshStore.setState({ counter: 0 })
   })
 
@@ -119,7 +121,7 @@ describe('TopicRow', () => {
     vi.restoreAllMocks()
   })
 
-  it('完了タスクを元の相対順序を保ってトピックの最後に表示する', async () => {
+  it('完了タスクを初期状態で隠し、グループを開くと相対順序を保って表示する', async () => {
     taskRepoMock.getByTopicId.mockResolvedValue({
       ok: true,
       data: [
@@ -133,8 +135,45 @@ describe('TopicRow', () => {
     render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
 
     expect(await screen.findByText('未完了A')).toBeInTheDocument()
+    const completedGroup = screen.getByRole('button', { name: '完了タスク（2）' })
+    expect(completedGroup).toHaveAttribute('aria-expanded', 'false')
+    expect(displayedTaskTitles()).toEqual(['未完了A', '未完了B'])
+    expect(screen.queryByText('完了A')).toBeNull()
+
+    fireEvent.click(completedGroup)
+
+    expect(completedGroup).toHaveAttribute('aria-expanded', 'true')
+    expect(useUIStore.getState().expandedCompletedTopicIds[TOPIC.id]).toBe(true)
     expect(displayedTaskTitles()).toEqual(['未完了A', '未完了B', '完了A', '完了B'])
     expect(taskRepoMock.update).not.toHaveBeenCalled()
+  })
+
+  it('完了タスクが0件なら完了グループを表示しない', async () => {
+    taskRepoMock.getByTopicId.mockResolvedValue({ ok: true, data: TASKS })
+
+    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+
+    expect(await screen.findByText('タスクA')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /完了タスク/ })).toBeNull()
+  })
+
+  it('フィルター適用後の完了タスク件数をグループに表示する', async () => {
+    taskRepoMock.getByTopicId.mockResolvedValue({
+      ok: true,
+      data: [
+        makeTask('task-active', '未完了', 0),
+        makeTask('task-done-a', '完了A', 1, 'done'),
+        makeTask('task-done-b', '完了B', 2, 'done'),
+      ],
+    })
+    useFilterStore.getState().setStatuses(['done'])
+
+    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+
+    const completedGroup = await screen.findByRole('button', { name: '完了タスク（2）' })
+    expect(screen.queryByText('未完了')).toBeNull()
+    fireEvent.click(completedGroup)
+    expect(displayedTaskTitles()).toEqual(['完了A', '完了B'])
   })
 
   it('並び替え後の順序を保存・再取得が完了するまで保持する', async () => {
@@ -198,7 +237,7 @@ describe('TopicRow', () => {
     expect(displayedTaskTitles()).toEqual(['タスクB', 'タスクC', 'タスクA'])
   })
 
-  it('ドラッグ並び替え後も完了タスクを末尾に維持して保存する', async () => {
+  it('完了グループを閉じた並び替えでも完了タスクを末尾に維持して保存する', async () => {
     const update = deferred<{ ok: true; data: Task }>()
     const tasks = [
       makeTask('task-active-a', '未完了A', 0),
@@ -216,12 +255,12 @@ describe('TopicRow', () => {
     act(() => {
       const result = dragMock.onDragEnd?.({
         active: { id: 'task-active-a' },
-        over: { id: 'task-done-b' },
+        over: { id: 'task-active-b' },
       })
       dragPromise = Promise.resolve(result).then(() => undefined)
     })
 
-    expect(displayedTaskTitles()).toEqual(['未完了B', '未完了A', '完了A', '完了B'])
+    expect(displayedTaskTitles()).toEqual(['未完了B', '未完了A'])
     expect(taskRepoMock.update.mock.calls.map(([id, updateData]) => [id, updateData])).toEqual([
       ['task-active-b', { order: 0 }],
       ['task-active-a', { order: 1 }],
@@ -233,6 +272,57 @@ describe('TopicRow', () => {
       update.resolve({ ok: true, data: tasks[0] })
       await dragPromise
     })
+
+    fireEvent.click(screen.getByRole('button', { name: '完了タスク（2）' }))
+    expect(displayedTaskTitles()).toEqual(['未完了B', '未完了A', '完了A', '完了B'])
+  })
+
+  it('未完了と完了のグループをまたぐドラッグを保存しない', async () => {
+    taskRepoMock.getByTopicId.mockResolvedValue({
+      ok: true,
+      data: [makeTask('task-active', '未完了', 0), makeTask('task-done', '完了', 1, 'done')],
+    })
+
+    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    expect(await screen.findByText('未完了')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '完了タスク（1）' }))
+
+    await act(async () => {
+      await dragMock.onDragEnd?.({
+        active: { id: 'task-active' },
+        over: { id: 'task-done' },
+      })
+    })
+
+    expect(displayedTaskTitles()).toEqual(['未完了', '完了'])
+    expect(taskRepoMock.update).not.toHaveBeenCalled()
+  })
+
+  it('完了グループ内の並び替えを全タスク順序として保存する', async () => {
+    const tasks = [
+      makeTask('task-active', '未完了', 0),
+      makeTask('task-done-a', '完了A', 1, 'done'),
+      makeTask('task-done-b', '完了B', 2, 'done'),
+    ]
+    taskRepoMock.getByTopicId.mockResolvedValue({ ok: true, data: tasks })
+    taskRepoMock.update.mockResolvedValue({ ok: true, data: tasks[0] })
+
+    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    expect(await screen.findByText('未完了')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '完了タスク（2）' }))
+
+    await act(async () => {
+      await dragMock.onDragEnd?.({
+        active: { id: 'task-done-a' },
+        over: { id: 'task-done-b' },
+      })
+    })
+
+    expect(taskRepoMock.update.mock.calls.map(([id, updateData]) => [id, updateData])).toEqual([
+      ['task-active', { order: 0 }],
+      ['task-done-b', { order: 1 }],
+      ['task-done-a', { order: 2 }],
+    ])
   })
 
   it('一部の保存が失敗した場合は全保存の完了後に再取得する', async () => {

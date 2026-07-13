@@ -179,7 +179,7 @@ describe('GanttView task reordering', () => {
     })
     ganttDataMock.rows = [{ topic: TOPIC, tasks: TASKS }]
     useAuthStore.setState({ isAuthenticated: true, isLoginDialogOpen: false })
-    useUIStore.setState({ selectedProjectId: 'project-1' })
+    useUIStore.setState({ selectedProjectId: 'project-1', expandedCompletedTopicIds: {} })
   })
 
   afterEach(() => {
@@ -254,7 +254,7 @@ describe('GanttView task reordering', () => {
     })
   })
 
-  it('完了タスクを初期状態で隠し、トグルで元の位置に表示する', () => {
+  it('完了タスクを初期状態で隠し、グループを開くと表示する', () => {
     ganttDataMock.rows = [
       {
         topic: TOPIC,
@@ -264,21 +264,49 @@ describe('GanttView task reordering', () => {
 
     render(<GanttView />)
 
-    const toggle = screen.getByRole('checkbox', { name: '完了を表示（1）' })
-    expect(toggle).not.toBeChecked()
+    const completedGroup = screen.getByRole('button', { name: '完了タスク（1）' })
+    expect(completedGroup).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('checkbox')).toBeNull()
     expect(screen.getByText('開発')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '完了タスクをドラッグして並べ替え' })).toBeNull()
     expect(screen.queryAllByTestId('gantt-row')).toHaveLength(0)
     expect(calcGanttRangeMock).not.toHaveBeenCalled()
 
-    fireEvent.click(toggle)
+    fireEvent.click(completedGroup)
 
-    expect(toggle).toBeChecked()
+    expect(completedGroup).toHaveAttribute('aria-expanded', 'true')
+    expect(useUIStore.getState().expandedCompletedTopicIds[TOPIC.id]).toBe(true)
     expect(
       screen.getByRole('button', { name: '完了タスクをドラッグして並べ替え' })
     ).toBeInTheDocument()
     expect(screen.getAllByTestId('gantt-row')).toHaveLength(1)
     expect(calcGanttRangeMock).toHaveBeenLastCalledWith(ganttDataMock.rows)
+  })
+
+  it('共有済みの開閉状態を初回描画に反映する', () => {
+    ganttDataMock.rows = [
+      {
+        topic: TOPIC,
+        tasks: [makeTask('task-done', '完了タスク', 0, 'done')],
+      },
+    ]
+    useUIStore.getState().toggleCompletedTasks(TOPIC.id)
+
+    render(<GanttView />)
+
+    expect(screen.getByRole('button', { name: '完了タスク（1）' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    )
+    expect(
+      screen.getByRole('button', { name: '完了タスクをドラッグして並べ替え' })
+    ).toBeInTheDocument()
+  })
+
+  it('完了タスクが0件なら完了グループを表示しない', () => {
+    render(<GanttView />)
+
+    expect(screen.queryByRole('button', { name: /完了タスク（/ })).toBeNull()
   })
 
   it('完了タスクを隠した並び替えでも全タスクの順序を重複なく保存する', async () => {
@@ -322,8 +350,8 @@ describe('GanttView task reordering', () => {
 
     expect(taskRepoMock.updateGanttOrder).toHaveBeenCalledWith([
       { id: 'task-b', ganttOrder: 0 },
-      { id: 'task-done', ganttOrder: 1 },
-      { id: 'task-a', ganttOrder: 2 },
+      { id: 'task-a', ganttOrder: 1 },
+      { id: 'task-done', ganttOrder: 2 },
     ])
 
     await act(async () => {
@@ -332,7 +360,7 @@ describe('GanttView task reordering', () => {
     })
   })
 
-  it('完了タスク表示中は完了タスクを含む全順序を並べ替えて保存する', async () => {
+  it('完了グループを開いても同じグループ内の並び替えだけを保存する', async () => {
     const update = deferred<{ ok: true; data: undefined }>()
     taskRepoMock.updateGanttOrder.mockReturnValue(update.promise)
     ganttDataMock.rows = [
@@ -346,7 +374,7 @@ describe('GanttView task reordering', () => {
       },
     ]
     render(<GanttView />)
-    fireEvent.click(screen.getByRole('checkbox', { name: '完了を表示（1）' }))
+    fireEvent.click(screen.getByRole('button', { name: '完了タスク（1）' }))
 
     act(() => {
       dndMock.onDragStart?.({ active: { id: 'task-a' } })
@@ -363,14 +391,83 @@ describe('GanttView task reordering', () => {
     })
 
     expect(taskRepoMock.updateGanttOrder).toHaveBeenCalledWith([
-      { id: 'task-done', ganttOrder: 0 },
-      { id: 'task-b', ganttOrder: 1 },
-      { id: 'task-a', ganttOrder: 2 },
+      { id: 'task-b', ganttOrder: 0 },
+      { id: 'task-a', ganttOrder: 1 },
+      { id: 'task-done', ganttOrder: 2 },
     ])
 
     await act(async () => {
       update.resolve({ ok: true, data: undefined })
       await savePromise
     })
+  })
+
+  it('同一グループ内で移動した後も別グループ上でドロップしたら保存しない', () => {
+    ganttDataMock.rows = [
+      {
+        topic: TOPIC,
+        tasks: [
+          makeTask('task-active-a', '未完了A', 0),
+          makeTask('task-active-b', '未完了B', 1),
+          makeTask('task-done', '完了', 2, 'done'),
+        ],
+      },
+    ]
+    render(<GanttView />)
+    fireEvent.click(screen.getByRole('button', { name: '完了タスク（1）' }))
+
+    act(() => {
+      dndMock.onDragStart?.({ active: { id: 'task-active-a' } })
+      dndMock.onDragOver?.({ active: { id: 'task-active-a' }, over: { id: 'task-active-b' } })
+    })
+
+    expect(displayedTaskLabels()).toEqual([
+      '未完了Bをドラッグして並べ替え',
+      '未完了Aをドラッグして並べ替え',
+      '完了をドラッグして並べ替え',
+    ])
+
+    act(() => {
+      dndMock.onDragOver?.({ active: { id: 'task-active-a' }, over: { id: 'task-done' } })
+      dndMock.onDragEnd?.({ active: { id: 'task-active-a' }, over: { id: 'task-done' } })
+    })
+
+    expect(displayedTaskLabels()).toEqual([
+      '未完了Aをドラッグして並べ替え',
+      '未完了Bをドラッグして並べ替え',
+      '完了をドラッグして並べ替え',
+    ])
+    expect(taskRepoMock.updateGanttOrder).not.toHaveBeenCalled()
+  })
+
+  it('完了グループ内の並び替えを全タスク順序として保存する', async () => {
+    taskRepoMock.updateGanttOrder.mockResolvedValue({ ok: true, data: undefined })
+    ganttDataMock.rows = [
+      {
+        topic: TOPIC,
+        tasks: [
+          makeTask('task-active', '未完了', 0),
+          makeTask('task-done-a', '完了A', 1, 'done'),
+          makeTask('task-done-b', '完了B', 2, 'done'),
+        ],
+      },
+    ]
+    render(<GanttView />)
+    fireEvent.click(screen.getByRole('button', { name: '完了タスク（2）' }))
+
+    await act(async () => {
+      dndMock.onDragStart?.({ active: { id: 'task-done-a' } })
+      dndMock.onDragOver?.({ active: { id: 'task-done-a' }, over: { id: 'task-done-b' } })
+      await dndMock.onDragEnd?.({
+        active: { id: 'task-done-a' },
+        over: { id: 'task-done-a' },
+      })
+    })
+
+    expect(taskRepoMock.updateGanttOrder).toHaveBeenCalledWith([
+      { id: 'task-active', ganttOrder: 0 },
+      { id: 'task-done-b', ganttOrder: 1 },
+      { id: 'task-done-a', ganttOrder: 2 },
+    ])
   })
 })

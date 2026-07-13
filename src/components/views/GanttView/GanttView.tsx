@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react'
-import { FolderOpen, GripVertical } from 'lucide-react'
+import { ChevronDown, ChevronRight, FolderOpen, GripVertical } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   DndContext,
@@ -40,7 +40,7 @@ const MIN_DAYS: Record<GanttScale, number> = { day: 30, week: 90, month: 365 }
 const TOPIC_ROW_HEIGHT = 28
 
 interface FlatRow {
-  type: 'topic' | 'task-row'
+  type: 'topic' | 'completed-group' | 'task-row'
   label: string
   tasks: Task[] // task-row の場合は必ず1要素
   topicId: string
@@ -98,11 +98,11 @@ function SortableTaskLabel({
 }
 
 export function GanttView() {
-  const { selectedProjectId, openTaskDrawer } = useUIStore()
+  const { selectedProjectId, openTaskDrawer, expandedCompletedTopicIds, toggleCompletedTasks } =
+    useUIStore()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const ganttRows = useGanttData(selectedProjectId)
   const [scale, setScale] = useState<GanttScale>('day')
-  const [showCompleted, setShowCompleted] = useState(false)
   const [pendingTaskOrder, setPendingTaskOrder] = useState<PendingTaskOrder | null>(null)
   const [dragTaskOrder, setDragTaskOrder] = useState<PendingTaskOrder | null>(null)
   const [draggingLabel, setDraggingLabel] = useState<string | null>(null)
@@ -116,22 +116,15 @@ export function GanttView() {
 
   const ppd = PIXELS_PER_DAY[scale]
 
-  const completedTaskCount = useMemo(
-    () =>
-      ganttRows.reduce(
-        (count, { tasks }) => count + tasks.filter((task) => task.status === 'done').length,
-        0
-      ),
-    [ganttRows]
-  )
-
   const visibleGanttRows = useMemo(
     () =>
       ganttRows.map(({ topic, tasks }) => ({
         topic,
-        tasks: showCompleted ? tasks : tasks.filter((task) => task.status !== 'done'),
+        tasks: tasks.filter(
+          (task) => task.status !== 'done' || expandedCompletedTopicIds[topic.id]
+        ),
       })),
-    [ganttRows, showCompleted]
+    [expandedCompletedTopicIds, ganttRows]
   )
 
   const { startDate, totalDays } = useMemo(() => {
@@ -157,8 +150,10 @@ export function GanttView() {
   const allFlatRows = useMemo<FlatRow[]>(() => {
     const rows: FlatRow[] = []
     for (const { topic, tasks } of ganttRows) {
+      const activeTasks = tasks.filter((task) => task.status !== 'done')
+      const completedTasks = tasks.filter((task) => task.status === 'done')
       rows.push({ type: 'topic', label: topic.name, tasks: [], topicId: topic.id })
-      for (const task of tasks) {
+      for (const task of [...activeTasks, ...completedTasks]) {
         rows.push({ type: 'task-row', label: task.title, tasks: [task], topicId: topic.id })
       }
     }
@@ -167,14 +162,27 @@ export function GanttView() {
 
   const flatRows = useMemo<FlatRow[]>(() => {
     const rows: FlatRow[] = []
-    for (const { topic, tasks } of visibleGanttRows) {
+    for (const { topic, tasks } of ganttRows) {
+      const activeTasks = tasks.filter((task) => task.status !== 'done')
+      const completedTasks = tasks.filter((task) => task.status === 'done')
       rows.push({ type: 'topic', label: topic.name, tasks: [], topicId: topic.id })
-      for (const task of tasks) {
+      for (const task of activeTasks) {
+        rows.push({ type: 'task-row', label: task.title, tasks: [task], topicId: topic.id })
+      }
+      if (completedTasks.length === 0) continue
+      rows.push({
+        type: 'completed-group',
+        label: `完了タスク（${completedTasks.length}）`,
+        tasks: [],
+        topicId: topic.id,
+      })
+      if (!expandedCompletedTopicIds[topic.id]) continue
+      for (const task of completedTasks) {
         rows.push({ type: 'task-row', label: task.title, tasks: [task], topicId: topic.id })
       }
     }
     return rows
-  }, [visibleGanttRows])
+  }, [expandedCompletedTopicIds, ganttRows])
 
   const orderedFlatRows = useMemo<FlatRow[]>(() => {
     const taskOrder = dragTaskOrder ?? pendingTaskOrder
@@ -252,9 +260,28 @@ export function GanttView() {
       if (lastDragOverIdRef.current === over.id) return
       lastDragOverIdRef.current = over.id
 
+      const activeRow = orderedFlatRows.find(
+        (row) => row.type === 'task-row' && row.tasks[0].id === active.id
+      )
+      const overRow = orderedFlatRows.find(
+        (row) => row.type === 'task-row' && row.tasks[0].id === over.id
+      )
+      if (
+        !activeRow ||
+        !overRow ||
+        (activeRow.tasks[0].status === 'done') !== (overRow.tasks[0].status === 'done')
+      ) {
+        return
+      }
+
       const visibleTaskIdSet = new Set(
         orderedFlatRows
-          .filter((row) => row.type === 'task-row' && row.topicId === currentOrder.topicId)
+          .filter(
+            (row) =>
+              row.type === 'task-row' &&
+              row.topicId === currentOrder.topicId &&
+              (row.tasks[0].status === 'done') === (activeRow.tasks[0].status === 'done')
+          )
           .map((row) => row.tasks[0].id)
       )
       const visibleTaskIds = currentOrder.taskIds.filter((id) => visibleTaskIdSet.has(id))
@@ -285,7 +312,7 @@ export function GanttView() {
   }, [])
 
   const handleTaskDragEnd = useCallback(
-    async ({ over }: DragEndEvent) => {
+    async ({ active, over }: DragEndEvent) => {
       const taskOrder = dragTaskOrderRef.current
       const startTaskOrder = dragStartTaskOrderRef.current
       dragTaskOrderRef.current = null
@@ -296,11 +323,22 @@ export function GanttView() {
       if (!isAuthenticated || reorderingRef.current || !over || !taskOrder || !startTaskOrder) {
         return
       }
+      const activeRow = orderedFlatRows.find(
+        (row) => row.type === 'task-row' && row.tasks[0].id === active.id
+      )
+      const overRow = orderedFlatRows.find(
+        (row) => row.type === 'task-row' && row.tasks[0].id === over.id
+      )
+      const droppedInSameGroup =
+        activeRow !== undefined &&
+        overRow !== undefined &&
+        activeRow.topicId === overRow.topicId &&
+        (activeRow.tasks[0].status === 'done') === (overRow.tasks[0].status === 'done')
       const droppedInTopic = taskOrder.taskIds.some((id) => id === over.id)
       const orderChanged = taskOrder.taskIds.some(
         (id, index) => id !== startTaskOrder.taskIds[index]
       )
-      if (!droppedInTopic || !orderChanged) return
+      if (!droppedInSameGroup || !droppedInTopic || !orderChanged) return
 
       setPendingTaskOrder(taskOrder)
       reorderingRef.current = true
@@ -324,14 +362,14 @@ export function GanttView() {
         setIsReordering(false)
       }
     },
-    [isAuthenticated, refresh]
+    [isAuthenticated, orderedFlatRows, refresh]
   )
 
   // #7: preview 適用をここで一括計算（仮想アイテムのレンダリング内で毎回走らせない）
   const displayedFlatRows = useMemo<FlatRow[]>(() => {
     if (preview.size === 0) return orderedFlatRows
     return orderedFlatRows.map((row) => {
-      if (row.type === 'topic') return row
+      if (row.type !== 'task-row') return row
       let hasPreview = false
       const tasks = row.tasks.map((task) => {
         const p = preview.get(task.id)
@@ -396,7 +434,7 @@ export function GanttView() {
   const rowVirtualizer = useVirtualizer({
     count: orderedFlatRows.length,
     getScrollElement: () => rightScrollRef.current,
-    estimateSize: (i) => (orderedFlatRows[i].type === 'topic' ? TOPIC_ROW_HEIGHT : ROW_HEIGHT),
+    estimateSize: (i) => (orderedFlatRows[i].type === 'task-row' ? ROW_HEIGHT : TOPIC_ROW_HEIGHT),
     overscan: 5,
     scrollPaddingStart: HEADER_HEIGHT,
   })
@@ -431,22 +469,6 @@ export function GanttView() {
               {SCALE_LABELS[s]}
             </button>
           ))}
-          <label
-            className={`ml-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground ${
-              isReordering || dragTaskOrder !== null
-                ? 'cursor-not-allowed opacity-50'
-                : 'cursor-pointer'
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={showCompleted}
-              disabled={isReordering || dragTaskOrder !== null}
-              onChange={(event) => setShowCompleted(event.target.checked)}
-              className="h-3.5 w-3.5 accent-primary"
-            />
-            完了を表示（{completedTaskCount}）
-          </label>
         </div>
         <div className="hidden items-center gap-5 text-xs text-muted-foreground lg:flex">
           <div className="flex items-center gap-3">
@@ -513,6 +535,27 @@ export function GanttView() {
                       />
                     )
                   }
+                  if (row.type === 'completed-group') {
+                    const isOpen = expandedCompletedTopicIds[row.topicId] ?? false
+                    return (
+                      <button
+                        key={`completed-${row.topicId}`}
+                        type="button"
+                        onClick={() => toggleCompletedTasks(row.topicId)}
+                        disabled={isReordering || dragTaskOrder !== null}
+                        aria-expanded={isOpen}
+                        className="absolute left-0 right-0 flex items-center gap-1.5 border-b border-border bg-muted/35 px-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+                        style={{ top: vi.start, height: vi.size }}
+                      >
+                        {isOpen ? (
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                        )}
+                        <span className="truncate">{row.label}</span>
+                      </button>
+                    )
+                  }
                   return (
                     <div
                       key={`topic-${row.topicId}`}
@@ -542,11 +585,13 @@ export function GanttView() {
 
               {rowVirtualizer.getVirtualItems().map((vi) => {
                 const row = displayedFlatRows[vi.index]
-                if (row.type === 'topic') {
+                if (row.type !== 'task-row') {
                   return (
                     <div
-                      key={`topic-${row.topicId}`}
-                      className="absolute left-0 right-0 border-b border-border bg-muted/40"
+                      key={`${row.type}-${row.topicId}`}
+                      className={`absolute left-0 right-0 border-b border-border ${
+                        row.type === 'topic' ? 'bg-muted/40' : 'bg-muted/20'
+                      }`}
                       style={{ top: vi.start, height: vi.size, width: totalWidth }}
                     />
                   )

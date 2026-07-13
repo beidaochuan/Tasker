@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { SortableTaskRow } from '@/components/task/SortableTaskRow'
 import { useFilteredTasksByTopic } from '@/hooks/useFilteredTasks'
 import { useFilterStore, selectIsFiltering } from '@/store/filterStore'
+import { useUIStore } from '@/store/uiStore'
 import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo, topicRepo } from '@/repositories'
 import { reorderItems } from '@/utils/sortUtils'
@@ -47,11 +48,13 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
   const [isReordering, setIsReordering] = useState(false)
   const reorderingRef = useRef(false)
   const isFiltering = useFilterStore(selectIsFiltering)
+  const isCompletedOpen = useUIStore((state) => state.expandedCompletedTopicIds[topic.id] ?? false)
+  const toggleCompletedTasks = useUIStore((state) => state.toggleCompletedTasks)
   const refresh = useRefreshStore((s) => s.refresh)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  const displayedTasks = useMemo(() => {
+  const orderedTasks = useMemo(() => {
     if (!pendingTaskOrder) return moveCompletedTasksToEnd(tasks)
 
     const pendingIds = new Set(pendingTaskOrder)
@@ -68,6 +71,15 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
       )
     )
   }, [pendingTaskOrder, tasks])
+
+  const activeTasks = useMemo(
+    () => orderedTasks.filter((task) => task.status !== 'done'),
+    [orderedTasks]
+  )
+  const completedTasks = useMemo(
+    () => orderedTasks.filter((task) => task.status === 'done'),
+    [orderedTasks]
+  )
 
   useEffect(() => {
     if (!pendingTaskOrder) return
@@ -137,19 +149,36 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
   }
 
   async function handleDragEnd(event: DragEndEvent) {
-    if (!canEdit || reorderingRef.current) return
+    if (!canEdit || isFiltering || reorderingRef.current) return
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    const fromIndex = displayedTasks.findIndex((t) => t.id === active.id)
-    const toIndex = displayedTasks.findIndex((t) => t.id === over.id)
+    const activeTask = orderedTasks.find((task) => task.id === active.id)
+    const overTask = orderedTasks.find((task) => task.id === over.id)
+    if (
+      !activeTask ||
+      !overTask ||
+      (activeTask.status === 'done') !== (overTask.status === 'done')
+    ) {
+      return
+    }
+
+    const targetGroup = activeTask.status === 'done' ? completedTasks : activeTasks
+    const fromIndex = targetGroup.findIndex((task) => task.id === active.id)
+    const toIndex = targetGroup.findIndex((task) => task.id === over.id)
     if (fromIndex === -1 || toIndex === -1) return
 
-    const normalizedTasks = displayedTasks.map((task, order) => ({ ...task, order }))
-    const reordered = moveCompletedTasksToEnd(
-      reorderItems(normalizedTasks, fromIndex, toIndex)
+    const reorderedGroup = reorderItems(
+      targetGroup.map((task, order) => ({ ...task, order })),
+      fromIndex,
+      toIndex
+    )
+    const reordered = (
+      activeTask.status === 'done'
+        ? [...activeTasks, ...reorderedGroup]
+        : [...reorderedGroup, ...completedTasks]
     ).map((task, order) => ({ ...task, order }))
-    if (reordered.every((task, index) => task.id === displayedTasks[index]?.id)) return
+    if (reordered.every((task, index) => task.id === orderedTasks[index]?.id)) return
     setPendingTaskOrder(reordered.map((task) => task.id))
     reorderingRef.current = true
     setIsReordering(true)
@@ -289,10 +318,10 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={displayedTasks.map((t) => t.id)}
+                items={activeTasks.map((task) => task.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {displayedTasks.map((task) => (
+                {activeTasks.map((task) => (
                   <SortableTaskRow
                     key={task.id}
                     task={task}
@@ -301,6 +330,39 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
                   />
                 ))}
               </SortableContext>
+              {completedTasks.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => toggleCompletedTasks(topic.id)}
+                    disabled={isReordering}
+                    aria-expanded={isCompletedOpen}
+                    className="flex w-full items-center gap-1.5 border-y border-border/70 bg-muted/35 px-4 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isCompletedOpen ? (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    )}
+                    完了タスク（{completedTasks.length}）
+                  </button>
+                  {isCompletedOpen && (
+                    <SortableContext
+                      items={completedTasks.map((task) => task.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {completedTasks.map((task) => (
+                        <SortableTaskRow
+                          key={task.id}
+                          task={task}
+                          disabled={isFiltering || !canEdit || isReordering}
+                          canEdit={canEdit}
+                        />
+                      ))}
+                    </SortableContext>
+                  )}
+                </>
+              )}
             </DndContext>
           )}
         </div>

@@ -10,6 +10,7 @@ interface UIState {
   isTaskDrawerOpen: boolean
   isProjectFormOpen: boolean
   editingProjectId: string | null
+  expandedCompletedTopicIds: Record<string, boolean>
 
   setActiveView: (view: ViewType) => void
   setSelectedProjectId: (id: string | null) => void
@@ -19,6 +20,7 @@ interface UIState {
   openProjectForm: () => void
   closeProjectForm: () => void
   openProjectEditForm: (id: string) => void
+  toggleCompletedTasks: (topicId: string) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -29,6 +31,7 @@ export const useUIStore = create<UIState>((set) => ({
   isTaskDrawerOpen: false,
   isProjectFormOpen: false,
   editingProjectId: null,
+  expandedCompletedTopicIds: {},
 
   setActiveView: (view) => set({ activeView: view }),
   setSelectedProjectId: (id) => set({ selectedProjectId: id }),
@@ -41,4 +44,11 @@ export const useUIStore = create<UIState>((set) => ({
   openProjectForm: () => set({ isProjectFormOpen: true, editingProjectId: null }),
   closeProjectForm: () => set({ isProjectFormOpen: false, editingProjectId: null }),
   openProjectEditForm: (id) => set({ isProjectFormOpen: true, editingProjectId: id }),
+  toggleCompletedTasks: (topicId) =>
+    set((state) => ({
+      expandedCompletedTopicIds: {
+        ...state.expandedCompletedTopicIds,
+        [topicId]: !state.expandedCompletedTopicIds[topicId],
+      },
+    })),
 }))
