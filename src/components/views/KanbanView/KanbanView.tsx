@@ -12,6 +12,7 @@ import {
   type DragStartEvent,
   type DragOverEvent,
   type DragEndEvent,
+  type DragCancelEvent,
 } from '@dnd-kit/core'
 import { FolderOpen } from 'lucide-react'
 import { KanbanColumn } from './KanbanColumn'
@@ -71,6 +72,13 @@ export function KanbanView() {
     return closestCorners(args)
   }, [])
 
+  const clearDragState = useCallback(() => {
+    setDraggingTask(null)
+    setOverColumnId(null)
+    setLocalTasksByStatus(null)
+    localTasksByStatusRef.current = null
+  }, [])
+
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
       if (!isAuthenticated) return
@@ -85,42 +93,52 @@ export function KanbanView() {
     (event: DragOverEvent) => {
       if (!isAuthenticated) return
       const { active, over } = event
-      if (!over) return
+      if (!over) {
+        setOverColumnId(null)
+        return
+      }
 
       const activeId = active.id as string
+      const base = localTasksByStatusRef.current ?? tasksByStatus
+      const targetCol = resolveTargetColumn(over.id as string, base)
 
-      setLocalTasksByStatus((prev) => {
-        const base = prev ?? tasksByStatus
+      if (!targetCol) {
+        setOverColumnId(null)
+        return
+      }
 
-        const targetCol = resolveTargetColumn(over.id as string, base)
-        if (!targetCol) return prev
+      setOverColumnId(targetCol)
 
-        setOverColumnId(targetCol)
+      // ドラッグ中タスクの現在列をローカル状態から動的に解決（Issue #2 修正）
+      const currentCol = findColumnOfTask(activeId, base)
+      if (!currentCol || currentCol === targetCol) return
 
-        // ドラッグ中タスクの現在列をローカル状態から動的に解決（Issue #2 修正）
-        const currentCol = findColumnOfTask(activeId, base)
-        if (!currentCol || currentCol === targetCol) return prev
+      // WIP制限チェック: ターゲット列の現在カード数で判断
+      const wipLimit = WIP_LIMITS[targetCol]
+      if (wipLimit > 0 && base[targetCol].length >= wipLimit) return
 
-        // WIP制限チェック: ターゲット列の現在カード数で判断
-        const wipLimit = WIP_LIMITS[targetCol]
-        if (wipLimit > 0 && base[targetCol].length >= wipLimit) return prev
+      const activeTask = base[currentCol].find((t) => t.id === activeId)
+      if (!activeTask) return
 
-        const activeTask = base[currentCol].find((t) => t.id === activeId)
-        if (!activeTask) return prev
-
-        const next = {
-          ...base,
-          [currentCol]: base[currentCol].filter((t) => t.id !== activeId),
-          [targetCol]: sortKanbanColumnTasks(targetCol, [
-            ...base[targetCol],
-            { ...activeTask, status: targetCol, statusChangedAt: new Date() },
-          ]),
-        }
-        localTasksByStatusRef.current = next
-        return next
-      })
+      const next = {
+        ...base,
+        [currentCol]: base[currentCol].filter((t) => t.id !== activeId),
+        [targetCol]: sortKanbanColumnTasks(targetCol, [
+          ...base[targetCol],
+          { ...activeTask, status: targetCol, statusChangedAt: new Date() },
+        ]),
+      }
+      localTasksByStatusRef.current = next
+      setLocalTasksByStatus(next)
     },
     [tasksByStatus, isAuthenticated]
+  )
+
+  const handleDragCancel = useCallback(
+    (_event: DragCancelEvent) => {
+      clearDragState()
+    },
+    [clearDragState]
   )
 
   const handleDragEnd = useCallback(
@@ -129,22 +147,18 @@ export function KanbanView() {
       const { active, over } = event
       const currentLocal = localTasksByStatusRef.current
 
+      // ドロップ操作自体は完了しているため、保存待ちの間も枠とオーバーレイを残さない
       setDraggingTask(null)
       setOverColumnId(null)
 
-      const clearLocal = () => {
-        setLocalTasksByStatus(null)
-        localTasksByStatusRef.current = null
-      }
-
       if (!over) {
-        clearLocal()
+        clearDragState()
         return
       }
 
       const activeTask = active.data.current?.task as Task | undefined
       if (!activeTask) {
-        clearLocal()
+        clearDragState()
         return
       }
 
@@ -152,13 +166,13 @@ export function KanbanView() {
       const targetCol = resolveTargetColumn(over.id as string, base)
       const originalCol = findColumnOfTask(activeTask.id, tasksByStatus)
       if (!targetCol || targetCol === originalCol) {
-        clearLocal()
+        clearDragState()
         return
       }
 
       const wipLimit = WIP_LIMITS[targetCol]
       if (wipLimit > 0 && tasksByStatus[targetCol].length >= wipLimit) {
-        clearLocal()
+        clearDragState()
         return
       }
 
@@ -169,10 +183,10 @@ export function KanbanView() {
       } catch (err) {
         console.error('カンバンのステータス更新に失敗しました', err)
       } finally {
-        clearLocal()
+        clearDragState()
       }
     },
-    [tasksByStatus, isAuthenticated, refresh]
+    [tasksByStatus, isAuthenticated, refresh, clearDragState]
   )
 
   if (!selectedProjectId) {
@@ -195,6 +209,7 @@ export function KanbanView() {
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="flex h-full gap-3 overflow-x-auto bg-background p-4">
         {COLUMN_ORDER.map((status) => (

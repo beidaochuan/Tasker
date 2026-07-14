@@ -38,6 +38,7 @@ export const KanbanCard = memo(function KanbanCard({ task, canEdit }: KanbanCard
       style={style}
       {...(canEdit ? { ...attributes, ...listeners } : {})}
       className={cn(
+        'rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel',
         canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         isDragging && 'opacity-40'
       )}
