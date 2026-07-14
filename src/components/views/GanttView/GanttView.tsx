@@ -26,7 +26,7 @@ import { useGanttDrag, calcGanttRange } from './useGanttDrag'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, HEADER_HEIGHT, LEFT_PANE_WIDTH } from './ganttConstants'
 import type { Task } from '@/types'
-import { PRIORITY_DOT_CLASSES, PRIORITY_LABELS, STATUS_LABELS } from '@/utils/taskPresentation'
+import { PRIORITY_LABELS, PRIORITY_TEXT_CLASSES, STATUS_LABELS } from '@/utils/taskPresentation'
 import { unwrapResult } from '@/utils/resultUtils'
 
 const SCALE_LABELS: Record<GanttScale, string> = {
@@ -92,6 +92,11 @@ function SortableTaskLabel({
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
+      <span
+        className={`font-soft mr-1.5 inline-flex h-5 shrink-0 items-center rounded bg-muted px-1 text-[10px] font-medium leading-none ${PRIORITY_TEXT_CLASSES[task.priority]}`}
+      >
+        {PRIORITY_LABELS[task.priority]}
+      </span>
       <span className="truncate">{row.label}</span>
     </div>
   )
@@ -486,15 +491,6 @@ export function GanttView() {
               {STATUS_LABELS.done}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-semibold">優先度</span>
-            {(['urgent', 'high', 'medium', 'low'] as const).map((priority) => (
-              <span key={priority} className="flex items-center gap-1.5">
-                <span className={`h-3 w-1.5 rounded-sm ${PRIORITY_DOT_CLASSES[priority]}`} />
-                {PRIORITY_LABELS[priority]}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -544,7 +540,7 @@ export function GanttView() {
                         onClick={() => toggleCompletedTasks(row.topicId)}
                         disabled={isReordering || dragTaskOrder !== null}
                         aria-expanded={isOpen}
-                        className="absolute left-0 right-0 flex items-center gap-1.5 border-b border-border bg-muted/35 px-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="absolute left-0 right-0 flex items-center gap-1.5 border-b border-border bg-muted/35 px-3 text-left text-xs font-medium text-muted-foreground opacity-60 transition-colors hover:bg-muted/60 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
                         style={{ top: vi.start, height: vi.size }}
                       >
                         {isOpen ? (

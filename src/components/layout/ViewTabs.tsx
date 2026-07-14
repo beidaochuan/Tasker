@@ -4,9 +4,9 @@ import { cn } from '@/utils/cn'
 import { useUIStore, type ViewType } from '@/store/uiStore'
 
 const TABS: { value: ViewType; label: string; Icon: FC<SVGProps<SVGSVGElement>> }[] = [
-  { value: 'list', label: 'リスト', Icon: LayoutList },
-  { value: 'gantt', label: 'ガント', Icon: GanttChartSquare },
   { value: 'kanban', label: 'カンバン', Icon: KanbanSquare },
+  { value: 'gantt', label: 'ガント', Icon: GanttChartSquare },
+  { value: 'list', label: 'リスト', Icon: LayoutList },
   { value: 'calendar', label: 'カレンダー', Icon: Calendar },
 ]
 

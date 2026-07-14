@@ -8,15 +8,15 @@ describe('ViewTabs', () => {
     cleanup()
   })
 
-  it('ガントをリストの直後に表示する', () => {
+  it('カンバン、ガント、リスト、カレンダーの順に表示する', () => {
     useUIStore.setState({ activeView: 'list' })
 
     render(<ViewTabs />)
 
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'リスト',
-      'ガント',
       'カンバン',
+      'ガント',
+      'リスト',
       'カレンダー',
     ])
   })

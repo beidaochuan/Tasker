@@ -8,11 +8,7 @@ import { useRecurrence } from '@/hooks/useRecurrence'
 import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo } from '@/repositories'
 import { Button } from '@/components/ui/button'
-import {
-  PRIORITY_DOT_CLASSES,
-  PRIORITY_LABELS,
-  PRIORITY_TEXT_CLASSES,
-} from '@/utils/taskPresentation'
+import { PRIORITY_LABELS, PRIORITY_TEXT_CLASSES } from '@/utils/taskPresentation'
 import { hasRepeatRule } from '@/utils/recurrenceUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 import type { Task } from '@/types'
@@ -84,11 +80,6 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
             {isDone ? <Check className="h-4 w-4 text-primary" /> : <Circle className="h-4 w-4" />}
           </span>
         )}
-
-        <span
-          className={cn('h-1.5 w-1.5 shrink-0 rounded-full', PRIORITY_DOT_CLASSES[task.priority])}
-          title={PRIORITY_LABELS[task.priority]}
-        />
 
         <span
           className={cn(

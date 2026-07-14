@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 
 @theme inline {
+  --font-soft: ui-rounded, 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif;
+
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-card: hsl(var(--card));

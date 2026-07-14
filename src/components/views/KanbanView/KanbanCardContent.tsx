@@ -2,11 +2,7 @@ import { memo } from 'react'
 import { Clock } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { formatDate, isOverdue, isDueToday } from '@/utils/dateUtils'
-import {
-  PRIORITY_DOT_CLASSES,
-  PRIORITY_LABELS,
-  PRIORITY_TEXT_CLASSES,
-} from '@/utils/taskPresentation'
+import { PRIORITY_LABELS, PRIORITY_TEXT_CLASSES } from '@/utils/taskPresentation'
 import type { Task } from '@/types'
 
 interface KanbanCardContentProps {
@@ -29,34 +25,22 @@ export const KanbanCardContent = memo(function KanbanCardContent({
         className
       )}
     >
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-start gap-2">
         <span
           className={cn(
-            'mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full',
-            PRIORITY_DOT_CLASSES[task.priority]
-          )}
-          title={PRIORITY_LABELS[task.priority]}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm font-medium leading-snug">{task.title}</p>
-          {task.description && (
-            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-              {task.description}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <span
-          className={cn(
-            'rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium',
+            'mt-0.5 shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-tight',
             PRIORITY_TEXT_CLASSES[task.priority]
           )}
         >
           {PRIORITY_LABELS[task.priority]}
         </span>
-        {task.dueDate && (
+        <p className="font-soft line-clamp-2 flex-1 text-[15px] font-semibold leading-snug">
+          {task.title}
+        </p>
+      </div>
+
+      {task.dueDate && (
+        <div className="mt-2 flex justify-end">
           <span
             className={cn(
               'flex items-center gap-1 text-xs',
@@ -70,8 +54,8 @@ export const KanbanCardContent = memo(function KanbanCardContent({
             <Clock className="h-3 w-3 shrink-0" />
             {formatDate(task.dueDate)}
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 })

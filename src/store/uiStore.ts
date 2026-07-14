@@ -24,7 +24,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  activeView: 'list',
+  activeView: 'kanban',
   selectedProjectId: null,
   selectedTaskId: null,
   newTaskTopicId: null,

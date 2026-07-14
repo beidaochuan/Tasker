@@ -186,6 +186,20 @@ describe('GanttView task reordering', () => {
     cleanup()
   })
 
+  it('優先度ラベルをタスク行の上下中央に配置する', () => {
+    render(<GanttView />)
+
+    expect(
+      screen
+        .getAllByText('中')
+        .every((label) =>
+          ['inline-flex', 'h-5', 'items-center', 'leading-none'].every((className) =>
+            label.classList.contains(className)
+          )
+        )
+    ).toBe(true)
+  })
+
   it('ドラッグ中に表示順を更新し、ドロップ時にプレビュー順を保存する', async () => {
     const update = deferred<{ ok: true; data: undefined }>()
     taskRepoMock.updateGanttOrder.mockReturnValue(update.promise)
