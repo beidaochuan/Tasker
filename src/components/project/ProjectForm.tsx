@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -91,6 +91,24 @@ export function ProjectForm() {
 
   const selectedColor = useWatch({ control, name: 'color' })
 
+  const handleClose = useCallback(() => {
+    setSubmitError(null)
+    closeProjectForm()
+  }, [closeProjectForm])
+
+  useEffect(() => {
+    if (!isProjectFormOpen) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return
+      event.preventDefault()
+      handleClose()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleClose, isProjectFormOpen])
+
   async function onSubmit(values: FormValues) {
     if (!isAuthenticated) {
       closeProjectForm()
@@ -120,7 +138,7 @@ export function ProjectForm() {
       }
       refresh()
       reset()
-      closeProjectForm()
+      handleClose()
     } catch (err) {
       console.error('プロジェクトの保存に失敗しました', err)
       setSubmitError(err instanceof Error ? err.message : 'プロジェクトの保存に失敗しました')
@@ -131,13 +149,13 @@ export function ProjectForm() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={closeProjectForm} />
+      <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
       <div className="relative z-10 w-full max-w-sm rounded-lg bg-background p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold">
             {isEditing ? 'プロジェクトを編集' : 'プロジェクトを作成'}
           </h2>
-          <Button variant="ghost" size="icon" onClick={closeProjectForm}>
+          <Button variant="ghost" size="icon" onClick={handleClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>

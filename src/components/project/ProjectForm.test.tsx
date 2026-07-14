@@ -1,4 +1,5 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project } from '@/types'
 import { useAuthStore } from '@/store/authStore'
@@ -73,6 +74,61 @@ describe('ProjectForm', () => {
     })
 
     expect(projectRepoMock.getById).toHaveBeenCalledWith('proj-1')
+  })
+
+  it('新規作成中にESCを押すと保存せず閉じる', async () => {
+    const user = userEvent.setup()
+    act(() => {
+      useUIStore.setState({ isProjectFormOpen: true, editingProjectId: null })
+    })
+    render(<ProjectForm />)
+
+    const nameInput = screen.getByLabelText('プロジェクト名')
+    await user.type(nameInput, '保存しないプロジェクト')
+    await user.keyboard('{Escape}')
+
+    expect(useUIStore.getState()).toMatchObject({
+      isProjectFormOpen: false,
+      editingProjectId: null,
+    })
+    expect(projectRepoMock.create).not.toHaveBeenCalled()
+  })
+
+  it('編集中にESCを押すと更新せず閉じる', async () => {
+    const user = userEvent.setup()
+    projectRepoMock.getById.mockResolvedValue({ ok: true, data: makeProject() })
+    act(() => {
+      useUIStore.setState({ isProjectFormOpen: true, editingProjectId: 'proj-1' })
+    })
+    render(<ProjectForm />)
+
+    const nameInput = await screen.findByDisplayValue('既存プロジェクト')
+    await user.type(nameInput, ' 更新')
+    await user.keyboard('{Escape}')
+
+    expect(useUIStore.getState()).toMatchObject({
+      isProjectFormOpen: false,
+      editingProjectId: null,
+    })
+    expect(projectRepoMock.update).not.toHaveBeenCalled()
+  })
+
+  it('日本語IME変換中のESCでは閉じない', async () => {
+    act(() => {
+      useUIStore.setState({ isProjectFormOpen: true, editingProjectId: null })
+    })
+    render(<ProjectForm />)
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    fireEvent.keyDown(screen.getByLabelText('プロジェクト名'), {
+      key: 'Escape',
+      code: 'Escape',
+      isComposing: true,
+    })
+
+    expect(useUIStore.getState().isProjectFormOpen).toBe(true)
   })
 
   it('開いたまま別プロジェクトの編集へ切り替えた場合も対象情報へ更新する', async () => {

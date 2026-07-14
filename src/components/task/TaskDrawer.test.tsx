@@ -1,7 +1,7 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Project, Task, Topic } from '@/types'
+import type { Project, Subtask, Task, Topic } from '@/types'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { TaskDrawer } from './TaskDrawer'
@@ -12,6 +12,7 @@ const { projectRepoMock, taskRepoMock, topicRepoMock, subtaskRepoMock } = vi.hoi
   },
   taskRepoMock: {
     getById: vi.fn(),
+    create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
     getByTopicId: vi.fn(),
@@ -102,10 +103,20 @@ const TASK: Task = {
   updatedAt: new Date(2026, 0, 1),
 }
 
+const SUBTASK: Subtask = {
+  id: 'subtask-1',
+  taskId: TASK.id,
+  title: '仕様を確認',
+  isDone: false,
+  order: 0,
+  createdAt: new Date(2026, 0, 1),
+}
+
 describe('TaskDrawer', () => {
   beforeEach(() => {
     projectRepoMock.getAll.mockReset().mockResolvedValue({ ok: true, data: PROJECTS })
     taskRepoMock.getById.mockReset().mockResolvedValue({ ok: true, data: TASK })
+    taskRepoMock.create.mockReset()
     taskRepoMock.update.mockReset().mockResolvedValue({ ok: true, data: TASK })
     taskRepoMock.delete.mockReset()
     taskRepoMock.getByTopicId.mockReset()
@@ -139,6 +150,64 @@ describe('TaskDrawer', () => {
       expect(subtaskRepoMock.getByTaskId).toHaveBeenCalledWith('task-1')
     })
     expect(screen.getByRole('heading', { name: '作業リスト' })).toBeInTheDocument()
+  })
+
+  it('新規作成中にESCを押すと保存せず閉じる', async () => {
+    const user = userEvent.setup()
+    useUIStore.setState({
+      selectedTaskId: null,
+      newTaskTopicId: 'topic-1',
+      isTaskDrawerOpen: true,
+    })
+
+    render(<TaskDrawer />)
+
+    const titleInput = await screen.findByLabelText('タイトル')
+    await user.type(titleInput, '保存しないタスク')
+    await user.keyboard('{Escape}')
+
+    expect(useUIStore.getState()).toMatchObject({
+      isTaskDrawerOpen: false,
+      selectedTaskId: null,
+      newTaskTopicId: null,
+    })
+    expect(taskRepoMock.create).not.toHaveBeenCalled()
+  })
+
+  it('編集中にESCを押すと更新せず閉じる', async () => {
+    const user = userEvent.setup()
+    render(<TaskDrawer />)
+
+    const titleInput = await screen.findByDisplayValue('既存タスク')
+    await user.type(titleInput, ' 更新')
+    await user.keyboard('{Escape}')
+
+    expect(useUIStore.getState().isTaskDrawerOpen).toBe(false)
+    expect(taskRepoMock.update).not.toHaveBeenCalled()
+  })
+
+  it('日本語IME変換中のESCでは閉じない', async () => {
+    render(<TaskDrawer />)
+
+    const titleInput = await screen.findByDisplayValue('既存タスク')
+    fireEvent.keyDown(titleInput, { key: 'Escape', code: 'Escape', isComposing: true })
+
+    expect(useUIStore.getState().isTaskDrawerOpen).toBe(true)
+  })
+
+  it('作業タイトル編集中のESCではタスク画面を閉じない', async () => {
+    const user = userEvent.setup()
+    subtaskRepoMock.getByTaskId.mockResolvedValue({ ok: true, data: [SUBTASK] })
+    render(<TaskDrawer />)
+
+    await user.click(await screen.findByRole('button', { name: '「仕様を確認」を編集' }))
+    expect(screen.getByLabelText('作業内容')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByLabelText('作業内容')).not.toBeInTheDocument()
+    expect(screen.getByText('仕様を確認')).toBeInTheDocument()
+    expect(useUIStore.getState().isTaskDrawerOpen).toBe(true)
   })
 
   it('既存タスクでもプロジェクトとトピックを変更して保存できる', async () => {

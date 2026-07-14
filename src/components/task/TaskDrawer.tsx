@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -115,6 +115,24 @@ export function TaskDrawer() {
   const projects = useProjects()
   const projectTopics = useTopics(selectedFormProjectId || null)
 
+  const handleClose = useCallback(() => {
+    setSubmitError(null)
+    closeTaskDrawer()
+  }, [closeTaskDrawer])
+
+  useEffect(() => {
+    if (!isTaskDrawerOpen) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return
+      event.preventDefault()
+      handleClose()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleClose, isTaskDrawerOpen])
+
   // #6: isTaskDrawerOpen を依存配列に含め、開くたびに確実に reset する
   useEffect(() => {
     if (!isTaskDrawerOpen) return
@@ -177,11 +195,6 @@ export function TaskDrawer() {
 
   const hasSelectedFormTopic =
     projectTopics?.some((topic) => topic.id === selectedFormTopicId) ?? false
-
-  function handleClose() {
-    setSubmitError(null)
-    closeTaskDrawer()
-  }
 
   async function onSubmit(values: TaskFormValues) {
     if (!isAuthenticated) {
