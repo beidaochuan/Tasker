@@ -4,7 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { KanbanCard } from './KanbanCard'
-import { WIP_LIMITS, COLUMN_LABELS, COLUMN_COLORS } from './kanbanConstants'
+import { WIP_LIMITS, COLUMN_LABELS, COLUMN_COLORS, COLUMN_ACCENT_CLASSES } from './kanbanConstants'
 import { useUIStore } from '@/store/uiStore'
 import type { Task, TaskStatus } from '@/types'
 
@@ -35,10 +35,11 @@ export const KanbanColumn = memo(function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex min-w-72 flex-1 flex-col rounded-md border border-border bg-card',
+        'flex min-w-72 flex-1 flex-col overflow-hidden rounded-md border border-border bg-panel',
         isOver && 'ring-2 ring-primary/60'
       )}
     >
+      <div className={cn('h-0.5 shrink-0', COLUMN_ACCENT_CLASSES[status])} aria-hidden="true" />
       {/* ヘッダー */}
       <div
         className={cn(
@@ -82,7 +83,7 @@ export const KanbanColumn = memo(function KanbanColumn({
         </SortableContext>
         {tasks.length === 0 && (
           <div className="flex items-center justify-center rounded-md border border-dashed border-border/80 py-8">
-            <p className="text-xs text-muted-foreground/70">
+            <p className="text-xs text-muted-foreground">
               {canEdit ? 'ここにドロップ' : 'タスクなし'}
             </p>
           </div>

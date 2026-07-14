@@ -37,4 +37,19 @@ describe('KanbanCardContent', () => {
     expect(screen.queryByText(task.description)).not.toBeInTheDocument()
     expect(screen.queryByTitle(PRIORITY_LABELS[task.priority])).not.toBeInTheDocument()
   })
+
+  it('優先度を色付きの薄い背景を持つバッジで表示する', () => {
+    render(<KanbanCardContent task={task} />)
+
+    expect(screen.getByText(PRIORITY_LABELS[task.priority])).toHaveClass(
+      'bg-amber-500/15',
+      'text-[hsl(var(--priority-medium))]'
+    )
+  })
+
+  it('期限超過の日付には文字表示用の警告色を使用する', () => {
+    render(<KanbanCardContent task={{ ...task, dueDate: new Date(2000, 0, 1) }} />)
+
+    expect(screen.getByText('2000/01/01')).toHaveClass('text-danger')
+  })
 })

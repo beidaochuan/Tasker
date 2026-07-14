@@ -258,7 +258,7 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
                 setDeleteError(null)
                 setIsConfirmOpen(true)
               }}
-              className="rounded-md p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-accent/40 hover:text-destructive transition-opacity"
+              className="rounded-md p-1 text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-accent/40 hover:text-danger transition-opacity"
               title="トピックを削除"
               aria-label={`${topic.name} を削除`}
             >
@@ -285,7 +285,7 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
               </Dialog.Description>
             </div>
             {deleteError && (
-              <p role="alert" className="text-sm text-destructive mb-2">
+              <p role="alert" className="text-sm text-danger mb-2">
                 {deleteError}
               </p>
             )}

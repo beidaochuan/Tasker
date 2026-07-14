@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { Clock } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { formatDate, isOverdue, isDueToday } from '@/utils/dateUtils'
-import { PRIORITY_LABELS, PRIORITY_TEXT_CLASSES } from '@/utils/taskPresentation'
+import { PRIORITY_BADGE_CLASSES, PRIORITY_LABELS } from '@/utils/taskPresentation'
 import type { Task } from '@/types'
 
 interface KanbanCardContentProps {
@@ -20,16 +20,16 @@ export const KanbanCardContent = memo(function KanbanCardContent({
   return (
     <div
       className={cn(
-        'rounded-md border border-border bg-card p-3 shadow-xs',
-        'hover:border-primary/40 hover:bg-accent/20 transition-colors',
+        'rounded-md border border-border bg-card p-3 shadow-sm',
+        'transition-[border-color,box-shadow] hover:border-primary/50 hover:shadow-md',
         className
       )}
     >
       <div className="flex items-start gap-2">
         <span
           className={cn(
-            'mt-0.5 shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-tight',
-            PRIORITY_TEXT_CLASSES[task.priority]
+            'mt-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-tight',
+            PRIORITY_BADGE_CLASSES[task.priority]
           )}
         >
           {PRIORITY_LABELS[task.priority]}
@@ -45,7 +45,7 @@ export const KanbanCardContent = memo(function KanbanCardContent({
             className={cn(
               'flex items-center gap-1 text-xs',
               overdue
-                ? 'text-destructive'
+                ? 'text-danger'
                 : today
                   ? 'text-[hsl(var(--priority-high))]'
                   : 'text-muted-foreground'

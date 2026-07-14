@@ -20,4 +20,13 @@ describe('ViewTabs', () => {
       'カレンダー',
     ])
   })
+
+  it('ナビゲーション面と選択中タブを背景色でも区別する', () => {
+    useUIStore.setState({ activeView: 'list' })
+
+    const { container } = render(<ViewTabs />)
+
+    expect(container.firstChild).toHaveClass('bg-panel')
+    expect(screen.getByRole('button', { name: 'リスト' })).toHaveClass('bg-primary/5')
+  })
 })

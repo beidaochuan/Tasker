@@ -161,7 +161,7 @@ export function FilterPanel() {
           {searchText && (
             <Badge variant="secondary" className="gap-1 text-xs">
               「{searchText}」
-              <button onClick={() => setSearchText('')} className="ml-0.5 hover:text-destructive">
+              <button onClick={() => setSearchText('')} className="ml-0.5 hover:text-danger">
                 <X className="h-2.5 w-2.5" />
               </button>
             </Badge>
@@ -169,7 +169,7 @@ export function FilterPanel() {
           {statuses.map((s) => (
             <Badge key={s} variant="secondary" className="gap-1 text-xs">
               {STATUS_LABELS[s]}
-              <button onClick={() => toggleStatus(s)} className="ml-0.5 hover:text-destructive">
+              <button onClick={() => toggleStatus(s)} className="ml-0.5 hover:text-danger">
                 <X className="h-2.5 w-2.5" />
               </button>
             </Badge>
@@ -177,7 +177,7 @@ export function FilterPanel() {
           {priorities.map((p) => (
             <Badge key={p} variant="secondary" className="gap-1 text-xs">
               {PRIORITY_LABELS[p]}
-              <button onClick={() => togglePriority(p)} className="ml-0.5 hover:text-destructive">
+              <button onClick={() => togglePriority(p)} className="ml-0.5 hover:text-danger">
                 <X className="h-2.5 w-2.5" />
               </button>
             </Badge>
@@ -188,7 +188,7 @@ export function FilterPanel() {
             return (
               <Badge key={id} variant="secondary" className="gap-1 text-xs">
                 {tag.name}
-                <button onClick={() => toggleTag(id)} className="ml-0.5 hover:text-destructive">
+                <button onClick={() => toggleTag(id)} className="ml-0.5 hover:text-danger">
                   <X className="h-2.5 w-2.5" />
                 </button>
               </Badge>

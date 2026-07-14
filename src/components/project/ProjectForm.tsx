@@ -171,7 +171,7 @@ export function ProjectForm() {
               className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               placeholder="プロジェクト名"
             />
-            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+            {errors.name && <p className="text-xs text-danger">{errors.name.message}</p>}
           </div>
 
           <div className="space-y-1.5">
@@ -208,7 +208,7 @@ export function ProjectForm() {
             {isEditing ? '保存する' : '作成する'}
           </Button>
           {submitError && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-xs text-danger">
               {submitError}
             </p>
           )}

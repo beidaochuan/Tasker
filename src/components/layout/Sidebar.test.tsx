@@ -1,4 +1,4 @@
-import { cleanup, render, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project } from '@/types'
 import { useUIStore } from '@/store/uiStore'
@@ -61,5 +61,19 @@ describe('Sidebar', () => {
     await waitFor(() => {
       expect(useUIStore.getState().selectedProjectId).toBe('project-2')
     })
+  })
+
+  it('サイドバー面と選択中プロジェクトを背景色以外でも区別する', async () => {
+    useUIStore.setState({ selectedProjectId: 'project-2' })
+
+    const { container } = render(<Sidebar />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'プロジェクト2' }).parentElement).toHaveClass(
+        'border-l-primary',
+        'bg-accent'
+      )
+    })
+    expect(container.querySelector('aside')).toHaveClass('bg-panel')
   })
 })

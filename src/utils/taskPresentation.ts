@@ -28,6 +28,13 @@ export const PRIORITY_TEXT_CLASSES: Record<Priority, string> = {
   urgent: 'text-[hsl(var(--priority-urgent))]',
 }
 
+export const PRIORITY_BADGE_CLASSES: Record<Priority, string> = {
+  low: 'bg-emerald-500/15 text-[hsl(var(--priority-low))]',
+  medium: 'bg-amber-500/15 text-[hsl(var(--priority-medium))]',
+  high: 'bg-orange-500/15 text-[hsl(var(--priority-high))]',
+  urgent: 'bg-rose-500/15 text-[hsl(var(--priority-urgent))]',
+}
+
 export const GANTT_STATUS_BAR_CLASSES: Record<Exclude<TaskStatus, 'cancelled'>, string> = {
   todo: 'bg-slate-400',
   in_progress: 'bg-blue-500',

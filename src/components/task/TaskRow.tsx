@@ -104,7 +104,7 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
             className={cn(
               'flex w-24 shrink-0 items-center justify-end gap-1 text-xs',
               overdue
-                ? 'text-destructive'
+                ? 'text-danger'
                 : today
                   ? 'text-[hsl(var(--priority-high))]'
                   : 'text-muted-foreground'
@@ -117,7 +117,7 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
 
         {canEdit && (
           <button
-            className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+            className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-danger"
             onClick={(e) => {
               e.stopPropagation()
               setConfirmOpen(true)
@@ -136,7 +136,7 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-6 shadow-lg focus:outline-none">
             <div className="mb-4 flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
               <div>
                 <Dialog.Title className="text-sm font-semibold">タスクの削除</Dialog.Title>
                 <Dialog.Description className="mt-1 text-xs text-muted-foreground">
@@ -146,7 +146,7 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
             </div>
             <div className="flex justify-end gap-2">
               {deleteError && (
-                <p role="alert" className="mr-auto self-center text-xs text-destructive">
+                <p role="alert" className="mr-auto self-center text-xs text-danger">
                   {deleteError}
                 </p>
               )}

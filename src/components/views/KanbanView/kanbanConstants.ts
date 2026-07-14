@@ -21,5 +21,12 @@ export const COLUMN_COLORS: Record<TaskStatus, string> = {
   todo: 'text-muted-foreground',
   in_progress: 'text-[hsl(var(--priority-medium))]',
   done: 'text-primary',
-  cancelled: 'text-muted-foreground/60',
+  cancelled: 'text-muted-foreground',
+}
+
+export const COLUMN_ACCENT_CLASSES: Record<TaskStatus, string> = {
+  todo: 'bg-slate-400',
+  in_progress: 'bg-amber-400',
+  done: 'bg-blue-500',
+  cancelled: 'bg-slate-500',
 }

@@ -219,7 +219,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
         </p>
       ) : loadError ? (
         <div className="space-y-2">
-          <p role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-xs text-danger">
             {loadError}
           </p>
           <Button
@@ -327,7 +327,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
                             onClick={() => void handleDelete(subtask)}
                             disabled={isPending}
                             aria-label={`「${subtask.title}」を削除`}
-                            className="rounded-md p-1 text-muted-foreground opacity-70 hover:bg-accent hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
+                            className="rounded-md p-1 text-muted-foreground opacity-70 hover:bg-accent hover:text-danger focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -376,7 +376,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
       )}
 
       {taskId && actionError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-xs text-danger">
           {actionError}
         </p>
       )}

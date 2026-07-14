@@ -128,7 +128,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex w-56 flex-col border-r border-border bg-background">
+    <aside className="flex w-56 flex-col border-r border-border bg-panel">
       <div className="flex items-center justify-between p-4">
         <span className="text-sm font-semibold text-muted-foreground">プロジェクト</span>
         <Button
@@ -152,10 +152,10 @@ export function Sidebar() {
           <div
             key={project.id}
             className={cn(
-              'group flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors border-b border-border/40',
+              'group flex w-full items-center gap-2 rounded-md border-b border-l-2 border-b-border/50 px-3 py-2.5 text-sm transition-colors',
               selectedProjectId === project.id
-                ? 'bg-accent text-accent-foreground'
-                : 'text-foreground hover:bg-accent/50'
+                ? 'border-l-primary bg-accent text-accent-foreground'
+                : 'border-l-transparent text-foreground hover:bg-accent/60'
             )}
           >
             <button
@@ -179,7 +179,7 @@ export function Sidebar() {
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
                 <button
-                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-danger"
                   onClick={() =>
                     setDialogState({
                       type: 'deleteConfirm',
@@ -276,7 +276,7 @@ export function Sidebar() {
             {dialogState.type === 'deleteConfirm' && (
               <>
                 <div className="mb-4 flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
                   <div>
                     <Dialog.Title className="text-sm font-semibold">
                       プロジェクトの削除
@@ -304,7 +304,7 @@ export function Sidebar() {
             {dialogState.type === 'confirm' && (
               <>
                 <div className="mb-4 flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
                   <div>
                     <Dialog.Title className="text-sm font-semibold">インポートの確認</Dialog.Title>
                     <Dialog.Description className="mt-1 text-xs text-muted-foreground">
@@ -347,7 +347,7 @@ export function Sidebar() {
             {dialogState.type === 'error' && (
               <>
                 <div className="mb-4 flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
                   <div>
                     <Dialog.Title className="text-sm font-semibold">エラー</Dialog.Title>
                     <Dialog.Description className="mt-1 text-xs text-muted-foreground">

@@ -298,7 +298,7 @@ export function TaskDrawer() {
           <div className="flex gap-1">
             {isAuthenticated && !isNew && (
               <Button variant="ghost" size="icon" onClick={handleDelete} title="削除">
-                <Trash2 className="h-4 w-4 text-destructive" />
+                <Trash2 className="h-4 w-4 text-danger" />
               </Button>
             )}
             <Button variant="ghost" size="icon" onClick={handleClose}>
@@ -324,7 +324,7 @@ export function TaskDrawer() {
                 placeholder="タスク名を入力"
                 disabled={!isAuthenticated}
               />
-              {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+              {errors.title && <p className="text-xs text-danger">{errors.title.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -360,7 +360,7 @@ export function TaskDrawer() {
                   )}
                 />
                 {errors.projectId && (
-                  <p className="text-xs text-destructive">{errors.projectId.message}</p>
+                  <p className="text-xs text-danger">{errors.projectId.message}</p>
                 )}
               </div>
 
@@ -396,9 +396,7 @@ export function TaskDrawer() {
                     </select>
                   )}
                 />
-                {errors.topicId && (
-                  <p className="text-xs text-destructive">{errors.topicId.message}</p>
-                )}
+                {errors.topicId && <p className="text-xs text-danger">{errors.topicId.message}</p>}
               </div>
             </div>
 
@@ -467,7 +465,7 @@ export function TaskDrawer() {
                   disabled={!isAuthenticated}
                 />
                 {errors.startDate && (
-                  <p className="text-xs text-destructive">{errors.startDate.message}</p>
+                  <p className="text-xs text-danger">{errors.startDate.message}</p>
                 )}
               </div>
 
@@ -482,9 +480,7 @@ export function TaskDrawer() {
                   className={FIELD_CLASS}
                   disabled={!isAuthenticated}
                 />
-                {errors.dueDate && (
-                  <p className="text-xs text-destructive">{errors.dueDate.message}</p>
-                )}
+                {errors.dueDate && <p className="text-xs text-danger">{errors.dueDate.message}</p>}
               </div>
             </div>
 
@@ -548,7 +544,7 @@ export function TaskDrawer() {
           {isAuthenticated && (
             <div className="border-t border-border bg-card p-5">
               {submitError && (
-                <p role="alert" className="mb-3 text-xs text-destructive">
+                <p role="alert" className="mb-3 text-xs text-danger">
                   {submitError}
                 </p>
               )}

@@ -83,7 +83,7 @@ export function LoginDialog() {
             </div>
 
             {error && (
-              <p role="alert" className="text-xs text-destructive">
+              <p role="alert" className="text-xs text-danger">
                 {error}
               </p>
             )}

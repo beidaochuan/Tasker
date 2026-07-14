@@ -117,7 +117,7 @@ export function TagManager({ onClose }: TagManagerProps) {
               追加
             </Button>
           </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-xs text-danger">{error}</p>}
           <div className="flex gap-1.5">
             {PRESET_COLORS.map((c) => (
               <button
@@ -152,7 +152,7 @@ export function TagManager({ onClose }: TagManagerProps) {
               </div>
               <button
                 onClick={() => handleDelete(tag.id)}
-                className="rounded-md p-1 text-muted-foreground hover:text-destructive"
+                className="rounded-md p-1 text-muted-foreground hover:text-danger"
                 title="削除"
                 disabled={!isAuthenticated}
               >

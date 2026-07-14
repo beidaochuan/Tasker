@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback
       return (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-          <AlertTriangle className="h-12 w-12 text-destructive" />
+          <AlertTriangle className="h-12 w-12 text-danger" />
           <div>
             <p className="text-sm font-medium text-foreground">予期しないエラーが発生しました</p>
             <p className="mt-1 text-xs text-muted-foreground">{this.state.error?.message}</p>
