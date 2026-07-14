@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { Task, Topic, TaskStatus } from '@/types'
 import { topicRepo, taskRepo } from '@/repositories'
-import { sortByOrder } from '@/utils/sortUtils'
+import { sortByOrder, sortKanbanColumnTasks } from '@/utils/sortUtils'
 import { useRefreshStore } from './useDataRefresh'
 
 export interface KanbanData {
@@ -127,6 +127,9 @@ export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
     }
     for (const task of allTasks) {
       tasksByStatus[task.status].push(task)
+    }
+    for (const status of Object.keys(tasksByStatus) as TaskStatus[]) {
+      tasksByStatus[status] = sortKanbanColumnTasks(status, tasksByStatus[status])
     }
     return { tasksByStatus, defaultTopicId, isLoading: isLoading && projectId !== null }
   }, [data, isLoading, projectId])

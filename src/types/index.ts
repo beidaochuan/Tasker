@@ -35,6 +35,8 @@ export interface Task {
   ganttOrder?: number | null
   tags: string[]
   repeatRule: string | null
+  /** 現在のステータスへ変更された日時（旧データでは updatedAt を使用） */
+  statusChangedAt?: Date
   createdAt: Date
   updatedAt: Date
 }

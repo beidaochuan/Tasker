@@ -44,6 +44,7 @@ db.exec(`
     ganttOrder INTEGER,
     tags TEXT NOT NULL DEFAULT '[]',
     repeatRule TEXT,
+    statusChangedAt INTEGER NOT NULL,
     createdAt INTEGER NOT NULL,
     updatedAt INTEGER NOT NULL,
     FOREIGN KEY (topicId) REFERENCES topics(id)
@@ -82,4 +83,10 @@ db.exec(`
 const taskColumns = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[]
 if (!taskColumns.some((column) => column.name === 'ganttOrder')) {
   db.exec('ALTER TABLE tasks ADD COLUMN ganttOrder INTEGER')
+}
+
+// Existing databases did not track when a task entered its current status.
+if (!taskColumns.some((column) => column.name === 'statusChangedAt')) {
+  db.exec('ALTER TABLE tasks ADD COLUMN statusChangedAt INTEGER')
+  db.exec('UPDATE tasks SET statusChangedAt = updatedAt WHERE statusChangedAt IS NULL')
 }

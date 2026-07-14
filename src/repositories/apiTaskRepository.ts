@@ -25,6 +25,7 @@ function toTask(raw: Record<string, unknown>): Task {
     ganttOrder: raw.ganttOrder == null ? null : (raw.ganttOrder as number),
     tags: raw.tags as string[],
     repeatRule: raw.repeatRule as string | null,
+    statusChangedAt: fromUnixMs((raw.statusChangedAt ?? raw.updatedAt) as number),
     createdAt: fromUnixMs(raw.createdAt as number),
     updatedAt: fromUnixMs(raw.updatedAt as number),
   }

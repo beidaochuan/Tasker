@@ -157,6 +157,50 @@ describe('TopicRow', () => {
     expect(screen.queryByRole('button', { name: /完了タスク/ })).toBeNull()
   })
 
+  it('未完了・完了の各グループを優先度の高い順に表示する', async () => {
+    taskRepoMock.getByTopicId.mockResolvedValue({
+      ok: true,
+      data: [
+        { ...makeTask('active-low', '未完了・低', 0), priority: 'low' },
+        { ...makeTask('done-medium', '完了・中', 1, 'done'), priority: 'medium' },
+        { ...makeTask('active-urgent', '未完了・緊急', 2), priority: 'urgent' },
+        { ...makeTask('done-high', '完了・高', 3, 'done'), priority: 'high' },
+      ],
+    })
+
+    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+
+    expect(await screen.findByText('未完了・緊急')).toBeInTheDocument()
+    expect(displayedTaskTitles()).toEqual(['未完了・緊急', '未完了・低'])
+
+    fireEvent.click(screen.getByRole('button', { name: '完了タスク（2）' }))
+    expect(displayedTaskTitles()).toEqual(['未完了・緊急', '未完了・低', '完了・高', '完了・中'])
+  })
+
+  it('異なる優先度をまたぐドラッグでは優先度順を変更しない', async () => {
+    taskRepoMock.getByTopicId.mockResolvedValue({
+      ok: true,
+      data: [
+        { ...makeTask('task-low', '優先度・低', 0), priority: 'low' },
+        { ...makeTask('task-high', '優先度・高', 1), priority: 'high' },
+      ],
+    })
+
+    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    expect(await screen.findByText('優先度・高')).toBeInTheDocument()
+    expect(displayedTaskTitles()).toEqual(['優先度・高', '優先度・低'])
+
+    await act(async () => {
+      await dragMock.onDragEnd?.({
+        active: { id: 'task-high' },
+        over: { id: 'task-low' },
+      })
+    })
+
+    expect(displayedTaskTitles()).toEqual(['優先度・高', '優先度・低'])
+    expect(taskRepoMock.update).not.toHaveBeenCalled()
+  })
+
   it('フィルター適用後の完了タスク件数をグループに表示する', async () => {
     taskRepoMock.getByTopicId.mockResolvedValue({
       ok: true,

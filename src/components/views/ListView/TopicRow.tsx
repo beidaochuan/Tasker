@@ -19,7 +19,7 @@ import { useFilterStore, selectIsFiltering } from '@/store/filterStore'
 import { useUIStore } from '@/store/uiStore'
 import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo, topicRepo } from '@/repositories'
-import { reorderItems } from '@/utils/sortUtils'
+import { reorderItems, sortByPriority } from '@/utils/sortUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 import type { Task, Topic } from '@/types'
 
@@ -30,8 +30,9 @@ interface TopicRowProps {
 }
 
 function moveCompletedTasksToEnd(tasks: Task[]): Task[] {
-  const activeTasks = tasks.filter((task) => task.status !== 'done')
-  const completedTasks = tasks.filter((task) => task.status === 'done')
+  const tasksByPriority = sortByPriority(tasks)
+  const activeTasks = tasksByPriority.filter((task) => task.status !== 'done')
+  const completedTasks = tasksByPriority.filter((task) => task.status === 'done')
   return [...activeTasks, ...completedTasks]
 }
 
@@ -158,7 +159,8 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
     if (
       !activeTask ||
       !overTask ||
-      (activeTask.status === 'done') !== (overTask.status === 'done')
+      (activeTask.status === 'done') !== (overTask.status === 'done') ||
+      activeTask.priority !== overTask.priority
     ) {
       return
     }

@@ -1,4 +1,4 @@
-import type { Priority } from '@/types'
+import type { Priority, TaskStatus } from '@/types'
 
 const PRIORITY_RANK: Record<Priority, number> = {
   urgent: 0,
@@ -22,6 +22,18 @@ export function sortByDueDate<T extends { dueDate: Date | null }>(items: T[]): T
 
 export function sortByPriority<T extends { priority: Priority }>(items: T[]): T[] {
   return [...items].sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])
+}
+
+export function sortKanbanColumnTasks<
+  T extends { priority: Priority; statusChangedAt?: Date; updatedAt: Date },
+>(status: TaskStatus, items: T[]): T[] {
+  if (status === 'todo' || status === 'in_progress') return sortByPriority(items)
+
+  return [...items].sort((a, b) => {
+    const aChangedAt = (a.statusChangedAt ?? a.updatedAt).getTime()
+    const bChangedAt = (b.statusChangedAt ?? b.updatedAt).getTime()
+    return bChangedAt - aChangedAt
+  })
 }
 
 export function sortGanttTasks<

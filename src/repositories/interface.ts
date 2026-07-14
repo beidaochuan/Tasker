@@ -6,8 +6,8 @@ export type UpdateProject = Partial<Omit<Project, 'id' | 'createdAt' | 'updatedA
 export type CreateTopic = Omit<Topic, 'id' | 'createdAt'>
 export type UpdateTopic = Partial<Omit<Topic, 'id' | 'createdAt'>>
 
-export type CreateTask = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>
-export type UpdateTask = Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>
+export type CreateTask = Omit<Task, 'id' | 'statusChangedAt' | 'createdAt' | 'updatedAt'>
+export type UpdateTask = Partial<Omit<Task, 'id' | 'statusChangedAt' | 'createdAt' | 'updatedAt'>>
 export interface GanttOrderUpdate {
   id: string
   ganttOrder: number

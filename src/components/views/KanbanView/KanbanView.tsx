@@ -24,6 +24,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { taskRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
+import { sortKanbanColumnTasks } from '@/utils/sortUtils'
 import type { Task, TaskStatus } from '@/types'
 
 type TasksByStatus = Record<TaskStatus, Task[]>
@@ -110,7 +111,10 @@ export function KanbanView() {
         const next = {
           ...base,
           [currentCol]: base[currentCol].filter((t) => t.id !== activeId),
-          [targetCol]: [...base[targetCol], { ...activeTask, status: targetCol }],
+          [targetCol]: sortKanbanColumnTasks(targetCol, [
+            ...base[targetCol],
+            { ...activeTask, status: targetCol, statusChangedAt: new Date() },
+          ]),
         }
         localTasksByStatusRef.current = next
         return next

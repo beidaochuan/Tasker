@@ -16,6 +16,7 @@ const PATCH_ALLOWED = new Set([
   'ganttOrder',
   'tags',
   'repeatRule',
+  'statusChangedAt',
   'updatedAt',
 ])
 
@@ -61,8 +62,8 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
     const targetTopicId = nextTask?.topicId ?? existing.topicId
     const targetGanttOrder = targetTopicId === existing.topicId ? existing.ganttOrder : null
     db.prepare(
-      'UPDATE tasks SET topicId = ?, status = ?, ganttOrder = ?, updatedAt = ? WHERE id = ?'
-    ).run(targetTopicId, 'done', targetGanttOrder, completedAt, existing.id)
+      'UPDATE tasks SET topicId = ?, status = ?, ganttOrder = ?, statusChangedAt = ?, updatedAt = ? WHERE id = ?'
+    ).run(targetTopicId, 'done', targetGanttOrder, completedAt, completedAt, existing.id)
     db.prepare(
       'INSERT INTO task_completions (id, taskId, completedAt) VALUES (@id, @taskId, @completedAt)'
     ).run(completion)
@@ -82,11 +83,12 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
         ganttOrder: null,
         tags: JSON.stringify(nextTask.tags),
         repeatRule: nextTask.repeatRule,
+        statusChangedAt: completedAt,
         createdAt: completedAt,
         updatedAt: completedAt,
       }
       db.prepare(
-        'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @createdAt, @updatedAt)'
+        'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, statusChangedAt, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @statusChangedAt, @createdAt, @updatedAt)'
       ).run(createdNextTask)
     }
 
@@ -135,11 +137,12 @@ tasksRouter.post('/', (req, res) => {
     ganttOrder,
     tags: JSON.stringify(tags),
     repeatRule,
+    statusChangedAt: now,
     createdAt: now,
     updatedAt: now,
   }
   db.prepare(
-    'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @createdAt, @updatedAt)'
+    'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, statusChangedAt, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @statusChangedAt, @createdAt, @updatedAt)'
   ).run(row)
   res.status(201).json(parseTask(row))
 })
@@ -197,7 +200,8 @@ tasksRouter.patch('/:id', (req, res) => {
     | undefined
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
-  const patch: Record<string, unknown> = { updatedAt: Date.now() }
+  const now = Date.now()
+  const patch: Record<string, unknown> = { updatedAt: now }
   const {
     topicId,
     title,
@@ -215,7 +219,10 @@ tasksRouter.patch('/:id', (req, res) => {
   if (topicId !== undefined) patch.topicId = topicId
   if (title !== undefined) patch.title = title
   if (description !== undefined) patch.description = description
-  if (status !== undefined) patch.status = status
+  if (status !== undefined) {
+    patch.status = status
+    if (status !== existing.status) patch.statusChangedAt = now
+  }
   if (priority !== undefined) patch.priority = priority
   if (dueDate !== undefined) patch.dueDate = dueDate
   if (startDate !== undefined) patch.startDate = startDate
@@ -257,6 +264,7 @@ interface RawTask {
   ganttOrder: number | null
   tags: string
   repeatRule: string | null
+  statusChangedAt: number | null
   createdAt: number
   updatedAt: number
 }
@@ -264,6 +272,7 @@ interface RawTask {
 function parseTask(row: RawTask) {
   return {
     ...row,
+    statusChangedAt: row.statusChangedAt ?? row.updatedAt,
     tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags,
   }
 }

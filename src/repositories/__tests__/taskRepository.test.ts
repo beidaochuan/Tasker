@@ -51,6 +51,7 @@ describe('ApiTaskRepository', () => {
       if (!result.ok) return
       expect(result.data.id).toBe('task-1')
       expect(result.data.title).toBe('タスク1')
+      expect(result.data.statusChangedAt).toEqual(new Date(RAW_TASK.updatedAt))
       expect(result.data.createdAt).toBeInstanceOf(Date)
     })
 

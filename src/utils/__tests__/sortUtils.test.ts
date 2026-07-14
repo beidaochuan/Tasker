@@ -3,6 +3,7 @@ import {
   sortByOrder,
   sortByDueDate,
   sortByPriority,
+  sortKanbanColumnTasks,
   sortGanttTasks,
   reorderItems,
 } from '../sortUtils'
@@ -53,6 +54,54 @@ describe('sortByPriority', () => {
       { id: 'h', priority: 'high' as const },
     ]
     expect(sortByPriority(items).map((i) => i.id)).toEqual(['u', 'h', 'm', 'l'])
+  })
+})
+
+describe('sortKanbanColumnTasks', () => {
+  const base = {
+    updatedAt: new Date('2026-01-01T00:00:00Z'),
+  }
+
+  it.each(['todo', 'in_progress'] as const)('%s は優先度の高い順に並べる', (status) => {
+    const items = [
+      { ...base, id: 'low', priority: 'low' as const },
+      { ...base, id: 'urgent', priority: 'urgent' as const },
+      { ...base, id: 'high', priority: 'high' as const },
+    ]
+
+    expect(sortKanbanColumnTasks(status, items).map((item) => item.id)).toEqual([
+      'urgent',
+      'high',
+      'low',
+    ])
+  })
+
+  it.each(['done', 'cancelled'] as const)('%s は状態変更日時の新しい順に並べる', (status) => {
+    const items = [
+      {
+        ...base,
+        id: 'older',
+        priority: 'urgent' as const,
+        statusChangedAt: new Date('2026-01-02T00:00:00Z'),
+      },
+      {
+        ...base,
+        id: 'newer',
+        priority: 'low' as const,
+        statusChangedAt: new Date('2026-01-03T00:00:00Z'),
+      },
+    ]
+
+    expect(sortKanbanColumnTasks(status, items).map((item) => item.id)).toEqual(['newer', 'older'])
+  })
+
+  it('旧データは updatedAt を状態変更日時として扱う', () => {
+    const items = [
+      { id: 'older', priority: 'high' as const, updatedAt: new Date('2026-01-02T00:00:00Z') },
+      { id: 'newer', priority: 'low' as const, updatedAt: new Date('2026-01-03T00:00:00Z') },
+    ]
+
+    expect(sortKanbanColumnTasks('done', items).map((item) => item.id)).toEqual(['newer', 'older'])
   })
 })
 
