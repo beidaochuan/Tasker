@@ -263,6 +263,18 @@ describe('GanttView task reordering', () => {
     expect(screen.queryByRole('button', { name: '開発 にタスクを追加' })).toBeNull()
   })
 
+  it('タスクのタイトルをクリックすると編集画面を開く', () => {
+    render(<GanttView />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'タスクAを編集' }))
+
+    expect(useUIStore.getState()).toMatchObject({
+      isTaskDrawerOpen: true,
+      selectedTaskId: 'task-a',
+      newTaskTopicId: null,
+    })
+  })
+
   it('ドラッグ中に表示順を更新し、ドロップ時にプレビュー順を保存する', async () => {
     const update = deferred<{ ok: true; data: undefined }>()
     taskRepoMock.updateGanttOrder.mockReturnValue(update.promise)

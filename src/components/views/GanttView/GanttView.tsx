@@ -64,6 +64,7 @@ interface SortableTaskLabelProps {
   height: number
   disabled: boolean
   animatePosition: boolean
+  onTaskClick: (taskId: string) => void
 }
 
 function SortableTaskLabel({
@@ -72,6 +73,7 @@ function SortableTaskLabel({
   height,
   disabled,
   animatePosition,
+  onTaskClick,
 }: SortableTaskLabelProps) {
   const task = row.tasks[0]
   const overdueDays = task.status === 'done' ? 0 : getOverdueDays(task.dueDate)
@@ -105,7 +107,14 @@ function SortableTaskLabel({
       >
         {PRIORITY_LABELS[task.priority]}
       </span>
-      <span className="min-w-0 flex-1 truncate">{row.label}</span>
+      <button
+        type="button"
+        onClick={() => onTaskClick(resolveTaskId(task.id))}
+        className="min-w-0 flex-1 truncate rounded-sm text-left hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`${row.label}を編集`}
+      >
+        {row.label}
+      </button>
       {overdueDays > 0 && (
         <span
           className="ml-1.5 inline-flex h-5 shrink-0 items-center gap-1 rounded bg-danger/10 px-1.5 text-[10px] font-semibold leading-none text-danger ring-1 ring-inset ring-danger/25"
@@ -544,6 +553,7 @@ export function GanttView() {
                         height={vi.size}
                         disabled={!isAuthenticated || isReordering}
                         animatePosition={dragTaskOrder !== null}
+                        onTaskClick={openTaskDrawer}
                       />
                     )
                   }
