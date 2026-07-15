@@ -20,7 +20,6 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
   todo: '#6366f1',
   in_progress: '#f59e0b',
   done: '#22c55e',
-  cancelled: '#9ca3af',
 }
 
 export function useCalendarTasks(
@@ -52,7 +51,6 @@ export function useCalendarTasks(
   return useMemo(() => {
     const events: CalendarEvent[] = []
     for (const task of tasks) {
-      if (task.status === 'cancelled') continue
       if (!task.dueDate) continue
       const color = STATUS_COLORS[task.status]
 

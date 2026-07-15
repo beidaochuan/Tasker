@@ -43,7 +43,7 @@ const taskSchema = z
     projectId: z.string().min(1, 'プロジェクトを選択してください'),
     topicId: z.string().min(1, 'トピックを選択してください'),
     description: z.string(),
-    status: z.enum(['todo', 'in_progress', 'done', 'cancelled'] as const),
+    status: z.enum(['todo', 'in_progress', 'done'] as const),
     priority: z.enum(['low', 'medium', 'high', 'urgent'] as const),
     startDate: dateTextSchema,
     dueDate: dateTextSchema,
@@ -430,7 +430,6 @@ export function TaskDrawer() {
                   <option value="todo">未着手</option>
                   <option value="in_progress">進行中</option>
                   <option value="done">完了</option>
-                  <option value="cancelled">キャンセル</option>
                 </select>
               </div>
 

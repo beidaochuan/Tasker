@@ -123,7 +123,6 @@ export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
       todo: [],
       in_progress: [],
       done: [],
-      cancelled: [],
     }
     for (const task of allTasks) {
       tasksByStatus[task.status].push(task)

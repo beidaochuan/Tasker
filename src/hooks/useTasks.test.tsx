@@ -49,7 +49,7 @@ describe('useKanbanData', () => {
     useRefreshStore.setState({ counter: 0 })
   })
 
-  it('未着手・進行中は優先度順、完了・キャンセルは状態変更日時の新しい順にする', async () => {
+  it('未着手・進行中は優先度順、完了は状態変更日時の新しい順にする', async () => {
     topicRepoMock.getByProjectId.mockResolvedValue({ ok: true, data: [] })
     taskRepoMock.getByProjectId.mockResolvedValue({
       ok: true,
@@ -60,8 +60,6 @@ describe('useKanbanData', () => {
         makeTask('progress-high', 'in_progress', 'high', '2026-01-01T00:00:00Z'),
         makeTask('done-old', 'done', 'urgent', '2026-01-02T00:00:00Z'),
         makeTask('done-new', 'done', 'low', '2026-01-03T00:00:00Z'),
-        makeTask('cancelled-old', 'cancelled', 'urgent', '2026-01-02T00:00:00Z'),
-        makeTask('cancelled-new', 'cancelled', 'low', '2026-01-03T00:00:00Z'),
       ],
     })
 
@@ -83,10 +81,6 @@ describe('useKanbanData', () => {
     expect(result.current.tasksByStatus.done.map((task) => task.id)).toEqual([
       'done-new',
       'done-old',
-    ])
-    expect(result.current.tasksByStatus.cancelled.map((task) => task.id)).toEqual([
-      'cancelled-new',
-      'cancelled-old',
     ])
   })
 })

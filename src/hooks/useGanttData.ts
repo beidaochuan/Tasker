@@ -57,7 +57,6 @@ export function useGanttData(projectId: string | null): GanttRow[] {
       const tasks: Task[] = []
 
       for (const task of baseTasks) {
-        if (task.status === 'cancelled') continue
         if (hasRepeatRule(task.repeatRule) && task.dueDate) {
           const farFuture = addDays(today, GANTT_LOOKAHEAD_DAYS)
           const upcoming = expandOccurrences(task.repeatRule, task.dueDate, today, farFuture)

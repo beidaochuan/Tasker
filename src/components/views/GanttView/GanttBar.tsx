@@ -84,7 +84,7 @@ export const GanttBar = memo(function GanttBar({
     [isVirtual, onBarPointerDown, task, handleWidth, width]
   )
 
-  if (!hasDate || task.status === 'cancelled') return null
+  if (!hasDate) return null
 
   const barHeight = ROW_HEIGHT - 12
   const colorClass = GANTT_STATUS_BAR_CLASSES[task.status]

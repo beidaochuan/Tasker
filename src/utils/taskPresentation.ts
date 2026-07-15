@@ -4,7 +4,6 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   todo: '未着手',
   in_progress: '進行中',
   done: '完了',
-  cancelled: 'キャンセル',
 }
 
 export const PRIORITY_LABELS: Record<Priority, string> = {
@@ -35,7 +34,7 @@ export const PRIORITY_BADGE_CLASSES: Record<Priority, string> = {
   urgent: 'bg-rose-500/15 text-[hsl(var(--priority-urgent))]',
 }
 
-export const GANTT_STATUS_BAR_CLASSES: Record<Exclude<TaskStatus, 'cancelled'>, string> = {
+export const GANTT_STATUS_BAR_CLASSES: Record<TaskStatus, string> = {
   todo: 'bg-slate-400',
   in_progress: 'bg-blue-500',
   done: 'bg-emerald-500',

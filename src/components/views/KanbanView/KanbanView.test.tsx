@@ -138,7 +138,6 @@ describe('KanbanView drag focus', () => {
       todo: [TASK],
       in_progress: [],
       done: [],
-      cancelled: [],
     }
     useAuthStore.setState({ isAuthenticated: true, isLoginDialogOpen: false })
     useUIStore.setState({ selectedProjectId: 'project-1' })

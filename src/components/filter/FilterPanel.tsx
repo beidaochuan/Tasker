@@ -8,7 +8,7 @@ import { useTags } from '@/hooks/useTags'
 import { PRIORITY_LABELS, STATUS_LABELS } from '@/utils/taskPresentation'
 import type { TaskStatus, Priority } from '@/types'
 
-const ALL_STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done', 'cancelled']
+const ALL_STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done']
 const ALL_PRIORITIES: Priority[] = ['urgent', 'high', 'medium', 'low']
 
 export function FilterPanel() {
