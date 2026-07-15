@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   toUnixMs,
   fromUnixMs,
   isOverdue,
+  getOverdueDays,
   isDueToday,
   isDueSoon,
   formatDate,
@@ -32,6 +33,22 @@ describe('isOverdue', () => {
 
   it('dueDate が null なら false', () => {
     expect(isOverdue(null)).toBe(false)
+  })
+})
+
+describe('getOverdueDays', () => {
+  it('期限を過ぎた日数を日単位で返す', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-07-15T12:00:00'))
+
+      expect(getOverdueDays(new Date('2026-07-12T23:59:59'))).toBe(3)
+      expect(getOverdueDays(new Date('2026-07-15T00:00:00'))).toBe(0)
+      expect(getOverdueDays(new Date('2026-07-16T00:00:00'))).toBe(0)
+      expect(getOverdueDays(null)).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

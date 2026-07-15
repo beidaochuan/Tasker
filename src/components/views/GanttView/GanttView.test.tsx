@@ -184,6 +184,7 @@ describe('GanttView task reordering', () => {
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
   })
 
   it('優先度ラベルをタスク行の上下中央に配置する', () => {
@@ -198,6 +199,48 @@ describe('GanttView task reordering', () => {
           )
         )
     ).toBe(true)
+  })
+
+  it('期限超過の未完了タスクに超過日数バッジを表示する', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-15T12:00:00'))
+    ganttDataMock.rows = [
+      {
+        topic: TOPIC,
+        tasks: [
+          {
+            ...makeTask('task-overdue', '期限超過タスク', 0),
+            dueDate: new Date('2026-07-12'),
+          },
+        ],
+      },
+    ]
+
+    render(<GanttView />)
+
+    expect(screen.getByText('3日超過')).toHaveClass('bg-danger/10', 'text-danger')
+    expect(screen.getByTitle('期限を3日超過')).toBeInTheDocument()
+  })
+
+  it('完了タスクには期限超過バッジを表示しない', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-15T12:00:00'))
+    ganttDataMock.rows = [
+      {
+        topic: TOPIC,
+        tasks: [
+          {
+            ...makeTask('task-done', '完了タスク', 0, 'done'),
+            dueDate: new Date('2026-07-12'),
+          },
+        ],
+      },
+    ]
+
+    render(<GanttView />)
+    fireEvent.click(screen.getByRole('button', { name: '完了タスク（1）' }))
+
+    expect(screen.queryByText('3日超過')).toBeNull()
   })
 
   it('トピック行からそのトピックの新規タスク作成を開始する', () => {

@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react'
-import { ChevronDown, ChevronRight, FolderOpen, GripVertical, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Clock, FolderOpen, GripVertical, Plus } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   DndContext,
@@ -28,6 +28,7 @@ import { PIXELS_PER_DAY, ROW_HEIGHT, HEADER_HEIGHT, LEFT_PANE_WIDTH } from './ga
 import type { Task } from '@/types'
 import { PRIORITY_LABELS, PRIORITY_TEXT_CLASSES, STATUS_LABELS } from '@/utils/taskPresentation'
 import { unwrapResult } from '@/utils/resultUtils'
+import { getOverdueDays } from '@/utils/dateUtils'
 
 const SCALE_LABELS: Record<GanttScale, string> = {
   day: '日',
@@ -67,6 +68,7 @@ function SortableTaskLabel({
   animatePosition,
 }: SortableTaskLabelProps) {
   const task = row.tasks[0]
+  const overdueDays = task.status === 'done' ? 0 : getOverdueDays(task.dueDate)
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: task.id,
     disabled,
@@ -97,7 +99,16 @@ function SortableTaskLabel({
       >
         {PRIORITY_LABELS[task.priority]}
       </span>
-      <span className="truncate">{row.label}</span>
+      <span className="min-w-0 flex-1 truncate">{row.label}</span>
+      {overdueDays > 0 && (
+        <span
+          className="ml-1.5 inline-flex h-5 shrink-0 items-center gap-1 rounded bg-danger/10 px-1.5 text-[10px] font-semibold leading-none text-danger ring-1 ring-inset ring-danger/25"
+          title={`期限を${overdueDays}日超過`}
+        >
+          <Clock className="h-3 w-3" aria-hidden="true" />
+          {overdueDays}日超過
+        </span>
+      )}
     </div>
   )
 }

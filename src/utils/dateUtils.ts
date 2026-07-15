@@ -1,4 +1,12 @@
-import { format, isToday, isAfter, isBefore, addDays } from 'date-fns'
+import {
+  format,
+  isToday,
+  isAfter,
+  isBefore,
+  addDays,
+  differenceInCalendarDays,
+  startOfDay,
+} from 'date-fns'
 
 export function toUnixMs(date: Date): number {
   return date.getTime()
@@ -13,6 +21,11 @@ export function isOverdue(dueDate: Date | null): boolean {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   return isBefore(dueDate, now)
+}
+
+export function getOverdueDays(dueDate: Date | null): number {
+  if (dueDate === null) return 0
+  return Math.max(0, differenceInCalendarDays(startOfDay(new Date()), startOfDay(dueDate)))
 }
 
 export function isDueToday(dueDate: Date | null): boolean {
