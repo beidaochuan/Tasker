@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Check, Circle, ChevronRight, Clock, Trash2, AlertTriangle } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { cn } from '@/utils/cn'
-import { formatDate, isOverdue, isDueToday } from '@/utils/dateUtils'
+import { formatDate, isOverdue } from '@/utils/dateUtils'
 import { useUIStore } from '@/store/uiStore'
 import { useRecurrence } from '@/hooks/useRecurrence'
 import { useRefreshStore } from '@/hooks/useDataRefresh'
@@ -56,7 +56,6 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
   }
 
   const overdue = !isDone && isOverdue(task.dueDate)
-  const today = !isDone && isDueToday(task.dueDate)
 
   return (
     <>
@@ -103,11 +102,7 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
           <span
             className={cn(
               'flex w-24 shrink-0 items-center justify-end gap-1 text-xs',
-              overdue
-                ? 'text-danger'
-                : today
-                  ? 'text-[hsl(var(--priority-high))]'
-                  : 'text-muted-foreground'
+              overdue ? 'text-danger' : 'text-muted-foreground'
             )}
           >
             <Clock className="h-3 w-3" />

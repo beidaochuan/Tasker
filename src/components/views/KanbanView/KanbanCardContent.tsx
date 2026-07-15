@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { Clock } from 'lucide-react'
 import { cn } from '@/utils/cn'
-import { formatDate, isOverdue, isDueToday } from '@/utils/dateUtils'
+import { formatDate, isOverdue } from '@/utils/dateUtils'
 import { PRIORITY_BADGE_CLASSES, PRIORITY_LABELS } from '@/utils/taskPresentation'
 import type { Task } from '@/types'
 
@@ -15,7 +15,6 @@ export const KanbanCardContent = memo(function KanbanCardContent({
   className,
 }: KanbanCardContentProps) {
   const overdue = task.status !== 'done' && isOverdue(task.dueDate)
-  const today = task.status !== 'done' && isDueToday(task.dueDate)
 
   return (
     <div
@@ -44,11 +43,7 @@ export const KanbanCardContent = memo(function KanbanCardContent({
           <span
             className={cn(
               'flex items-center gap-1 text-xs',
-              overdue
-                ? 'text-danger'
-                : today
-                  ? 'text-[hsl(var(--priority-high))]'
-                  : 'text-muted-foreground'
+              overdue ? 'text-danger' : 'text-muted-foreground'
             )}
           >
             <Clock className="h-3 w-3 shrink-0" />

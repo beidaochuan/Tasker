@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Task } from '@/types'
 import { PRIORITY_LABELS } from '@/utils/taskPresentation'
 import { KanbanCardContent } from './KanbanCardContent'
@@ -23,6 +23,7 @@ const task: Task = {
 describe('KanbanCardContent', () => {
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
   })
 
   it('タイトルを15px・semibold・2行省略で表示する', () => {
@@ -51,5 +52,15 @@ describe('KanbanCardContent', () => {
     render(<KanbanCardContent task={{ ...task, dueDate: new Date(2000, 0, 1) }} />)
 
     expect(screen.getByText('2000/01/01')).toHaveClass('text-danger')
+  })
+
+  it('本日が期限の日付は警告色にしない', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 6, 15, 12))
+
+    render(<KanbanCardContent task={{ ...task, dueDate: new Date(2026, 6, 15) }} />)
+
+    expect(screen.getByText('2026/07/15')).toHaveClass('text-muted-foreground')
+    expect(screen.getByText('2026/07/15')).not.toHaveClass('text-danger')
   })
 })
