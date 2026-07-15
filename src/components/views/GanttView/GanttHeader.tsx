@@ -1,8 +1,11 @@
 import { memo, useMemo } from 'react'
 import { addDays, startOfDay, format, startOfMonth, getDaysInMonth } from 'date-fns'
 import { ja } from 'date-fns/locale'
+import { cn } from '@/utils/cn'
+import { getJapaneseHolidayName } from '@/utils/japaneseHolidays'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, HEADER_HEIGHT } from './ganttConstants'
+import { GanttDayBackground } from './GanttDayBackground'
 
 interface Props {
   startDate: Date
@@ -13,6 +16,8 @@ interface Props {
 interface HeaderCell {
   label: string
   weekday?: string
+  dayKind?: 'saturday' | 'holiday'
+  title?: string
   left: number
   width: number
 }
@@ -20,9 +25,18 @@ interface HeaderCell {
 function buildDayCells(startDate: Date, totalDays: number, ppd: number): HeaderCell[] {
   return Array.from({ length: totalDays }, (_, i) => {
     const d = addDays(startDate, i)
+    const holidayName = getJapaneseHolidayName(d)
+    const dayKind =
+      holidayName || d.getDay() === 0 ? 'holiday' : d.getDay() === 6 ? 'saturday' : undefined
+    const dayDescription =
+      holidayName ?? (d.getDay() === 0 ? '日曜日' : d.getDay() === 6 ? '土曜日' : null)
     return {
       label: format(d, 'd', { locale: ja }),
       weekday: format(d, 'EEE', { locale: ja }),
+      dayKind,
+      title: dayDescription
+        ? `${format(d, 'yyyy年M月d日', { locale: ja })} ${dayDescription}`
+        : undefined,
       left: i * ppd,
       width: ppd,
     }
@@ -113,6 +127,7 @@ export const GanttHeader = memo(function GanttHeader({ startDate, totalDays, sca
       className="relative select-none border-b border-border bg-muted/50"
       style={{ width: totalWidth, height: HEADER_HEIGHT }}
     >
+      <GanttDayBackground startDate={startDate} totalDays={totalDays} scale={scale} />
       {/* 上段 */}
       {upperCells.map((cell, i) => (
         <div
@@ -127,13 +142,21 @@ export const GanttHeader = memo(function GanttHeader({ startDate, totalDays, sca
       {lowerCells.map((cell, i) => (
         <div
           key={i}
-          className="absolute flex items-center border-r border-border px-1 text-xs text-foreground overflow-hidden"
+          title={cell.title}
+          data-day-kind={cell.dayKind}
+          className={cn(
+            'absolute flex items-center overflow-hidden border-r border-border px-1 text-xs text-foreground',
+            cell.dayKind === 'saturday' && 'text-blue-600 dark:text-blue-400',
+            cell.dayKind === 'holiday' && 'text-red-600 dark:text-red-400'
+          )}
           style={{ left: cell.left, top: halfH, width: cell.width, height: halfH }}
         >
           {cell.weekday ? (
             <span className="flex min-w-0 flex-col items-center leading-none">
               <span>{cell.label}</span>
-              <span className="mt-0.5 text-[10px] text-muted-foreground">{cell.weekday}</span>
+              <span className={cn('mt-0.5 text-[10px]', !cell.dayKind && 'text-muted-foreground')}>
+                {cell.weekday}
+              </span>
             </span>
           ) : (
             <span className="truncate">{cell.label}</span>

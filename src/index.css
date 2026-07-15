@@ -65,6 +65,9 @@
     --priority-medium: 38 92% 40%;
     --priority-high: 25 95% 44%;
     --priority-urgent: 0 72% 51%;
+
+    --gantt-saturday-column: 214 100% 96%;
+    --gantt-holiday-column: 0 100% 96%;
   }
 
   .dark {
@@ -103,6 +106,9 @@
     --priority-medium: 48 96% 68%;
     --priority-high: 25 95% 65%;
     --priority-urgent: 350 89% 72%;
+
+    --gantt-saturday-column: 218 35% 19%;
+    --gantt-holiday-column: 0 32% 19%;
   }
 
   * {

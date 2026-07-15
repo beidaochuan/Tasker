@@ -20,6 +20,7 @@ import { taskRepo } from '@/repositories'
 import { resolveTaskId } from '@/utils/recurrenceUtils'
 import { useGanttData } from '@/hooks/useGanttData'
 import { GanttHeader } from './GanttHeader'
+import { GanttDayBackground } from './GanttDayBackground'
 import { GanttRow } from './GanttRow'
 import { GanttTodayLine } from './GanttTodayLine'
 import { useGanttDrag, calcGanttRange } from './useGanttDrag'
@@ -603,6 +604,7 @@ export function GanttView() {
               className="relative"
               style={{ width: totalWidth, height: rowVirtualizer.getTotalSize() }}
             >
+              <GanttDayBackground startDate={startDate} totalDays={totalDays} scale={scale} />
               <GanttTodayLine ganttStart={startDate} totalDays={totalDays} scale={scale} />
 
               {rowVirtualizer.getVirtualItems().map((vi) => {
