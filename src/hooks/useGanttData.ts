@@ -14,6 +14,7 @@ export interface GanttRow {
 }
 
 interface RawGanttData {
+  projectId: string
   topics: Topic[]
   tasksByTopic: Record<string, Task[]>
 }
@@ -34,13 +35,17 @@ export function useGanttData(projectId: string | null): GanttRow[] {
     }
     Promise.all([topicRepo.getByProjectId(projectId), taskRepo.getByProjectId(projectId)]).then(
       ([tr, taskR]) => {
-        if (cancelled || !tr.ok || !taskR.ok) return
+        if (cancelled) return
+        if (!tr.ok || !taskR.ok) {
+          setRaw({ projectId, topics: [], tasksByTopic: {} })
+          return
+        }
         const topics: Topic[] = sortByOrder(tr.data)
         const tasksByTopic: Record<string, Task[]> = {}
         for (const task of taskR.data) {
           ;(tasksByTopic[task.topicId] ??= []).push(task)
         }
-        setRaw({ topics, tasksByTopic })
+        setRaw({ projectId, topics, tasksByTopic })
       }
     )
     return () => {
@@ -49,7 +54,7 @@ export function useGanttData(projectId: string | null): GanttRow[] {
   }, [projectId, counter])
 
   return useMemo(() => {
-    if (!raw) return []
+    if (!raw || raw.projectId !== projectId) return []
     const today = startOfDay(new Date())
 
     return raw.topics.map((topic) => {
@@ -75,5 +80,5 @@ export function useGanttData(projectId: string | null): GanttRow[] {
 
       return { topic, tasks: sortGanttTasks(tasks) }
     })
-  }, [raw])
+  }, [projectId, raw])
 }

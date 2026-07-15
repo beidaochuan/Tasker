@@ -8,6 +8,17 @@ export default mergeConfig(
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
       globals: true,
+      coverage: {
+        provider: 'v8',
+        include: ['src/**/*.{ts,tsx}', 'server/**/*.ts'],
+        exclude: [
+          '**/*.test.{ts,tsx}',
+          'src/test/**',
+          'src/vite-env.d.ts',
+          'src/types/**',
+          'src/repositories/interface.ts',
+        ],
+      },
     },
   })
 )

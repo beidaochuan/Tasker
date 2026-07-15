@@ -1,6 +1,13 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
+import {
+  completeRecurringSchema,
+  ganttOrderSchema,
+  parseOrRespond,
+  taskCreateSchema,
+  taskUpdateSchema,
+} from '../validation.js'
 
 export const tasksRouter = Router()
 
@@ -54,7 +61,9 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
     | undefined
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
-  const nextTask = normalizeNextTask(req.body?.nextTask, existing)
+  const input = parseOrRespond(completeRecurringSchema, req.body, res)
+  if (!input) return
+  const nextTask = normalizeNextTask(input.nextTask, existing)
   const completedAt = Date.now()
   const completion = { id: nanoid(10), taskId: existing.id, completedAt }
 
@@ -104,25 +113,21 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
 })
 
 tasksRouter.post('/', (req, res) => {
+  const input = parseOrRespond(taskCreateSchema, req.body, res)
+  if (!input) return
   const {
     topicId,
     title,
-    description = '',
-    status = 'todo',
-    priority = 'medium',
-    dueDate = null,
-    startDate = null,
-    order = 0,
-    ganttOrder = null,
-    tags = [],
-    repeatRule = null,
-  } = req.body
-  if (!topicId || typeof topicId !== 'string') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'topicId' })
-  }
-  if (!title || typeof title !== 'string' || title.trim() === '') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'title' })
-  }
+    description,
+    status,
+    priority,
+    dueDate,
+    startDate,
+    order,
+    ganttOrder,
+    tags,
+    repeatRule,
+  } = input
   const now = Date.now()
   const row = {
     id: nanoid(10),
@@ -148,31 +153,9 @@ tasksRouter.post('/', (req, res) => {
 })
 
 tasksRouter.patch('/gantt-order', (req, res) => {
-  const items = req.body?.items as unknown
-  if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'items' })
-  }
-
-  const updates: Array<{ id: string; ganttOrder: number }> = []
-  const ids = new Set<string>()
-  for (const item of items) {
-    if (!item || typeof item !== 'object') {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'items' })
-    }
-    const { id, ganttOrder } = item as Record<string, unknown>
-    if (
-      typeof id !== 'string' ||
-      id === '' ||
-      typeof ganttOrder !== 'number' ||
-      !Number.isInteger(ganttOrder) ||
-      ganttOrder < 0 ||
-      ids.has(id)
-    ) {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'items' })
-    }
-    ids.add(id)
-    updates.push({ id, ganttOrder })
-  }
+  const input = parseOrRespond(ganttOrderSchema, req.body, res)
+  if (!input) return
+  const updates = input.items
 
   const placeholders = updates.map(() => '?').join(', ')
   const tasks = db
@@ -200,6 +183,9 @@ tasksRouter.patch('/:id', (req, res) => {
     | undefined
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
+  const input = parseOrRespond(taskUpdateSchema, req.body, res)
+  if (!input) return
+
   const now = Date.now()
   const patch: Record<string, unknown> = { updatedAt: now }
   const {
@@ -214,7 +200,7 @@ tasksRouter.patch('/:id', (req, res) => {
     ganttOrder,
     tags,
     repeatRule,
-  } = req.body
+  } = input
   const topicChanged = topicId !== undefined && topicId !== existing.topicId
   if (topicId !== undefined) patch.topicId = topicId
   if (title !== undefined) patch.title = title

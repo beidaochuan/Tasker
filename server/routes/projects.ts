@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
+import { parseOrRespond, projectCreateSchema, projectUpdateSchema } from '../validation.js'
 
 export const projectsRouter = Router()
 
@@ -18,10 +19,9 @@ projectsRouter.get('/:id', (req, res) => {
 })
 
 projectsRouter.post('/', (req, res) => {
-  const { name, description = '', color = '#6366f1', status = 'active', isArchived = false } = req.body
-  if (!name || typeof name !== 'string' || name.trim() === '') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'name' })
-  }
+  const input = parseOrRespond(projectCreateSchema, req.body, res)
+  if (!input) return
+  const { name, description, color, status, isArchived } = input
   const now = Date.now()
   const row = {
     id: nanoid(10),
@@ -43,7 +43,9 @@ projectsRouter.patch('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id)
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
-  const { name, description, color, status, isArchived } = req.body
+  const input = parseOrRespond(projectUpdateSchema, req.body, res)
+  if (!input) return
+  const { name, description, color, status, isArchived } = input
   const patch: Record<string, unknown> = { updatedAt: Date.now() }
   if (name !== undefined) patch.name = name
   if (description !== undefined) patch.description = description
@@ -63,10 +65,16 @@ projectsRouter.patch('/:id', (req, res) => {
 projectsRouter.delete('/:id', (req, res) => {
   const id = req.params.id
   db.transaction(() => {
-    const topicIds = (db.prepare('SELECT id FROM topics WHERE projectId = ?').all(id) as { id: string }[]).map((r) => r.id)
+    const topicIds = (
+      db.prepare('SELECT id FROM topics WHERE projectId = ?').all(id) as { id: string }[]
+    ).map((r) => r.id)
     if (topicIds.length > 0) {
       const placeholders = topicIds.map(() => '?').join(',')
-      const taskIds = (db.prepare(`SELECT id FROM tasks WHERE topicId IN (${placeholders})`).all(...topicIds) as { id: string }[]).map((r) => r.id)
+      const taskIds = (
+        db.prepare(`SELECT id FROM tasks WHERE topicId IN (${placeholders})`).all(...topicIds) as {
+          id: string
+        }[]
+      ).map((r) => r.id)
       if (taskIds.length > 0) {
         const tp = taskIds.map(() => '?').join(',')
         db.prepare(`DELETE FROM subtasks WHERE taskId IN (${tp})`).run(...taskIds)

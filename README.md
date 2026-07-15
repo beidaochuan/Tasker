@@ -9,12 +9,12 @@
 
 ### ビュー
 
-| ビュー | 概要 |
-| --- | --- |
-| リスト | トピックごとにタスクを一覧表示。トピックの開閉・作成・名称変更・削除、タスクのドラッグ並び替えに対応 |
-| カンバン | 未着手 / 進行中 / 完了の列でタスクを管理。ドラッグでステータス変更、進行中列は WIP 5 件制限 |
-| カレンダー | FullCalendar ベースの月・週・日表示。期日付きタスクと繰り返しタスクを表示し、ドラッグで期日変更可能 |
-| ガント | 開始日〜期日をタイムライン表示。日・週・月スケール切替、タスクのドラッグ並び替え、バーの移動・リサイズ、空行ドラッグで日程作成に対応 |
+| ビュー     | 概要                                                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| リスト     | トピックごとにタスクを一覧表示。トピックの開閉・作成・名称変更・削除、タスクのドラッグ並び替えに対応                                 |
+| カンバン   | 未着手 / 進行中 / 完了の列でタスクを管理。ドラッグでステータス変更、進行中列は WIP 5 件制限                                          |
+| カレンダー | FullCalendar ベースの月・週・日表示。期日付きタスクと繰り返しタスクを表示し、ドラッグで期日変更可能                                  |
+| ガント     | 開始日〜期日をタイムライン表示。日・週・月スケール切替、タスクのドラッグ並び替え、バーの移動・リサイズ、空行ドラッグで日程作成に対応 |
 
 ### タスク管理
 
@@ -52,31 +52,31 @@
 
 ### キーボードショートカット
 
-| キー | 動作 |
-| --- | --- |
-| `n` | 選択中プロジェクトの先頭トピックに新規タスクを作成 |
-| `/` | 検索ボックスにフォーカス |
+| キー | 動作                                               |
+| ---- | -------------------------------------------------- |
+| `n`  | 選択中プロジェクトの先頭トピックに新規タスクを作成 |
+| `/`  | 検索ボックスにフォーカス                           |
 
 ---
 
 ## 技術スタック
 
-| 分類 | 使用技術 |
-| --- | --- |
-| フロントエンド | React 19, TypeScript |
-| ビルド | Vite 8 |
-| スタイル | Tailwind CSS v4 |
-| UI | Radix UI, lucide-react |
-| 状態管理 | Zustand |
-| フォーム | React Hook Form, Zod |
-| D&D | dnd-kit |
-| カレンダー | FullCalendar |
-| ガント仮想スクロール | TanStack Virtual |
-| 繰り返しルール | rrule |
-| API | Express |
-| DB | SQLite (`better-sqlite3`) |
-| テスト | Vitest, Testing Library |
-| PWA | vite-plugin-pwa |
+| 分類                 | 使用技術                  |
+| -------------------- | ------------------------- |
+| フロントエンド       | React 19, TypeScript      |
+| ビルド               | Vite 8                    |
+| スタイル             | Tailwind CSS v4           |
+| UI                   | Radix UI, lucide-react    |
+| 状態管理             | Zustand                   |
+| フォーム             | React Hook Form, Zod      |
+| D&D                  | dnd-kit                   |
+| カレンダー           | FullCalendar              |
+| ガント仮想スクロール | TanStack Virtual          |
+| 繰り返しルール       | rrule                     |
+| API                  | Express                   |
+| DB                   | SQLite (`better-sqlite3`) |
+| テスト               | Vitest, Testing Library   |
+| PWA                  | vite-plugin-pwa           |
 
 ---
 
@@ -146,9 +146,9 @@ npm run service:install
 npm run dev:full
 ```
 
-| プロセス | URL | 内容 |
-| --- | --- | --- |
-| Vite dev server | `http://localhost:3208/` | React アプリ |
+| プロセス           | URL                      | 内容              |
+| ------------------ | ------------------------ | ----------------- |
+| Vite dev server    | `http://localhost:3208/` | React アプリ      |
 | Express API server | `http://localhost:3209/` | `/api/*` + SQLite |
 
 Vite は `/api` を `http://localhost:3209` にプロキシします。`npm run dev` 単体では API サーバーが起動しないため Bad Gateway になります。
@@ -204,17 +204,17 @@ JSON エクスポートには全テーブルのデータが含まれます。
 
 ## API
 
-| エンドポイント | 概要 |
-| --- | --- |
-| `/api/projects` | プロジェクト CRUD |
-| `/api/topics` | トピック CRUD（`projectId` 絞り込み対応） |
-| `/api/tasks` | タスク CRUD（`topicId` / `projectId` 絞り込み対応） |
-| `/api/tasks/gantt-order` | 同一トピック内のガント表示順を一括更新 |
-| `/api/tasks/:id/complete-recurring` | 繰り返しタスクの完了履歴記録と次回タスク作成 |
-| `/api/subtasks` | サブタスク CRUD（`taskId` 絞り込み対応） |
-| `/api/tags` | タグ一覧・作成・削除 |
-| `/api/completions` | タスク完了履歴の一覧・作成 |
-| `/api/import` | JSON バックアップのインポート |
+| エンドポイント                      | 概要                                                |
+| ----------------------------------- | --------------------------------------------------- |
+| `/api/projects`                     | プロジェクト CRUD                                   |
+| `/api/topics`                       | トピック CRUD（`projectId` 絞り込み対応）           |
+| `/api/tasks`                        | タスク CRUD（`topicId` / `projectId` 絞り込み対応） |
+| `/api/tasks/gantt-order`            | 同一トピック内のガント表示順を一括更新              |
+| `/api/tasks/:id/complete-recurring` | 繰り返しタスクの完了履歴記録と次回タスク作成        |
+| `/api/subtasks`                     | サブタスク CRUD（`taskId` 絞り込み対応）            |
+| `/api/tags`                         | タグ一覧・作成・削除                                |
+| `/api/completions`                  | タスク完了履歴の一覧・作成                          |
+| `/api/import`                       | JSON バックアップのインポート                       |
 
 開発時の CORS 許可オリジンは `http://localhost:3208`、`http://localhost:4173`、`http://localhost:5173` です。  
 追加する場合は環境変数 `CORS_ORIGIN` にカンマ区切りで指定します。

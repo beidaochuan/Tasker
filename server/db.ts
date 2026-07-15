@@ -3,7 +3,11 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const DB_PATH = path.join(__dirname, '..', 'tasker.db')
+const configuredDbPath = process.env.TASKER_DB_PATH
+const DB_PATH =
+  configuredDbPath === ':memory:'
+    ? configuredDbPath
+    : path.resolve(configuredDbPath ?? path.join(__dirname, '..', 'tasker.db'))
 
 export const db = new Database(DB_PATH)
 

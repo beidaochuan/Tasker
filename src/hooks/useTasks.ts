@@ -37,16 +37,22 @@ export function useTopics(projectId: string | null): Topic[] | undefined {
 }
 
 export function useTasksByTopic(topicId: string): Task[] {
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [loaded, setLoaded] = useState<{ topicId: string; tasks: Task[] } | null>(null)
   const counter = useRefreshStore((s) => s.counter)
 
   useEffect(() => {
+    let cancelled = false
     taskRepo.getByTopicId(topicId).then((r) => {
-      setTasks(r.ok ? sortByOrder(r.data) : [])
+      if (!cancelled) {
+        setLoaded({ topicId, tasks: r.ok ? sortByOrder(r.data) : [] })
+      }
     })
+    return () => {
+      cancelled = true
+    }
   }, [topicId, counter])
 
-  return tasks
+  return loaded?.topicId === topicId ? loaded.tasks : []
 }
 
 export function useTask(id: string | null): Task | undefined {
@@ -79,7 +85,11 @@ export interface KanbanDataWithLoading extends KanbanData {
 }
 
 export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
-  const [data, setData] = useState<{ allTasks: Task[]; defaultTopicId: string | null } | null>(null)
+  const [data, setData] = useState<{
+    projectId: string
+    allTasks: Task[]
+    defaultTopicId: string | null
+  } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const counter = useRefreshStore((s) => s.counter)
 
@@ -101,12 +111,12 @@ export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
       if (cancelled) return
       setIsLoading(false)
       if (!tr.ok || !taskR.ok) {
-        setData(null)
+        setData({ projectId, allTasks: [], defaultTopicId: null })
         return
       }
       const defaultTopicId = tr.data[0]?.id ?? null
       const allTasks = sortByOrder(taskR.data)
-      setData({ allTasks, defaultTopicId })
+      setData({ projectId, allTasks, defaultTopicId })
     })
     Promise.resolve().then(() => {
       if (!cancelled) setIsLoading(true)
@@ -117,8 +127,9 @@ export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
   }, [projectId, counter])
 
   return useMemo(() => {
-    const allTasks = data?.allTasks ?? []
-    const defaultTopicId = data?.defaultTopicId ?? null
+    const currentData = data?.projectId === projectId ? data : null
+    const allTasks = currentData?.allTasks ?? []
+    const defaultTopicId = currentData?.defaultTopicId ?? null
     const tasksByStatus: Record<TaskStatus, Task[]> = {
       todo: [],
       in_progress: [],

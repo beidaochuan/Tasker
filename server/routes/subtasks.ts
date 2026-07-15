@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
+import { parseOrRespond, subtaskCreateSchema, subtaskUpdateSchema } from '../validation.js'
 
 export const subtasksRouter = Router()
 
@@ -9,7 +10,9 @@ const PATCH_ALLOWED = new Set(['title', 'isDone', 'order'])
 subtasksRouter.get('/', (req, res) => {
   const { taskId } = req.query
   if (taskId) {
-    const rows = db.prepare('SELECT * FROM subtasks WHERE taskId = ? ORDER BY "order" ASC').all(taskId as string)
+    const rows = db
+      .prepare('SELECT * FROM subtasks WHERE taskId = ? ORDER BY "order" ASC')
+      .all(taskId as string)
     return res.json(rows)
   }
   const rows = db.prepare('SELECT * FROM subtasks ORDER BY "order" ASC').all()
@@ -17,13 +20,9 @@ subtasksRouter.get('/', (req, res) => {
 })
 
 subtasksRouter.post('/', (req, res) => {
-  const { taskId, title, isDone = false, order = 0 } = req.body
-  if (!taskId || typeof taskId !== 'string') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'taskId' })
-  }
-  if (!title || typeof title !== 'string' || title.trim() === '') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'title' })
-  }
+  const input = parseOrRespond(subtaskCreateSchema, req.body, res)
+  if (!input) return
+  const { taskId, title, isDone, order } = input
   const now = Date.now()
   const row = {
     id: nanoid(10),
@@ -43,7 +42,9 @@ subtasksRouter.patch('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM subtasks WHERE id = ?').get(req.params.id)
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
-  const { title, isDone, order } = req.body
+  const input = parseOrRespond(subtaskUpdateSchema, req.body, res)
+  if (!input) return
+  const { title, isDone, order } = input
   const patch: Record<string, unknown> = {}
   if (title !== undefined) patch.title = title
   if (isDone !== undefined) patch.isDone = isDone ? 1 : 0

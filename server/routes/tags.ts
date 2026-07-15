@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
+import { parseOrRespond, tagCreateSchema } from '../validation.js'
 
 export const tagsRouter = Router()
 
@@ -10,10 +11,9 @@ tagsRouter.get('/', (_req, res) => {
 })
 
 tagsRouter.post('/', (req, res) => {
-  const { name, color = '#6366f1' } = req.body
-  if (!name || typeof name !== 'string' || name.trim() === '') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'name' })
-  }
+  const input = parseOrRespond(tagCreateSchema, req.body, res)
+  if (!input) return
+  const { name, color } = input
   const row = { id: nanoid(10), name: name.trim(), color }
   try {
     db.prepare('INSERT INTO tags (id, name, color) VALUES (@id, @name, @color)').run(row)

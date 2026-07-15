@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
+import { parseOrRespond, topicCreateSchema, topicUpdateSchema } from '../validation.js'
 
 export const topicsRouter = Router()
 
@@ -9,7 +10,9 @@ const PATCH_ALLOWED = new Set(['name', 'order'])
 topicsRouter.get('/', (req, res) => {
   const { projectId } = req.query
   if (projectId) {
-    const rows = db.prepare('SELECT * FROM topics WHERE projectId = ? ORDER BY "order" ASC').all(projectId as string)
+    const rows = db
+      .prepare('SELECT * FROM topics WHERE projectId = ? ORDER BY "order" ASC')
+      .all(projectId as string)
     return res.json(rows)
   }
   const rows = db.prepare('SELECT * FROM topics ORDER BY "order" ASC').all()
@@ -23,13 +26,9 @@ topicsRouter.get('/:id', (req, res) => {
 })
 
 topicsRouter.post('/', (req, res) => {
-  const { projectId, name, order = 0 } = req.body
-  if (!projectId || typeof projectId !== 'string') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'projectId' })
-  }
-  if (!name || typeof name !== 'string' || name.trim() === '') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'name' })
-  }
+  const input = parseOrRespond(topicCreateSchema, req.body, res)
+  if (!input) return
+  const { projectId, name, order } = input
   const now = Date.now()
   const row = { id: nanoid(10), projectId, name: name.trim(), order, createdAt: now }
   db.prepare(
@@ -42,7 +41,9 @@ topicsRouter.patch('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM topics WHERE id = ?').get(req.params.id)
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
-  const { name, order } = req.body
+  const input = parseOrRespond(topicUpdateSchema, req.body, res)
+  if (!input) return
+  const { name, order } = input
   const patch: Record<string, unknown> = {}
   if (name !== undefined) patch.name = name
   if (order !== undefined) patch.order = order
@@ -63,7 +64,9 @@ topicsRouter.patch('/:id', (req, res) => {
 topicsRouter.delete('/:id', (req, res) => {
   const id = req.params.id
   db.transaction(() => {
-    const taskIds = (db.prepare('SELECT id FROM tasks WHERE topicId = ?').all(id) as { id: string }[]).map((r) => r.id)
+    const taskIds = (
+      db.prepare('SELECT id FROM tasks WHERE topicId = ?').all(id) as { id: string }[]
+    ).map((r) => r.id)
     if (taskIds.length > 0) {
       const tp = taskIds.map(() => '?').join(',')
       db.prepare(`DELETE FROM subtasks WHERE taskId IN (${tp})`).run(...taskIds)

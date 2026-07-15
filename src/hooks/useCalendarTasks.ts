@@ -27,21 +27,21 @@ export function useCalendarTasks(
   rangeStart: Date | null,
   rangeEnd: Date | null
 ): CalendarEvent[] {
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [loaded, setLoaded] = useState<{ projectId: string; tasks: Task[] } | null>(null)
   const counter = useRefreshStore((s) => s.counter)
 
   useEffect(() => {
     let cancelled = false
     if (!projectId) {
       Promise.resolve().then(() => {
-        if (!cancelled) setTasks([])
+        if (!cancelled) setLoaded(null)
       })
       return () => {
         cancelled = true
       }
     }
     taskRepo.getByProjectId(projectId).then((r) => {
-      if (!cancelled) setTasks(r.ok ? r.data : [])
+      if (!cancelled) setLoaded({ projectId, tasks: r.ok ? r.data : [] })
     })
     return () => {
       cancelled = true
@@ -49,6 +49,7 @@ export function useCalendarTasks(
   }, [projectId, counter])
 
   return useMemo(() => {
+    const tasks = loaded?.projectId === projectId ? loaded.tasks : []
     const events: CalendarEvent[] = []
     for (const task of tasks) {
       if (!task.dueDate) continue
@@ -85,5 +86,5 @@ export function useCalendarTasks(
       }
     }
     return events
-  }, [tasks, rangeStart, rangeEnd])
+  }, [loaded, projectId, rangeStart, rangeEnd])
 }
