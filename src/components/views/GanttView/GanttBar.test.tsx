@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Task } from '@/types'
 import { GanttBar } from './GanttBar'
@@ -26,19 +26,42 @@ describe('GanttBar 期限超過ツールチップ', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-15T12:00:00'))
+    vi.stubGlobal(
+      'ResizeObserver',
+      class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    )
   })
 
   afterEach(() => {
     cleanup()
+    vi.unstubAllGlobals()
     vi.useRealTimers()
   })
 
-  it('未完了かつ期限超過のバーに超過日数を付記する', () => {
+  it('バーに触れてから150msで期限超過を含む情報を表示する', async () => {
     const { container } = render(
       <GanttBar task={makeTask()} ganttStart={new Date('2026-07-01')} scale="day" />
     )
+    const bar = container.firstElementChild as HTMLElement
 
-    expect(container.firstElementChild).toHaveAttribute('title', expect.stringContaining('3日超過'))
+    fireEvent.pointerMove(bar, { pointerType: 'mouse' })
+    expect(screen.queryByRole('tooltip')).toBeNull()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(149)
+    })
+    expect(screen.queryByRole('tooltip')).toBeNull()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent('期限確認タスク')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('3日超過')
   })
 
   it.each([
@@ -61,6 +84,9 @@ describe('GanttBar 期限超過ツールチップ', () => {
       <GanttBar task={task} ganttStart={new Date('2026-07-01')} scale="day" />
     )
 
-    expect(container.firstElementChild?.getAttribute('title')).not.toContain('日超過')
+    expect(container.firstElementChild).toHaveAttribute(
+      'aria-label',
+      expect.not.stringContaining('日超過')
+    )
   })
 })

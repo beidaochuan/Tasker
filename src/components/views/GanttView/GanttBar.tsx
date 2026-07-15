@@ -1,5 +1,6 @@
 import { memo, useCallback, useRef } from 'react'
 import { differenceInDays, startOfDay } from 'date-fns'
+import * as Tooltip from '@radix-ui/react-tooltip'
 import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, RESIZE_HANDLE_WIDTH } from './ganttConstants'
@@ -91,21 +92,38 @@ export const GanttBar = memo(function GanttBar({
   const colorClass = STATUS_BACKGROUND_CLASSES[task.status]
   const overdueDays = task.status === 'done' ? 0 : getOverdueDays(task.dueDate)
   const overdueLabel = overdueDays > 0 ? `${overdueDays}日超過` : null
+  const tooltipText = `${task.title} / ${STATUS_LABELS[task.status]} / 優先度: ${PRIORITY_LABELS[task.priority]}${overdueLabel ? ` / ${overdueLabel}` : ''}`
 
   return (
-    <div
-      className={`absolute top-[6px] flex select-none items-center overflow-hidden rounded-md shadow-xs ${colorClass}`}
-      style={{
-        left,
-        width,
-        height: barHeight,
-        cursor: isVirtual ? 'default' : onBarPointerDown ? 'grab' : 'pointer',
-      }}
-      onPointerDown={handlePointerDown}
-      onClick={() => {
-        if (!didDragRef.current) onClick?.(resolveTaskId(task.id))
-      }}
-      title={`${task.title} / ${STATUS_LABELS[task.status]} / 優先度: ${PRIORITY_LABELS[task.priority]}${overdueLabel ? ` / ${overdueLabel}` : ''}`}
-    />
+    <Tooltip.Provider delayDuration={150} skipDelayDuration={100}>
+      <Tooltip.Root>
+        <Tooltip.Trigger asChild>
+          <div
+            className={`absolute top-[6px] flex select-none items-center overflow-hidden rounded-md shadow-xs ${colorClass}`}
+            style={{
+              left,
+              width,
+              height: barHeight,
+              cursor: isVirtual ? 'default' : onBarPointerDown ? 'grab' : 'pointer',
+            }}
+            onPointerDown={handlePointerDown}
+            onClick={() => {
+              if (!didDragRef.current) onClick?.(resolveTaskId(task.id))
+            }}
+            aria-label={tooltipText}
+          />
+        </Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            side="top"
+            sideOffset={6}
+            className="pointer-events-none z-50 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md"
+          >
+            {tooltipText}
+            <Tooltip.Arrow className="fill-popover" />
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    </Tooltip.Provider>
   )
 })
