@@ -200,6 +200,26 @@ describe('GanttView task reordering', () => {
     ).toBe(true)
   })
 
+  it('トピック行からそのトピックの新規タスク作成を開始する', () => {
+    render(<GanttView />)
+
+    fireEvent.click(screen.getByRole('button', { name: '開発 にタスクを追加' }))
+
+    expect(useUIStore.getState()).toMatchObject({
+      isTaskDrawerOpen: true,
+      selectedTaskId: null,
+      newTaskTopicId: TOPIC.id,
+    })
+  })
+
+  it('未ログイン時は新規タスク作成ボタンを表示しない', () => {
+    useAuthStore.setState({ isAuthenticated: false })
+
+    render(<GanttView />)
+
+    expect(screen.queryByRole('button', { name: '開発 にタスクを追加' })).toBeNull()
+  })
+
   it('ドラッグ中に表示順を更新し、ドロップ時にプレビュー順を保存する', async () => {
     const update = deferred<{ ok: true; data: undefined }>()
     taskRepoMock.updateGanttOrder.mockReturnValue(update.promise)

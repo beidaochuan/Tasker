@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react'
-import { ChevronDown, ChevronRight, FolderOpen, GripVertical } from 'lucide-react'
+import { ChevronDown, ChevronRight, FolderOpen, GripVertical, Plus } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   DndContext,
@@ -103,8 +103,13 @@ function SortableTaskLabel({
 }
 
 export function GanttView() {
-  const { selectedProjectId, openTaskDrawer, expandedCompletedTopicIds, toggleCompletedTasks } =
-    useUIStore()
+  const {
+    selectedProjectId,
+    openTaskDrawer,
+    openNewTaskDrawer,
+    expandedCompletedTopicIds,
+    toggleCompletedTasks,
+  } = useUIStore()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const ganttRows = useGanttData(selectedProjectId)
   const [scale, setScale] = useState<GanttScale>('day')
@@ -555,10 +560,21 @@ export function GanttView() {
                   return (
                     <div
                       key={`topic-${row.topicId}`}
-                      className="absolute left-0 right-0 flex items-center border-b border-border bg-muted/60 px-3 text-xs font-semibold text-muted-foreground"
+                      className="absolute left-0 right-0 flex items-center justify-between gap-2 border-b border-border bg-muted/60 px-3 text-xs font-semibold text-muted-foreground"
                       style={{ top: vi.start, height: vi.size }}
                     >
                       <span className="truncate">{row.label}</span>
+                      {isAuthenticated && (
+                        <button
+                          type="button"
+                          onClick={() => openNewTaskDrawer(row.topicId)}
+                          className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+                          title="タスクを追加"
+                          aria-label={`${row.label} にタスクを追加`}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   )
                 })}
