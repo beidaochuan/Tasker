@@ -42,6 +42,18 @@ describe('GanttBar 期限超過ツールチップ', () => {
   })
 
   it.each([
+    ['todo', 'bg-slate-400'],
+    ['in_progress', 'bg-blue-500'],
+    ['done', 'bg-emerald-500'],
+  ] as const)('%s の状態色をバーに使用する', (status, colorClass) => {
+    const { container } = render(
+      <GanttBar task={makeTask(status)} ganttStart={new Date('2026-07-01')} scale="day" />
+    )
+
+    expect(container.firstElementChild).toHaveClass(colorClass)
+  })
+
+  it.each([
     ['完了済み', makeTask('done')],
     ['期限内', makeTask('todo', new Date('2026-07-16'))],
   ])('%sのバーには超過日数を付記しない', (_label, task) => {

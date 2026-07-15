@@ -6,6 +6,18 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   done: '完了',
 }
 
+export const STATUS_TEXT_CLASSES: Record<TaskStatus, string> = {
+  todo: 'text-slate-600 dark:text-slate-300',
+  in_progress: 'text-blue-600 dark:text-blue-400',
+  done: 'text-emerald-600 dark:text-emerald-400',
+}
+
+export const STATUS_BACKGROUND_CLASSES: Record<TaskStatus, string> = {
+  todo: 'bg-slate-400',
+  in_progress: 'bg-blue-500',
+  done: 'bg-emerald-500',
+}
+
 export const PRIORITY_LABELS: Record<Priority, string> = {
   urgent: '緊急',
   high: '高',
@@ -32,10 +44,4 @@ export const PRIORITY_BADGE_CLASSES: Record<Priority, string> = {
   medium: 'bg-amber-500/15 text-[hsl(var(--priority-medium))]',
   high: 'bg-orange-500/15 text-[hsl(var(--priority-high))]',
   urgent: 'bg-rose-500/15 text-[hsl(var(--priority-urgent))]',
-}
-
-export const GANTT_STATUS_BAR_CLASSES: Record<TaskStatus, string> = {
-  todo: 'bg-slate-400',
-  in_progress: 'bg-blue-500',
-  done: 'bg-emerald-500',
 }

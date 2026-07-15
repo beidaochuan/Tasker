@@ -26,7 +26,12 @@ import { useGanttDrag, calcGanttRange } from './useGanttDrag'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, HEADER_HEIGHT, LEFT_PANE_WIDTH } from './ganttConstants'
 import type { Task } from '@/types'
-import { PRIORITY_LABELS, PRIORITY_TEXT_CLASSES, STATUS_LABELS } from '@/utils/taskPresentation'
+import {
+  PRIORITY_LABELS,
+  PRIORITY_TEXT_CLASSES,
+  STATUS_BACKGROUND_CLASSES,
+  STATUS_LABELS,
+} from '@/utils/taskPresentation'
 import { unwrapResult } from '@/utils/resultUtils'
 import { getOverdueDays } from '@/utils/dateUtils'
 
@@ -494,18 +499,12 @@ export function GanttView() {
         <div className="hidden items-center gap-5 text-xs text-muted-foreground lg:flex">
           <div className="flex items-center gap-3">
             <span className="text-[11px] font-semibold">状態</span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-slate-400" />
-              {STATUS_LABELS.todo}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
-              {STATUS_LABELS.in_progress}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {STATUS_LABELS.done}
-            </span>
+            {(['todo', 'in_progress', 'done'] as const).map((status) => (
+              <span key={status} className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${STATUS_BACKGROUND_CLASSES[status]}`} />
+                {STATUS_LABELS[status]}
+              </span>
+            ))}
           </div>
         </div>
       </div>

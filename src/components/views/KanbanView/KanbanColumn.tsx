@@ -3,8 +3,9 @@ import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
 import { cn } from '@/utils/cn'
+import { STATUS_BACKGROUND_CLASSES, STATUS_TEXT_CLASSES } from '@/utils/taskPresentation'
 import { KanbanCard } from './KanbanCard'
-import { WIP_LIMITS, COLUMN_LABELS, COLUMN_COLORS, COLUMN_ACCENT_CLASSES } from './kanbanConstants'
+import { WIP_LIMITS, COLUMN_LABELS } from './kanbanConstants'
 import { useUIStore } from '@/store/uiStore'
 import type { Task, TaskStatus } from '@/types'
 
@@ -39,7 +40,7 @@ export const KanbanColumn = memo(function KanbanColumn({
         isOver && 'ring-2 ring-primary/60'
       )}
     >
-      <div className={cn('h-0.5 shrink-0', COLUMN_ACCENT_CLASSES[status])} aria-hidden="true" />
+      <div className={cn('h-0.5 shrink-0', STATUS_BACKGROUND_CLASSES[status])} aria-hidden="true" />
       {/* ヘッダー */}
       <div
         className={cn(
@@ -48,7 +49,7 @@ export const KanbanColumn = memo(function KanbanColumn({
         )}
       >
         <div className="flex items-center gap-2">
-          <span className={cn('text-sm font-semibold', COLUMN_COLORS[status])}>
+          <span className={cn('text-sm font-semibold', STATUS_TEXT_CLASSES[status])}>
             {COLUMN_LABELS[status]}
           </span>
           <span

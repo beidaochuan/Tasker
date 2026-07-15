@@ -5,7 +5,7 @@ import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, RESIZE_HANDLE_WIDTH } from './ganttConstants'
 import { resolveTaskId, isVirtualTask } from '@/utils/recurrenceUtils'
 import { getOverdueDays } from '@/utils/dateUtils'
-import { GANTT_STATUS_BAR_CLASSES, PRIORITY_LABELS, STATUS_LABELS } from '@/utils/taskPresentation'
+import { PRIORITY_LABELS, STATUS_BACKGROUND_CLASSES, STATUS_LABELS } from '@/utils/taskPresentation'
 
 interface Props {
   task: Task
@@ -88,7 +88,7 @@ export const GanttBar = memo(function GanttBar({
   if (!hasDate) return null
 
   const barHeight = ROW_HEIGHT - 12
-  const colorClass = GANTT_STATUS_BAR_CLASSES[task.status]
+  const colorClass = STATUS_BACKGROUND_CLASSES[task.status]
   const overdueDays = task.status === 'done' ? 0 : getOverdueDays(task.dueDate)
   const overdueLabel = overdueDays > 0 ? `${overdueDays}日超過` : null
 
