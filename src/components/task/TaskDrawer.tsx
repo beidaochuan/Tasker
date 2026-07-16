@@ -288,11 +288,16 @@ export function TaskDrawer() {
   if (isNew && !isAuthenticated) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
-      <div className="relative z-10 flex h-full w-full max-w-lg flex-col border-l border-border bg-card shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-dialog-title"
+        className="relative z-10 flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl"
+      >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold">
+          <h2 id="task-dialog-title" className="text-base font-semibold">
             {!isAuthenticated ? 'タスク詳細' : isNew ? 'タスクを作成' : 'タスクを編集'}
           </h2>
           <div className="flex gap-1">
@@ -407,7 +412,7 @@ export function TaskDrawer() {
               <textarea
                 id="task-description"
                 {...register('description')}
-                rows={4}
+                rows={6}
                 className={TEXTAREA_CLASS}
                 placeholder="説明（省略可）"
                 disabled={!isAuthenticated}

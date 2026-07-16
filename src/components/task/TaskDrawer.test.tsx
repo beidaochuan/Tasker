@@ -143,6 +143,22 @@ describe('TaskDrawer', () => {
     cleanup()
   })
 
+  it('タスク画面を画面中央のダイアログとして表示する', async () => {
+    render(<TaskDrawer />)
+
+    const dialog = await screen.findByRole('dialog', { name: 'タスクを編集' })
+
+    expect(dialog.parentElement).toHaveClass('items-center', 'justify-center')
+    expect(dialog).toHaveClass(
+      'max-h-[calc(100vh-2rem)]',
+      'max-w-2xl',
+      'rounded-lg',
+      'border',
+      'overflow-hidden'
+    )
+    expect(screen.getByLabelText('説明')).toHaveAttribute('rows', '6')
+  })
+
   it('既存タスクの作業リストを読み込む', async () => {
     render(<TaskDrawer />)
 
