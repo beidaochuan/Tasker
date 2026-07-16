@@ -85,7 +85,7 @@ function SortableTaskLabel({
   return (
     <div
       ref={setNodeRef}
-      className={`group/gantt-task absolute left-0 right-0 flex items-center border-b border-border pl-1 pr-3 text-sm text-foreground ${
+      className={`group/gantt-task absolute left-0 right-0 flex items-center border-b border-border pl-1 text-sm text-foreground ${
         isDragging ? 'opacity-30' : ''
       }`}
       style={{ top, height, transition: animatePosition ? 'top 250ms ease' : undefined }}
@@ -102,28 +102,28 @@ function SortableTaskLabel({
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
-      <span
-        className={`font-soft mr-1.5 inline-flex h-5 shrink-0 items-center rounded bg-muted px-1 text-[10px] font-medium leading-none ${PRIORITY_TEXT_CLASSES[task.priority]}`}
-      >
-        {PRIORITY_LABELS[task.priority]}
-      </span>
       <button
         type="button"
         onClick={() => onTaskClick(resolveTaskId(task.id))}
-        className="min-w-0 flex-1 truncate rounded-sm text-left hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-md pr-3 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         aria-label={`${row.label}を編集`}
       >
-        {row.label}
-      </button>
-      {overdueDays > 0 && (
         <span
-          className="ml-1.5 inline-flex h-5 shrink-0 items-center gap-1 rounded bg-danger/10 px-1.5 text-[10px] font-semibold leading-none text-danger ring-1 ring-inset ring-danger/25"
-          title={`期限を${overdueDays}日超過`}
+          className={`font-soft mr-1.5 inline-flex h-5 shrink-0 items-center rounded bg-muted px-1 text-[10px] font-medium leading-none ${PRIORITY_TEXT_CLASSES[task.priority]}`}
         >
-          <Clock className="h-3 w-3" aria-hidden="true" />
-          {overdueDays}日超過
+          {PRIORITY_LABELS[task.priority]}
         </span>
-      )}
+        <span className="min-w-0 flex-1 truncate">{row.label}</span>
+        {overdueDays > 0 && (
+          <span
+            className="ml-1.5 inline-flex h-5 shrink-0 items-center gap-1 rounded bg-danger/10 px-1.5 text-[10px] font-semibold leading-none text-danger ring-1 ring-inset ring-danger/25"
+            title={`期限を${overdueDays}日超過`}
+          >
+            <Clock className="h-3 w-3" aria-hidden="true" />
+            {overdueDays}日超過
+          </span>
+        )}
+      </button>
     </div>
   )
 }

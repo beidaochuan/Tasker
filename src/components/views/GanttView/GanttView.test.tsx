@@ -263,10 +263,14 @@ describe('GanttView task reordering', () => {
     expect(screen.queryByRole('button', { name: '開発 にタスクを追加' })).toBeNull()
   })
 
-  it('タスクのタイトルをクリックすると編集画面を開く', () => {
+  it('タスク行をリストと同じ背景ホバーで表示し、クリックすると編集画面を開く', () => {
     render(<GanttView />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'タスクAを編集' }))
+    const taskButton = screen.getByRole('button', { name: 'タスクAを編集' })
+
+    expect(taskButton).toHaveClass('hover:bg-accent/60')
+    expect(taskButton).not.toHaveClass('hover:text-primary', 'hover:underline')
+    fireEvent.click(taskButton)
 
     expect(useUIStore.getState()).toMatchObject({
       isTaskDrawerOpen: true,
