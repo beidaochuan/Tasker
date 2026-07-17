@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { ExportWarning } from '@/components/layout/ExportWarning'
 import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
+import { useAuthStore } from '@/store/authStore'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
@@ -75,7 +76,12 @@ function MainContent() {
 
 function App() {
   const { isDark } = useThemeStore()
+  const restoreSession = useAuthStore((state) => state.restoreSession)
   useKeyboardShortcuts()
+
+  useEffect(() => {
+    void restoreSession()
+  }, [restoreSession])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)

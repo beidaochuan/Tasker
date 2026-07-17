@@ -3,19 +3,49 @@
 import type { AddressInfo } from 'node:net'
 import { createServer, type Server } from 'node:http'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import type { ServerConfig } from '../config.js'
 
 process.env.TASKER_DB_PATH = ':memory:'
+
+const TEST_USERNAME = 'api-test-admin'
+const TEST_PASSWORD = 'api-test-password'
+const TEST_CONFIG: ServerConfig = {
+  port: 0,
+  host: '127.0.0.1',
+  corsOrigins: [],
+  auth: {
+    username: TEST_USERNAME,
+    password: TEST_PASSWORD,
+    sessionTtlMs: 8 * 60 * 60 * 1000,
+    maxSessions: 8,
+    cookieSecure: false,
+    loginWindowMs: 15 * 60 * 1000,
+    maxLoginAttempts: 5,
+  },
+}
 
 const { createApp } = await import('../app.js')
 const { db } = await import('../db.js')
 
 let server: Server
 let baseUrl: string
+let sessionCookie: string
+let csrfToken: string
 
-async function request(path: string, init?: RequestInit) {
+async function rawRequest(path: string, init?: RequestInit) {
   const response = await fetch(`${baseUrl}${path}`, init)
   const body = response.status === 204 ? null : await response.json()
   return { response, body }
+}
+
+async function request(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers)
+  headers.set('Cookie', sessionCookie)
+  const method = (init.method ?? 'GET').toUpperCase()
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    headers.set('X-CSRF-Token', csrfToken)
+  }
+  return rawRequest(path, { ...init, headers })
 }
 
 async function post(path: string, body: unknown) {
@@ -27,13 +57,13 @@ async function post(path: string, body: unknown) {
 }
 
 beforeAll(async () => {
-  server = createServer(createApp())
+  server = createServer(createApp({ config: TEST_CONFIG }))
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const address = server.address() as AddressInfo
   baseUrl = `http://127.0.0.1:${address.port}`
 })
 
-beforeEach(() => {
+beforeEach(async () => {
   db.transaction(() => {
     db.prepare('DELETE FROM task_completions').run()
     db.prepare('DELETE FROM subtasks').run()
@@ -42,6 +72,17 @@ beforeEach(() => {
     db.prepare('DELETE FROM projects').run()
     db.prepare('DELETE FROM tags').run()
   })()
+
+  const login = await rawRequest('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: TEST_USERNAME, password: TEST_PASSWORD }),
+  })
+  if (login.response.status !== 200) throw new Error('APIテスト用ログインに失敗しました')
+  const setCookie = login.response.headers.get('set-cookie')
+  if (!setCookie) throw new Error('APIテスト用セッションCookieがありません')
+  sessionCookie = setCookie.split(';', 1)[0]
+  csrfToken = login.body.csrfToken as string
 })
 
 afterAll(async () => {

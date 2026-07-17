@@ -134,14 +134,17 @@ export function Sidebar() {
     <aside className="flex w-56 flex-col border-r border-border bg-panel">
       <div className="flex items-center justify-between p-4">
         <span className="text-sm font-semibold text-muted-foreground">プロジェクト</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleOpenProjectForm}
-          title={isAuthenticated ? '新規プロジェクト' : 'ログインして新規プロジェクト'}
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+        {isAuthenticated && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleOpenProjectForm}
+            title="新規プロジェクト"
+            aria-label="新規プロジェクト"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        )}
       </div>
       {!isAuthenticated && (
         <div className="mx-3 mb-2 flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-xs text-muted-foreground">
@@ -248,7 +251,7 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={isAuthenticated ? logout : openLoginDialog}
+          onClick={isAuthenticated ? () => void logout() : openLoginDialog}
           title={isAuthenticated ? 'ログアウト' : 'ログイン'}
           aria-label={isAuthenticated ? 'ログアウト' : 'ログイン'}
         >

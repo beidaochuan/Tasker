@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '@/store/authStore'
 import { exportAllData, importAllData } from './exportUtils'
 
 const PROJECT = {
@@ -231,6 +232,10 @@ describe('exportUtils', () => {
   })
 
   describe('importAllData', () => {
+    beforeEach(() => {
+      useAuthStore.setState({ isAuthenticated: true, csrfToken: null })
+    })
+
     it('204レスポンスをbodyなしの成功として扱う', async () => {
       const response = noContentResponse()
       const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
@@ -241,6 +246,7 @@ describe('exportUtils', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(IMPORT_PAYLOAD),
+        credentials: 'same-origin',
       })
       expect(response.json).not.toHaveBeenCalled()
     })

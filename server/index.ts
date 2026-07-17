@@ -1,8 +1,9 @@
 import { createApp } from './app.js'
+import { loadServerConfig } from './config.js'
 
-const PORT = Number(process.env.PORT ?? 3208)
-const app = createApp()
+const config = loadServerConfig()
+const app = createApp({ config })
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Tasker server: http://localhost:${PORT}`)
+app.listen(config.port, config.host, () => {
+  console.log(`Tasker server: http://${config.host}:${config.port}`)
 })

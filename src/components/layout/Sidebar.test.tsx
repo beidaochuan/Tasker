@@ -1,6 +1,7 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project } from '@/types'
+import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { Sidebar } from './Sidebar'
 
@@ -38,7 +39,18 @@ const PROJECTS: Project[] = [
 describe('Sidebar', () => {
   beforeEach(() => {
     useProjectsMock.mockReset().mockReturnValue(PROJECTS)
-    useUIStore.setState({ selectedProjectId: null })
+    useUIStore.setState({
+      selectedProjectId: null,
+      isProjectFormOpen: false,
+      editingProjectId: null,
+    })
+    useAuthStore.setState({
+      isAuthenticated: false,
+      isSessionChecked: true,
+      isRestoring: false,
+      csrfToken: null,
+      isLoginDialogOpen: false,
+    })
   })
 
   afterEach(() => {
@@ -75,5 +87,22 @@ describe('Sidebar', () => {
       )
     })
     expect(container.querySelector('aside')).toHaveClass('bg-panel')
+  })
+
+  it('閲覧モードでは新規プロジェクトボタンを表示しない', () => {
+    render(<Sidebar />)
+
+    expect(screen.queryByRole('button', { name: '新規プロジェクト' })).toBeNull()
+    expect(screen.getByText('閲覧モード')).toBeInTheDocument()
+    expect(useUIStore.getState().isProjectFormOpen).toBe(false)
+  })
+
+  it('認証済みでは新規プロジェクトボタンからフォームを開ける', () => {
+    useAuthStore.setState({ isAuthenticated: true })
+    render(<Sidebar />)
+
+    fireEvent.click(screen.getByRole('button', { name: '新規プロジェクト' }))
+
+    expect(useUIStore.getState().isProjectFormOpen).toBe(true)
   })
 })

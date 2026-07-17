@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '@/store/authStore'
 import { ApiSubtaskRepository } from '../apiSubtaskRepository'
 
 const repo = new ApiSubtaskRepository()
@@ -22,6 +23,7 @@ function mockFetch(body: unknown, status = 200) {
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  useAuthStore.setState({ isAuthenticated: true, csrfToken: null })
 })
 
 describe('ApiSubtaskRepository', () => {
@@ -48,7 +50,9 @@ describe('ApiSubtaskRepository', () => {
       expect(result.data[1].isDone).toBe(true)
       expect(result.data[0].createdAt).toBeInstanceOf(Date)
       expect(result.data[0].createdAt.getTime()).toBe(1_000_000)
-      expect(global.fetch).toHaveBeenCalledWith('/api/subtasks?taskId=task%2F1%20%3F', undefined)
+      expect(global.fetch).toHaveBeenCalledWith('/api/subtasks?taskId=task%2F1%20%3F', {
+        credentials: 'same-origin',
+      })
     })
   })
 
@@ -83,6 +87,7 @@ describe('ApiSubtaskRepository', () => {
           isDone: false,
           order: 0,
         }),
+        credentials: 'same-origin',
       })
     })
   })
@@ -100,6 +105,7 @@ describe('ApiSubtaskRepository', () => {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isDone: true }),
+        credentials: 'same-origin',
       })
     })
 
@@ -115,6 +121,7 @@ describe('ApiSubtaskRepository', () => {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: '更新後の作業' }),
+        credentials: 'same-origin',
       })
     })
   })
@@ -132,6 +139,7 @@ describe('ApiSubtaskRepository', () => {
       expect(result.ok).toBe(true)
       expect(global.fetch).toHaveBeenCalledWith('/api/subtasks/subtask-1', {
         method: 'DELETE',
+        credentials: 'same-origin',
       })
     })
   })

@@ -198,6 +198,18 @@ describe('ListView', () => {
     expect(taskRepoMock.getByProjectId).toHaveBeenCalledTimes(1)
   })
 
+  it('未認証でもタスクを閲覧でき、編集操作はログイン導線だけを表示する', async () => {
+    renderListView()
+
+    expect(await screen.findByText('開発中')).toBeInTheDocument()
+    expect(screen.getByText('運用中')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'ログインして編集' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'トピックを追加' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '開発 にタスクを追加' })).toBeNull()
+    expect(topicRepoMock.getByProjectId).toHaveBeenCalledTimes(1)
+    expect(taskRepoMock.getByProjectId).toHaveBeenCalledTimes(1)
+  })
+
   it('プロジェクトデータの初回取得中はリストのSkeletonを表示する', async () => {
     const topics = deferred<{ ok: true; data: Topic[] }>()
     const tasks = deferred<{ ok: true; data: Task[] }>()

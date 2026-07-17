@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { useAuthStore } from '@/store/authStore'
 import { ApiTagRepository } from '../apiTagRepository'
 
 const repo = new ApiTagRepository()
@@ -13,6 +14,7 @@ function mockFetch(body: unknown, status = 200) {
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  useAuthStore.setState({ isAuthenticated: true, csrfToken: null })
 })
 
 describe('ApiTagRepository', () => {
@@ -64,7 +66,10 @@ describe('ApiTagRepository', () => {
       } as unknown as Response)
       const result = await repo.delete('tag-1')
       expect(result.ok).toBe(true)
-      expect(global.fetch).toHaveBeenCalledWith('/api/tags/tag-1', { method: 'DELETE' })
+      expect(global.fetch).toHaveBeenCalledWith('/api/tags/tag-1', {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      })
     })
   })
 })

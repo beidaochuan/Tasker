@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { useAuthStore } from '@/store/authStore'
 import { ApiTaskRepository } from '../apiTaskRepository'
 
 const repo = new ApiTaskRepository()
@@ -29,6 +30,7 @@ function mockFetch(body: unknown, status = 200) {
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  useAuthStore.setState({ isAuthenticated: true, csrfToken: null })
 })
 
 describe('ApiTaskRepository', () => {
@@ -84,7 +86,9 @@ describe('ApiTaskRepository', () => {
       expect(result.ok).toBe(true)
       if (!result.ok) return
       expect(result.data).toHaveLength(2)
-      expect(global.fetch).toHaveBeenCalledWith('/api/tasks?topicId=topic-1', undefined)
+      expect(global.fetch).toHaveBeenCalledWith('/api/tasks?topicId=topic-1', {
+        credentials: 'same-origin',
+      })
     })
   })
 
@@ -117,6 +121,7 @@ describe('ApiTaskRepository', () => {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items }),
+        credentials: 'same-origin',
       })
     })
   })
@@ -176,6 +181,7 @@ describe('ApiTaskRepository', () => {
             repeatRule: 'RRULE:FREQ=DAILY;INTERVAL=1',
           },
         }),
+        credentials: 'same-origin',
       })
     })
   })
@@ -189,7 +195,10 @@ describe('ApiTaskRepository', () => {
       } as unknown as Response)
       const result = await repo.delete('task-1')
       expect(result.ok).toBe(true)
-      expect(global.fetch).toHaveBeenCalledWith('/api/tasks/task-1', { method: 'DELETE' })
+      expect(global.fetch).toHaveBeenCalledWith('/api/tasks/task-1', {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      })
     })
   })
 })

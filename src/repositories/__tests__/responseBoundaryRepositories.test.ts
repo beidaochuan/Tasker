@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '@/store/authStore'
 import { ApiProjectRepository } from '../apiProjectRepository'
 import { ApiSubtaskRepository } from '../apiSubtaskRepository'
 import { ApiTagRepository } from '../apiTagRepository'
@@ -60,6 +61,7 @@ function expectInvalidResponse(result: { ok: boolean; error?: { code: string } }
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  useAuthStore.setState({ isAuthenticated: true, csrfToken: null })
 })
 
 describe('API repository response boundaries', () => {

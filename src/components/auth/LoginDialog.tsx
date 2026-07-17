@@ -11,17 +11,30 @@ export function LoginDialog() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (isSubmitting) return
     setError('')
-    const ok = login(username, password)
-    if (!ok) {
-      setError('ユーザー名またはパスワードが違います')
-      return
+    setIsSubmitting(true)
+    try {
+      const result = await login(username, password)
+      if (!result.ok) {
+        setError(
+          result.reason === 'rate_limited'
+            ? 'ログイン試行回数が多すぎます。しばらく待ってから再試行してください'
+            : result.reason === 'invalid_credentials'
+              ? 'ユーザー名またはパスワードが違います'
+              : 'ログインに失敗しました。しばらくしてから再試行してください'
+        )
+        return
+      }
+      setUsername('')
+      setPassword('')
+    } finally {
+      setIsSubmitting(false)
     }
-    setUsername('')
-    setPassword('')
   }
 
   return (
@@ -88,7 +101,7 @@ export function LoginDialog() {
               </p>
             )}
 
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               ログイン
             </Button>
           </form>

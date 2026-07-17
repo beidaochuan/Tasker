@@ -63,6 +63,8 @@ export interface TaskCompletion {
 }
 
 export type AppError =
+  | { code: 'UNAUTHORIZED'; message: string }
+  | { code: 'CSRF_INVALID'; message: string }
   | { code: 'NOT_FOUND'; message: string }
   | { code: 'CONFLICT'; message: string }
   | { code: 'DB_ERROR'; message: string }

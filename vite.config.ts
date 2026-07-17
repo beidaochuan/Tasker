@@ -17,7 +17,13 @@ export default defineConfig({
   server: {
     port: 3208,
     proxy: {
-      '/api': 'http://localhost:3209',
+      '/api': {
+        target: 'http://127.0.0.1:3209',
+        changeOrigin: true,
+        headers: {
+          Origin: 'http://127.0.0.1:3209',
+        },
+      },
     },
   },
   plugins: [

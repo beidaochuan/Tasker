@@ -96,6 +96,21 @@ describe('ProjectForm', () => {
     expect(projectRepoMock.create).not.toHaveBeenCalled()
   })
 
+  it('未認証状態でフォームを直接開いても閉じて保存を許可しない', async () => {
+    useAuthStore.setState({ isAuthenticated: false, isLoginDialogOpen: false })
+    act(() => {
+      useUIStore.setState({ isProjectFormOpen: true, editingProjectId: null })
+    })
+
+    render(<ProjectForm />)
+
+    await waitFor(() => {
+      expect(useUIStore.getState().isProjectFormOpen).toBe(false)
+    })
+    expect(useAuthStore.getState().isLoginDialogOpen).toBe(true)
+    expect(projectRepoMock.create).not.toHaveBeenCalled()
+  })
+
   it('編集中にESCを押すと更新せず閉じる', async () => {
     const user = userEvent.setup()
     projectRepoMock.getAll.mockResolvedValue({ ok: true, data: [makeProject()] })

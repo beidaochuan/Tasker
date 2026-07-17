@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { useAuthStore } from '@/store/authStore'
 import { apiFetch, apiFetchNoContent } from '../apiFetch'
 
 interface MockResponseOptions {
@@ -31,6 +32,18 @@ function mockFetchResponse({
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  useAuthStore.setState({
+    isAuthenticated: false,
+    isSessionChecked: true,
+    isRestoring: false,
+    csrfToken: null,
+    expiresAt: null,
+    isLoginDialogOpen: false,
+  })
+})
+
+afterEach(() => {
+  useAuthStore.getState().handleUnauthorized()
 })
 
 describe('apiFetch', () => {
@@ -42,7 +55,173 @@ describe('apiFetch', () => {
     const result = await apiFetch('/api/test', { responseSchema, init })
 
     expect(result).toEqual({ ok: true, data: { id: 'task-1', count: 2 } })
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/test', init)
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/test', {
+      ...init,
+      credentials: 'same-origin',
+    })
+  })
+
+  it('unsafe methodだけにメモリ上のCSRFトークンを既存headerと合成する', async () => {
+    useAuthStore.setState({ isAuthenticated: true, csrfToken: 'csrf-token' })
+    mockFetchResponse({ status: 204 })
+
+    await apiFetchNoContent('/api/test', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Request-ID': 'request-1' },
+      body: '{}',
+    })
+
+    const init = vi.mocked(globalThis.fetch).mock.calls[0]?.[1]
+    const headers = new Headers(init?.headers)
+    expect(init).toMatchObject({ method: 'PATCH', body: '{}', credentials: 'same-origin' })
+    expect(headers.get('Content-Type')).toBe('application/json')
+    expect(headers.get('X-Request-ID')).toBe('request-1')
+    expect(headers.get('X-CSRF-Token')).toBe('csrf-token')
+  })
+
+  it('未認証のunsafe requestは送信せずログインダイアログを開く', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    const result = await apiFetchNoContent('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '作成させない' }),
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'UNAUTHORIZED', message: 'ログインが必要です' },
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      isLoginDialogOpen: true,
+    })
+  })
+
+  it('公開GETにはCSRFトークンを付与しない', async () => {
+    useAuthStore.setState({ isAuthenticated: true, csrfToken: 'csrf-token' })
+    mockFetchResponse({ body: { id: 'task-1' } })
+
+    await apiFetch('/api/test', { responseSchema: z.object({ id: z.string() }) })
+
+    const init = vi.mocked(globalThis.fetch).mock.calls[0]?.[1]
+    expect(init?.credentials).toBe('same-origin')
+    expect(new Headers(init?.headers).has('X-CSRF-Token')).toBe(false)
+  })
+
+  it('401でUNAUTHORIZEDを返し、認証状態を破棄してログインダイアログを開く', async () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      csrfToken: 'expired-token',
+      expiresAt: Date.now() + 60_000,
+      isLoginDialogOpen: false,
+    })
+    mockFetchResponse({
+      body: { error: 'UNAUTHORIZED' },
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+    })
+
+    const result = await apiFetch('/api/test', { responseSchema: z.never() })
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'UNAUTHORIZED', message: 'UNAUTHORIZED' },
+    })
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      csrfToken: null,
+      expiresAt: null,
+      isLoginDialogOpen: true,
+    })
+  })
+
+  it('古いrequestの401は新しいlogin状態を無効化しない', async () => {
+    let resolveResponse!: (response: Response) => void
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(
+      new Promise<Response>((resolve) => {
+        resolveResponse = resolve
+      })
+    )
+    useAuthStore.setState({
+      isAuthenticated: true,
+      csrfToken: 'csrf-old',
+      expiresAt: Date.now() + 30_000,
+      isLoginDialogOpen: false,
+    })
+
+    const request = apiFetchNoContent('/api/test', { method: 'DELETE' })
+    const newExpiresAt = Date.now() + 60_000
+    useAuthStore.setState({
+      isAuthenticated: true,
+      csrfToken: 'csrf-new',
+      expiresAt: newExpiresAt,
+      isLoginDialogOpen: false,
+    })
+    resolveResponse({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: () => Promise.resolve({ error: 'UNAUTHORIZED' }),
+    } as unknown as Response)
+
+    const result = await request
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'UNAUTHORIZED', message: 'UNAUTHORIZED' },
+    })
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      csrfToken: 'csrf-new',
+      expiresAt: newExpiresAt,
+      isLoginDialogOpen: false,
+    })
+  })
+
+  it('CSRF_INVALIDはmutationを再試行せずセッションだけをforce refreshする', async () => {
+    const newExpiresAt = Date.now() + 60_000
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: () => Promise.resolve({ error: 'CSRF_INVALID' }),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve({
+            isAuthenticated: true,
+            csrfToken: 'csrf-refreshed',
+            expiresAt: newExpiresAt,
+            expiresInMs: 60_000,
+          }),
+      } as unknown as Response)
+    useAuthStore.setState({
+      isAuthenticated: true,
+      csrfToken: 'csrf-stale',
+      expiresAt: Date.now() + 30_000,
+    })
+
+    const result = await apiFetchNoContent('/api/test', { method: 'PATCH' })
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'CSRF_INVALID', message: 'CSRF_INVALID' },
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/test', '/api/auth/session'])
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      csrfToken: 'csrf-refreshed',
+      expiresAt: newExpiresAt,
+    })
   })
 
   it('2xxでもJSONがZodスキーマに一致しなければINVALID_RESPONSEを返す', async () => {
