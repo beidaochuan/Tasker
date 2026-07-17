@@ -67,5 +67,6 @@ export type AppError =
   | { code: 'CONFLICT'; message: string }
   | { code: 'DB_ERROR'; message: string }
   | { code: 'VALIDATION_ERROR'; message: string }
+  | { code: 'INVALID_RESPONSE'; message: string }
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: AppError }

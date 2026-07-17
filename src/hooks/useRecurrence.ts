@@ -1,19 +1,19 @@
 import { useCallback } from 'react'
 import { taskRepo } from '@/repositories'
 import { getNextOccurrence, hasRepeatRule } from '@/utils/recurrenceUtils'
-import { useRefreshStore } from './useDataRefresh'
+import { useDataQueryStore } from './useDataQueries'
 import type { Task } from '@/types'
 import { unwrapResult } from '@/utils/resultUtils'
 
 export interface UseRecurrenceResult {
-  completeRecurringTask: (task: Task) => Promise<void>
+  completeRecurringTask: (task: Task, projectIds: readonly string[]) => Promise<void>
 }
 
 export function useRecurrence(): UseRecurrenceResult {
-  const refresh = useRefreshStore((s) => s.refresh)
+  const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
 
   const completeRecurringTask = useCallback(
-    async (task: Task) => {
+    async (task: Task, projectIds: readonly string[]) => {
       const base = task.dueDate ?? new Date()
       const isRecurring = hasRepeatRule(task.repeatRule)
       const nextDue = isRecurring ? getNextOccurrence(task.repeatRule, base) : null
@@ -40,9 +40,9 @@ export function useRecurrence(): UseRecurrenceResult {
 
       unwrapResult(await taskRepo.completeRecurring(task.id, nextTask))
 
-      refresh()
+      for (const projectId of new Set(projectIds)) invalidateProjectTasks(projectId)
     },
-    [refresh]
+    [invalidateProjectTasks]
   )
 
   return { completeRecurringTask }

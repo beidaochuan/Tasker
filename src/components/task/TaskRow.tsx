@@ -5,7 +5,7 @@ import { cn } from '@/utils/cn'
 import { formatDate, isOverdue } from '@/utils/dateUtils'
 import { useUIStore } from '@/store/uiStore'
 import { useRecurrence } from '@/hooks/useRecurrence'
-import { useRefreshStore } from '@/hooks/useDataRefresh'
+import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo } from '@/repositories'
 import { Button } from '@/components/ui/button'
 import { PRIORITY_LABELS, PRIORITY_TEXT_CLASSES } from '@/utils/taskPresentation'
@@ -19,9 +19,10 @@ interface TaskRowProps {
 }
 
 export function TaskRow({ task, canEdit = true }: TaskRowProps) {
-  const { openTaskDrawer } = useUIStore()
+  const { openTaskDrawer, selectedProjectId } = useUIStore()
   const { completeRecurringTask } = useRecurrence()
-  const refresh = useRefreshStore((s) => s.refresh)
+  const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
+  const updateProjectTask = useDataQueryStore((state) => state.updateProjectTask)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const isDone = task.status === 'done'
@@ -31,13 +32,20 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
     if (!canEdit) return
     try {
       if (isDone) {
-        unwrapResult(await taskRepo.update(task.id, { status: 'todo' }))
+        const updatedTask = unwrapResult(await taskRepo.update(task.id, { status: 'todo' }))
+        if (selectedProjectId) {
+          updateProjectTask(selectedProjectId, updatedTask)
+          invalidateProjectTasks(selectedProjectId)
+        }
       } else if (hasRepeatRule(task.repeatRule)) {
-        await completeRecurringTask(task)
+        if (selectedProjectId) await completeRecurringTask(task, [selectedProjectId])
       } else {
-        unwrapResult(await taskRepo.update(task.id, { status: 'done' }))
+        const updatedTask = unwrapResult(await taskRepo.update(task.id, { status: 'done' }))
+        if (selectedProjectId) {
+          updateProjectTask(selectedProjectId, updatedTask)
+          invalidateProjectTasks(selectedProjectId)
+        }
       }
-      refresh()
     } catch (err) {
       console.error('ステータス更新に失敗しました', err)
     }
@@ -48,7 +56,7 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
     setDeleteError(null)
     try {
       unwrapResult(await taskRepo.delete(task.id))
-      refresh()
+      if (selectedProjectId) invalidateProjectTasks(selectedProjectId)
       setConfirmOpen(false)
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'タスクの削除に失敗しました')

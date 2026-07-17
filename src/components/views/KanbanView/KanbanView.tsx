@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -22,13 +22,18 @@ import { COLUMN_ORDER, WIP_LIMITS } from './kanbanConstants'
 import { useKanbanData } from '@/hooks/useTasks'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
-import { useRefreshStore } from '@/hooks/useDataRefresh'
+import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
 import { sortKanbanColumnTasks } from '@/utils/sortUtils'
 import type { Task, TaskStatus } from '@/types'
 
 type TasksByStatus = Record<TaskStatus, Task[]>
+
+interface LocalBoard {
+  projectId: string
+  tasksByStatus: TasksByStatus
+}
 
 function findColumnOfTask(taskId: string, tasksByStatus: TasksByStatus): TaskStatus | null {
   for (const col of COLUMN_ORDER) {
@@ -51,15 +56,18 @@ function resolveTargetColumn(
 export function KanbanView() {
   const { selectedProjectId } = useUIStore()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const refresh = useRefreshStore((s) => s.refresh)
+  const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
+  const updateProjectTask = useDataQueryStore((state) => state.updateProjectTask)
   const { tasksByStatus, defaultTopicId, isLoading } = useKanbanData(selectedProjectId)
 
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
   const [overColumnId, setOverColumnId] = useState<TaskStatus | null>(null)
-  const [localTasksByStatus, setLocalTasksByStatus] = useState<TasksByStatus | null>(null)
+  const [localBoard, setLocalBoard] = useState<LocalBoard | null>(null)
   const localTasksByStatusRef = useRef<TasksByStatus | null>(null)
+  const pendingStatusChangeRef = useRef<{ taskId: string; status: TaskStatus } | null>(null)
 
-  const displayed = localTasksByStatus ?? tasksByStatus
+  const displayed =
+    localBoard?.projectId === selectedProjectId ? localBoard.tasksByStatus : tasksByStatus
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
@@ -75,9 +83,24 @@ export function KanbanView() {
   const clearDragState = useCallback(() => {
     setDraggingTask(null)
     setOverColumnId(null)
-    setLocalTasksByStatus(null)
+    setLocalBoard(null)
     localTasksByStatusRef.current = null
+    pendingStatusChangeRef.current = null
   }, [])
+
+  useEffect(() => {
+    return useUIStore.subscribe((state, previousState) => {
+      if (state.selectedProjectId !== previousState.selectedProjectId) clearDragState()
+    })
+  }, [clearDragState])
+
+  useEffect(() => {
+    const pending = pendingStatusChangeRef.current
+    if (!pending || findColumnOfTask(pending.taskId, tasksByStatus) !== pending.status) return
+    localTasksByStatusRef.current = null
+    pendingStatusChangeRef.current = null
+    setLocalBoard(null)
+  }, [tasksByStatus])
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -129,9 +152,9 @@ export function KanbanView() {
         ]),
       }
       localTasksByStatusRef.current = next
-      setLocalTasksByStatus(next)
+      if (selectedProjectId) setLocalBoard({ projectId: selectedProjectId, tasksByStatus: next })
     },
-    [tasksByStatus, isAuthenticated]
+    [tasksByStatus, isAuthenticated, selectedProjectId]
   )
 
   const handleDragCancel = useCallback(
@@ -177,16 +200,28 @@ export function KanbanView() {
       }
 
       try {
-        // DB書き込み完了後にローカル状態をクリア（先にクリアすると元列への残像が出る）
-        unwrapResult(await taskRepo.update(activeTask.id, { status: targetCol }))
-        refresh()
+        const updatedTask = unwrapResult(
+          await taskRepo.update(activeTask.id, { status: targetCol })
+        )
+        // authoritative data が追いつくまではローカル順を残し、元列へのsnap backを防ぐ。
+        pendingStatusChangeRef.current = { taskId: activeTask.id, status: targetCol }
+        if (selectedProjectId) {
+          updateProjectTask(selectedProjectId, updatedTask)
+          invalidateProjectTasks(selectedProjectId)
+        }
       } catch (err) {
         console.error('カンバンのステータス更新に失敗しました', err)
-      } finally {
         clearDragState()
       }
     },
-    [tasksByStatus, isAuthenticated, refresh, clearDragState]
+    [
+      tasksByStatus,
+      isAuthenticated,
+      selectedProjectId,
+      updateProjectTask,
+      invalidateProjectTasks,
+      clearDragState,
+    ]
   )
 
   if (!selectedProjectId) {

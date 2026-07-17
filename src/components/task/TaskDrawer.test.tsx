@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project, Subtask, Task, Topic } from '@/types'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
+import { resetDataQueries, useDataQueryStore } from '@/hooks/useDataQueries'
 import { TaskDrawer } from './TaskDrawer'
 
 const { projectRepoMock, taskRepoMock, topicRepoMock, subtaskRepoMock } = vi.hoisted(() => ({
@@ -11,7 +12,7 @@ const { projectRepoMock, taskRepoMock, topicRepoMock, subtaskRepoMock } = vi.hoi
     getAll: vi.fn(),
   },
   taskRepoMock: {
-    getById: vi.fn(),
+    getByProjectId: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -114,8 +115,13 @@ const SUBTASK: Subtask = {
 
 describe('TaskDrawer', () => {
   beforeEach(() => {
+    resetDataQueries()
     projectRepoMock.getAll.mockReset().mockResolvedValue({ ok: true, data: PROJECTS })
-    taskRepoMock.getById.mockReset().mockResolvedValue({ ok: true, data: TASK })
+    taskRepoMock.getByProjectId
+      .mockReset()
+      .mockImplementation((projectId: string) =>
+        Promise.resolve({ ok: true, data: projectId === 'project-1' ? [TASK] : [] })
+      )
     taskRepoMock.create.mockReset()
     taskRepoMock.update.mockReset().mockResolvedValue({ ok: true, data: TASK })
     taskRepoMock.delete.mockReset()
@@ -251,15 +257,19 @@ describe('TaskDrawer', () => {
       )
     })
 
+    expect(useDataQueryStore.getState().projectsById['project-1']?.tasks.revision).toBe(1)
+    expect(useDataQueryStore.getState().projectsById['project-2']?.tasks.revision).toBe(1)
     expect(useUIStore.getState().isTaskDrawerOpen).toBe(false)
   })
 
   it('2番目以降のトピックにある既存タスクの所属を保持する', async () => {
     const user = userEvent.setup()
-    taskRepoMock.getById.mockResolvedValue({
-      ok: true,
-      data: { ...TASK, topicId: 'topic-1-second' },
-    })
+    taskRepoMock.getByProjectId.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        ok: true,
+        data: projectId === 'project-1' ? [{ ...TASK, topicId: 'topic-1-second' }] : [],
+      })
+    )
 
     render(<TaskDrawer />)
 
@@ -276,6 +286,7 @@ describe('TaskDrawer', () => {
         expect.objectContaining({ topicId: 'topic-1-second' })
       )
     })
+    expect(useDataQueryStore.getState().projectsById['project-1']?.tasks.revision).toBe(1)
   })
 
   it('変更先プロジェクトのトピックを読み込むまで保存できない', async () => {
@@ -309,10 +320,13 @@ describe('TaskDrawer', () => {
 
   it('繰り返しタスクを移動と同時に完了しても移動先トピックを引き継ぐ', async () => {
     const user = userEvent.setup()
-    taskRepoMock.getById.mockResolvedValue({
-      ok: true,
-      data: { ...TASK, repeatRule: 'RRULE:FREQ=DAILY;INTERVAL=1' },
-    })
+    taskRepoMock.getByProjectId.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        ok: true,
+        data:
+          projectId === 'project-1' ? [{ ...TASK, repeatRule: 'RRULE:FREQ=DAILY;INTERVAL=1' }] : [],
+      })
+    )
     taskRepoMock.completeRecurring.mockResolvedValue({
       ok: true,
       data: {
@@ -346,6 +360,8 @@ describe('TaskDrawer', () => {
         expect.objectContaining({ topicId: 'topic-2' })
       )
     })
+    expect(useDataQueryStore.getState().projectsById['project-1']?.tasks.revision).toBe(1)
+    expect(useDataQueryStore.getState().projectsById['project-2']?.tasks.revision).toBe(1)
     expect(taskRepoMock.update).not.toHaveBeenCalled()
   })
 })

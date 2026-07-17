@@ -3,12 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project } from '@/types'
 import { useAuthStore } from '@/store/authStore'
+import { resetDataQueries } from '@/hooks/useDataQueries'
 import { useUIStore } from '@/store/uiStore'
 import { ProjectForm } from './ProjectForm'
 
 const { projectRepoMock } = vi.hoisted(() => ({
   projectRepoMock: {
-    getById: vi.fn(),
+    getAll: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
   },
@@ -34,7 +35,8 @@ function makeProject(overrides: Partial<Project> = {}): Project {
 
 describe('ProjectForm', () => {
   beforeEach(() => {
-    projectRepoMock.getById.mockReset()
+    resetDataQueries()
+    projectRepoMock.getAll.mockReset().mockResolvedValue({ ok: true, data: [] })
     projectRepoMock.create.mockReset()
     projectRepoMock.update.mockReset()
     useAuthStore.setState({ isAuthenticated: true, isLoginDialogOpen: false })
@@ -49,10 +51,10 @@ describe('ProjectForm', () => {
   })
 
   it('編集対象の取得完了後にプロジェクト情報をフォームへ反映する', async () => {
-    let resolveProject: (value: { ok: true; data: Project }) => void = () => {}
-    projectRepoMock.getById.mockReturnValue(
+    let resolveProjects: (value: { ok: true; data: Project[] }) => void = () => {}
+    projectRepoMock.getAll.mockReturnValue(
       new Promise((resolve) => {
-        resolveProject = resolve
+        resolveProjects = resolve
       })
     )
 
@@ -65,7 +67,7 @@ describe('ProjectForm', () => {
     expect(screen.getByLabelText('説明（省略可）')).toHaveValue('')
 
     await act(async () => {
-      resolveProject({ ok: true, data: makeProject() })
+      resolveProjects({ ok: true, data: [makeProject()] })
     })
 
     await waitFor(() => {
@@ -73,7 +75,7 @@ describe('ProjectForm', () => {
       expect(screen.getByLabelText('説明（省略可）')).toHaveValue('既存の説明')
     })
 
-    expect(projectRepoMock.getById).toHaveBeenCalledWith('proj-1')
+    expect(projectRepoMock.getAll).toHaveBeenCalledTimes(1)
   })
 
   it('新規作成中にESCを押すと保存せず閉じる', async () => {
@@ -96,7 +98,7 @@ describe('ProjectForm', () => {
 
   it('編集中にESCを押すと更新せず閉じる', async () => {
     const user = userEvent.setup()
-    projectRepoMock.getById.mockResolvedValue({ ok: true, data: makeProject() })
+    projectRepoMock.getAll.mockResolvedValue({ ok: true, data: [makeProject()] })
     act(() => {
       useUIStore.setState({ isProjectFormOpen: true, editingProjectId: 'proj-1' })
     })
@@ -132,12 +134,13 @@ describe('ProjectForm', () => {
   })
 
   it('開いたまま別プロジェクトの編集へ切り替えた場合も対象情報へ更新する', async () => {
-    projectRepoMock.getById
-      .mockResolvedValueOnce({ ok: true, data: makeProject({ id: 'proj-1', name: 'Project A' }) })
-      .mockResolvedValueOnce({
-        ok: true,
-        data: makeProject({ id: 'proj-2', name: 'Project B', description: 'B の説明' }),
-      })
+    projectRepoMock.getAll.mockResolvedValue({
+      ok: true,
+      data: [
+        makeProject({ id: 'proj-1', name: 'Project A' }),
+        makeProject({ id: 'proj-2', name: 'Project B', description: 'B の説明' }),
+      ],
+    })
 
     act(() => {
       useUIStore.setState({ isProjectFormOpen: true, editingProjectId: 'proj-1' })

@@ -14,10 +14,9 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/button'
 import { SortableTaskRow } from '@/components/task/SortableTaskRow'
-import { useFilteredTasksByTopic } from '@/hooks/useFilteredTasks'
 import { useFilterStore, selectIsFiltering } from '@/store/filterStore'
 import { useUIStore } from '@/store/uiStore'
-import { useRefreshStore } from '@/hooks/useDataRefresh'
+import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo, topicRepo } from '@/repositories'
 import { reorderItems, sortByPriority } from '@/utils/sortUtils'
 import { unwrapResult } from '@/utils/resultUtils'
@@ -25,6 +24,7 @@ import type { Task, Topic } from '@/types'
 
 interface TopicRowProps {
   topic: Topic
+  tasks: Task[]
   canEdit: boolean
   onAddTask: (topicId: string) => void
 }
@@ -36,7 +36,7 @@ function moveCompletedTasksToEnd(tasks: Task[]): Task[] {
   return [...activeTasks, ...completedTasks]
 }
 
-export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
+export function TopicRow({ topic, tasks, canEdit, onAddTask }: TopicRowProps) {
   const [isOpen, setIsOpen] = useState(true)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -44,14 +44,16 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
   const editInputRef = useRef<HTMLInputElement>(null)
-  const tasks = useFilteredTasksByTopic(topic.id)
   const [pendingTaskOrder, setPendingTaskOrder] = useState<string[] | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const reorderingRef = useRef(false)
   const isFiltering = useFilterStore(selectIsFiltering)
   const isCompletedOpen = useUIStore((state) => state.expandedCompletedTopicIds[topic.id] ?? false)
   const toggleCompletedTasks = useUIStore((state) => state.toggleCompletedTasks)
-  const refresh = useRefreshStore((s) => s.refresh)
+  const invalidateProject = useDataQueryStore((state) => state.invalidateProject)
+  const invalidateProjectTopics = useDataQueryStore((state) => state.invalidateProjectTopics)
+  const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
+  const updateProjectTask = useDataQueryStore((state) => state.updateProjectTask)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -123,7 +125,7 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
     if (!name || name === topic.name) return
     try {
       unwrapResult(await topicRepo.update(topic.id, { name }))
-      refresh()
+      invalidateProjectTopics(topic.projectId)
     } catch (err) {
       console.error('トピック名の更新に失敗しました', err)
     }
@@ -140,7 +142,7 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
     setDeleteError(null)
     try {
       unwrapResult(await topicRepo.delete(topic.id))
-      refresh()
+      invalidateProject(topic.projectId)
       setIsConfirmOpen(false)
     } catch {
       setDeleteError('削除に失敗しました。再試行してください。')
@@ -190,11 +192,14 @@ export function TopicRow({ topic, canEdit, onAddTask }: TopicRowProps) {
       )
       const rejected = results.find((result) => result.status === 'rejected')
       if (rejected) throw rejected.reason
-      refresh()
+      for (const result of results) {
+        if (result.status === 'fulfilled') updateProjectTask(topic.projectId, result.value)
+      }
+      invalidateProjectTasks(topic.projectId)
     } catch (err) {
       console.error('タスクの並び替えに失敗しました', err)
       setPendingTaskOrder(null)
-      refresh()
+      invalidateProjectTasks(topic.projectId)
     } finally {
       reorderingRef.current = false
       setIsReordering(false)

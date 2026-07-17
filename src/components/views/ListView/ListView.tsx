@@ -1,23 +1,36 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus, FolderOpen, X, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TopicRow } from './TopicRow'
 import { FilterPanel } from '@/components/filter/FilterPanel'
 import { ListViewSkeleton } from '@/components/ui/skeleton'
-import { useKanbanData, useTopics } from '@/hooks/useTasks'
+import { useProjectData } from '@/hooks/useTasks'
+import { useFilteredTasks } from '@/hooks/useFilteredTasks'
 import { useProject } from '@/hooks/useProjects'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
-import { useRefreshStore } from '@/hooks/useDataRefresh'
+import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { topicRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
+import type { Task } from '@/types'
+
+const EMPTY_TASKS: Task[] = []
 
 export function ListView() {
   const { selectedProjectId, openNewTaskDrawer } = useUIStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
-  const refresh = useRefreshStore((s) => s.refresh)
-  const topics = useTopics(selectedProjectId)
-  const { tasksByStatus } = useKanbanData(selectedProjectId)
+  const invalidateProjectTopics = useDataQueryStore((state) => state.invalidateProjectTopics)
+  const { topics, tasks, isTopicsLoading } = useProjectData(selectedProjectId)
+  const filteredTasks = useFilteredTasks(tasks ?? EMPTY_TASKS)
+  const tasksByTopic = useMemo(() => {
+    const grouped = new Map<string, Task[]>()
+    for (const task of filteredTasks) {
+      const topicTasks = grouped.get(task.topicId)
+      if (topicTasks) topicTasks.push(task)
+      else grouped.set(task.topicId, [task])
+    }
+    return grouped
+  }, [filteredTasks])
   const selectedProject = useProject(selectedProjectId)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [topicName, setTopicName] = useState('')
@@ -45,7 +58,7 @@ export function ListView() {
       unwrapResult(
         await topicRepo.create({ projectId: selectedProjectId, name, order: maxOrder + 1 })
       )
-      refresh()
+      invalidateProjectTopics(selectedProjectId)
       setIsDialogOpen(false)
     } finally {
       setIsSubmitting(false)
@@ -77,11 +90,11 @@ export function ListView() {
     )
   }
 
-  if (topics === undefined) {
+  if (isTopicsLoading || topics === undefined) {
     return <ListViewSkeleton />
   }
 
-  const taskCount = Object.values(tasksByStatus).reduce((count, tasks) => count + tasks.length, 0)
+  const taskCount = tasks?.length ?? 0
 
   return (
     <div className="flex h-full flex-col">
@@ -125,6 +138,7 @@ export function ListView() {
             <TopicRow
               key={topic.id}
               topic={topic}
+              tasks={tasksByTopic.get(topic.id) ?? EMPTY_TASKS}
               canEdit={isAuthenticated}
               onAddTask={handleAddTask}
             />

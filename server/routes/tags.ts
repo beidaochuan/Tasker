@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
+import { decodeTaskTags, encodeTaskTags } from '../taskRecord.js'
 import { parseOrRespond, tagCreateSchema } from '../validation.js'
 
 export const tagsRouter = Router()
@@ -36,21 +37,10 @@ tagsRouter.delete('/:id', (req, res) => {
     const now = Date.now()
 
     for (const task of tasks) {
-      const tags = parseTags(task.tags)
+      const tags = decodeTaskTags(task.tags)
       if (!tags.includes(id)) continue
-      updateTaskTags.run(JSON.stringify(tags.filter((tagId) => tagId !== id)), now, task.id)
+      updateTaskTags.run(encodeTaskTags(tags.filter((tagId) => tagId !== id)), now, task.id)
     }
   })()
   res.status(204).send()
 })
-
-function parseTags(value: string): string[] {
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed)
-      ? parsed.filter((tag): tag is string => typeof tag === 'string')
-      : []
-  } catch {
-    return []
-  }
-}

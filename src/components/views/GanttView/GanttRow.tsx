@@ -6,7 +6,7 @@ import { PIXELS_PER_DAY, ROW_HEIGHT } from './ganttConstants'
 import { GanttBar } from './GanttBar'
 
 interface Props {
-  tasks: Task[]
+  task: Task
   totalDays: number
   ganttStart: Date
   scale: GanttScale
@@ -21,7 +21,7 @@ interface Props {
 }
 
 export const GanttRow = memo(function GanttRow({
-  tasks,
+  task,
   totalDays,
   ganttStart,
   scale,
@@ -31,8 +31,7 @@ export const GanttRow = memo(function GanttRow({
 }: Props) {
   const ppd = PIXELS_PER_DAY[scale]
   const totalWidth = totalDays * ppd
-  const task = tasks[0]
-  const hasBar = task && (task.startDate || task.dueDate)
+  const hasBar = Boolean(task.startDate || task.dueDate)
 
   // ドラッグ作成用プレビュー状態
   const dragRef = useRef<{ startDay: number } | null>(null)
@@ -67,7 +66,7 @@ export const GanttRow = memo(function GanttRow({
 
   const handleRowPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (hasBar || !task || !onCreateBar) return
+      if (hasBar || !onCreateBar) return
       e.preventDefault()
       const row = e.currentTarget
       row.setPointerCapture(e.pointerId)
@@ -125,16 +124,13 @@ export const GanttRow = memo(function GanttRow({
         className="pointer-events-none absolute top-[6px] rounded-md border border-blue-500 bg-blue-400/50"
         style={{ display: 'none', height: ROW_HEIGHT - 12 }}
       />
-      {tasks.map((t) => (
-        <GanttBar
-          key={t.id}
-          task={t}
-          ganttStart={ganttStart}
-          scale={scale}
-          onBarPointerDown={onBarPointerDown}
-          onClick={onBarClick}
-        />
-      ))}
+      <GanttBar
+        task={task}
+        ganttStart={ganttStart}
+        scale={scale}
+        onBarPointerDown={onBarPointerDown}
+        onClick={onBarClick}
+      />
     </div>
   )
 })

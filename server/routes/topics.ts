@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
+import { deleteTopicHierarchy } from '../services/deleteHierarchy.js'
 import { parseOrRespond, topicCreateSchema, topicUpdateSchema } from '../validation.js'
 
 export const topicsRouter = Router()
@@ -62,18 +63,6 @@ topicsRouter.patch('/:id', (req, res) => {
 })
 
 topicsRouter.delete('/:id', (req, res) => {
-  const id = req.params.id
-  db.transaction(() => {
-    const taskIds = (
-      db.prepare('SELECT id FROM tasks WHERE topicId = ?').all(id) as { id: string }[]
-    ).map((r) => r.id)
-    if (taskIds.length > 0) {
-      const tp = taskIds.map(() => '?').join(',')
-      db.prepare(`DELETE FROM subtasks WHERE taskId IN (${tp})`).run(...taskIds)
-      db.prepare(`DELETE FROM task_completions WHERE taskId IN (${tp})`).run(...taskIds)
-      db.prepare(`DELETE FROM tasks WHERE id IN (${tp})`).run(...taskIds)
-    }
-    db.prepare('DELETE FROM topics WHERE id = ?').run(id)
-  })()
+  deleteTopicHierarchy(db, req.params.id)
   res.status(204).send()
 })

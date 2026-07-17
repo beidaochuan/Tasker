@@ -1,11 +1,24 @@
-import { apiFetch } from '@/repositories/apiFetch'
+import { apiFetch, apiFetchNoContent } from '@/repositories/apiFetch'
+import {
+  completionsWireResponseSchema,
+  projectsWireResponseSchema,
+  subtasksWireResponseSchema,
+  tagsWireResponseSchema,
+  tasksWireResponseSchema,
+  topicsWireResponseSchema,
+} from '@/repositories/apiResponseSchemas'
+import type { output, ZodTypeAny } from 'zod'
 
 const LAST_EXPORT_KEY = 'tasker_last_export'
 const WARN_DAYS = 7
 const MAX_IMPORT_SIZE = 50 * 1024 * 1024 // 50 MB
 
-async function fetchOrThrow(path: string, init?: RequestInit): Promise<unknown> {
-  const r = await apiFetch<unknown>(path, init)
+async function fetchOrThrow<TSchema extends ZodTypeAny>(
+  path: string,
+  responseSchema: TSchema,
+  init?: RequestInit
+): Promise<output<TSchema>> {
+  const r = await apiFetch(path, { responseSchema, init })
   if (!r.ok) throw new Error(r.error.message)
   return r.data
 }
@@ -31,21 +44,22 @@ export async function importAllData(file: File): Promise<void> {
     throw new Error('無効なバックアップファイルです')
   }
 
-  await fetchOrThrow('/api/import', {
+  const imported = await apiFetchNoContent('/api/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(parsed),
   })
+  if (!imported.ok) throw new Error(imported.error.message)
 }
 
 export async function exportAllData(): Promise<void> {
   const [projects, topics, tasks, subtasks, tags, task_completions] = await Promise.all([
-    fetchOrThrow('/api/projects'),
-    fetchOrThrow('/api/topics'),
-    fetchOrThrow('/api/tasks'),
-    fetchOrThrow('/api/subtasks'),
-    fetchOrThrow('/api/tags'),
-    fetchOrThrow('/api/completions'),
+    fetchOrThrow('/api/projects', projectsWireResponseSchema),
+    fetchOrThrow('/api/topics', topicsWireResponseSchema),
+    fetchOrThrow('/api/tasks', tasksWireResponseSchema),
+    fetchOrThrow('/api/subtasks', subtasksWireResponseSchema),
+    fetchOrThrow('/api/tags', tagsWireResponseSchema),
+    fetchOrThrow('/api/completions', completionsWireResponseSchema),
   ])
 
   const payload = {

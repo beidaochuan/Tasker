@@ -4,12 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Task, Topic } from '@/types'
 import { useFilterStore } from '@/store/filterStore'
 import { useUIStore } from '@/store/uiStore'
-import { useRefreshStore } from '@/hooks/useDataRefresh'
 import { TopicRow } from './TopicRow'
 
-const { taskRepoMock, topicRepoMock, dragMock } = vi.hoisted(() => ({
+const {
+  taskRepoMock,
+  topicRepoMock,
+  dragMock,
+  invalidateProjectMock,
+  invalidateProjectTopicsMock,
+  invalidateProjectTasksMock,
+  updateProjectTaskMock,
+} = vi.hoisted(() => ({
   taskRepoMock: {
-    getByTopicId: vi.fn(),
     update: vi.fn(),
   },
   topicRepoMock: {
@@ -21,11 +27,32 @@ const { taskRepoMock, topicRepoMock, dragMock } = vi.hoisted(() => ({
       | ((event: { active: { id: string }; over: { id: string } | null }) => unknown)
       | null,
   },
+  invalidateProjectMock: vi.fn(),
+  invalidateProjectTopicsMock: vi.fn(),
+  invalidateProjectTasksMock: vi.fn(),
+  updateProjectTaskMock: vi.fn(),
 }))
 
 vi.mock('@/repositories', () => ({
   taskRepo: taskRepoMock,
   topicRepo: topicRepoMock,
+}))
+
+vi.mock('@/hooks/useDataQueries', () => ({
+  useDataQueryStore: (
+    selector: (state: {
+      invalidateProject: typeof invalidateProjectMock
+      invalidateProjectTopics: typeof invalidateProjectTopicsMock
+      invalidateProjectTasks: typeof invalidateProjectTasksMock
+      updateProjectTask: typeof updateProjectTaskMock
+    }) => unknown
+  ) =>
+    selector({
+      invalidateProject: invalidateProjectMock,
+      invalidateProjectTopics: invalidateProjectTopicsMock,
+      invalidateProjectTasks: invalidateProjectTasksMock,
+      updateProjectTask: updateProjectTaskMock,
+    }),
 }))
 
 vi.mock('@dnd-kit/core', () => ({
@@ -106,14 +133,16 @@ function displayedTaskTitles() {
 
 describe('TopicRow', () => {
   beforeEach(() => {
-    taskRepoMock.getByTopicId.mockReset()
     taskRepoMock.update.mockReset()
     topicRepoMock.update.mockReset()
     topicRepoMock.delete.mockReset()
+    invalidateProjectMock.mockReset()
+    invalidateProjectTopicsMock.mockReset()
+    invalidateProjectTasksMock.mockReset()
+    updateProjectTaskMock.mockReset()
     dragMock.onDragEnd = null
     useFilterStore.getState().resetFilters()
     useUIStore.setState({ expandedCompletedTopicIds: {} })
-    useRefreshStore.setState({ counter: 0 })
   })
 
   afterEach(() => {
@@ -122,17 +151,14 @@ describe('TopicRow', () => {
   })
 
   it('完了タスクを初期状態で隠し、グループを開くと相対順序を保って表示する', async () => {
-    taskRepoMock.getByTopicId.mockResolvedValue({
-      ok: true,
-      data: [
-        makeTask('task-done-a', '完了A', 0, 'done'),
-        makeTask('task-active-a', '未完了A', 1),
-        makeTask('task-done-b', '完了B', 2, 'done'),
-        makeTask('task-active-b', '未完了B', 3, 'in_progress'),
-      ],
-    })
+    const tasks = [
+      makeTask('task-done-a', '完了A', 0, 'done'),
+      makeTask('task-active-a', '未完了A', 1),
+      makeTask('task-done-b', '完了B', 2, 'done'),
+      makeTask('task-active-b', '未完了B', 3, 'in_progress'),
+    ]
 
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    render(<TopicRow topic={TOPIC} tasks={tasks} canEdit onAddTask={vi.fn()} />)
 
     expect(await screen.findByText('未完了A')).toBeInTheDocument()
     const completedGroup = screen.getByRole('button', { name: '完了タスク（2）' })
@@ -149,26 +175,21 @@ describe('TopicRow', () => {
   })
 
   it('完了タスクが0件なら完了グループを表示しない', async () => {
-    taskRepoMock.getByTopicId.mockResolvedValue({ ok: true, data: TASKS })
-
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    render(<TopicRow topic={TOPIC} tasks={TASKS} canEdit onAddTask={vi.fn()} />)
 
     expect(await screen.findByText('タスクA')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /完了タスク/ })).toBeNull()
   })
 
   it('未完了・完了の各グループを優先度の高い順に表示する', async () => {
-    taskRepoMock.getByTopicId.mockResolvedValue({
-      ok: true,
-      data: [
-        { ...makeTask('active-low', '未完了・低', 0), priority: 'low' },
-        { ...makeTask('done-medium', '完了・中', 1, 'done'), priority: 'medium' },
-        { ...makeTask('active-urgent', '未完了・緊急', 2), priority: 'urgent' },
-        { ...makeTask('done-high', '完了・高', 3, 'done'), priority: 'high' },
-      ],
-    })
+    const tasks = [
+      { ...makeTask('active-low', '未完了・低', 0), priority: 'low' as const },
+      { ...makeTask('done-medium', '完了・中', 1, 'done'), priority: 'medium' as const },
+      { ...makeTask('active-urgent', '未完了・緊急', 2), priority: 'urgent' as const },
+      { ...makeTask('done-high', '完了・高', 3, 'done'), priority: 'high' as const },
+    ]
 
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    render(<TopicRow topic={TOPIC} tasks={tasks} canEdit onAddTask={vi.fn()} />)
 
     expect(await screen.findByText('未完了・緊急')).toBeInTheDocument()
     expect(displayedTaskTitles()).toEqual(['未完了・緊急', '未完了・低'])
@@ -178,15 +199,12 @@ describe('TopicRow', () => {
   })
 
   it('異なる優先度をまたぐドラッグでは優先度順を変更しない', async () => {
-    taskRepoMock.getByTopicId.mockResolvedValue({
-      ok: true,
-      data: [
-        { ...makeTask('task-low', '優先度・低', 0), priority: 'low' },
-        { ...makeTask('task-high', '優先度・高', 1), priority: 'high' },
-      ],
-    })
+    const tasks = [
+      { ...makeTask('task-low', '優先度・低', 0), priority: 'low' as const },
+      { ...makeTask('task-high', '優先度・高', 1), priority: 'high' as const },
+    ]
 
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    render(<TopicRow topic={TOPIC} tasks={tasks} canEdit onAddTask={vi.fn()} />)
     expect(await screen.findByText('優先度・高')).toBeInTheDocument()
     expect(displayedTaskTitles()).toEqual(['優先度・高', '優先度・低'])
 
@@ -202,17 +220,13 @@ describe('TopicRow', () => {
   })
 
   it('フィルター適用後の完了タスク件数をグループに表示する', async () => {
-    taskRepoMock.getByTopicId.mockResolvedValue({
-      ok: true,
-      data: [
-        makeTask('task-active', '未完了', 0),
-        makeTask('task-done-a', '完了A', 1, 'done'),
-        makeTask('task-done-b', '完了B', 2, 'done'),
-      ],
-    })
+    const filteredTasks = [
+      makeTask('task-done-a', '完了A', 1, 'done'),
+      makeTask('task-done-b', '完了B', 2, 'done'),
+    ]
     useFilterStore.getState().setStatuses(['done'])
 
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    render(<TopicRow topic={TOPIC} tasks={filteredTasks} canEdit onAddTask={vi.fn()} />)
 
     const completedGroup = await screen.findByRole('button', { name: '完了タスク（2）' })
     expect(screen.queryByText('未完了')).toBeNull()
@@ -222,13 +236,11 @@ describe('TopicRow', () => {
 
   it('並び替え後の順序を保存・再取得が完了するまで保持する', async () => {
     const update = deferred<{ ok: true; data: Task }>()
-    const refetch = deferred<{ ok: true; data: Task[] }>()
-    taskRepoMock.getByTopicId
-      .mockResolvedValueOnce({ ok: true, data: TASKS })
-      .mockReturnValueOnce(refetch.promise)
     taskRepoMock.update.mockReturnValue(update.promise)
 
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    const { rerender } = render(
+      <TopicRow topic={TOPIC} tasks={TASKS} canEdit onAddTask={vi.fn()} />
+    )
 
     expect(await screen.findByText('タスクA')).toBeInTheDocument()
     expect(displayedTaskTitles()).toEqual(['タスクA', 'タスクB', 'タスクC'])
@@ -257,28 +269,36 @@ describe('TopicRow', () => {
       await dragPromise
     })
 
-    await waitFor(() => {
-      expect(taskRepoMock.getByTopicId).toHaveBeenCalledTimes(2)
-    })
+    expect(invalidateProjectTasksMock).toHaveBeenCalledTimes(1)
+    expect(invalidateProjectTasksMock).toHaveBeenCalledWith(TOPIC.projectId)
     expect(displayedTaskTitles()).toEqual(['タスクB', 'タスクC', 'タスクA'])
+    expect(
+      screen.getAllByTestId('sortable-task').every((row) => row.dataset.disabled === 'false')
+    ).toBe(true)
 
     await act(async () => {
-      refetch.resolve({
-        ok: true,
-        data: [
-          { ...TASKS[1], order: 0 },
-          { ...TASKS[2], order: 1 },
-          { ...TASKS[0], order: 2 },
-        ],
-      })
-    })
-
-    await waitFor(() => {
-      expect(
-        screen.getAllByTestId('sortable-task').every((row) => row.dataset.disabled === 'false')
-      ).toBe(true)
+      rerender(<TopicRow topic={TOPIC} tasks={[...TASKS]} canEdit onAddTask={vi.fn()} />)
     })
     expect(displayedTaskTitles()).toEqual(['タスクB', 'タスクC', 'タスクA'])
+
+    const savedTasks = [
+      { ...TASKS[1], order: 0 },
+      { ...TASKS[2], order: 1 },
+      { ...TASKS[0], order: 2 },
+    ]
+    await act(async () => {
+      rerender(<TopicRow topic={TOPIC} tasks={savedTasks} canEdit onAddTask={vi.fn()} />)
+      await Promise.resolve()
+    })
+    expect(displayedTaskTitles()).toEqual(['タスクB', 'タスクC', 'タスクA'])
+
+    const laterAuthoritativeTasks = [
+      { ...TASKS[2], order: 0 },
+      { ...TASKS[0], order: 1 },
+      { ...TASKS[1], order: 2 },
+    ]
+    rerender(<TopicRow topic={TOPIC} tasks={laterAuthoritativeTasks} canEdit onAddTask={vi.fn()} />)
+    expect(displayedTaskTitles()).toEqual(['タスクC', 'タスクA', 'タスクB'])
   })
 
   it('完了グループを閉じた並び替えでも完了タスクを末尾に維持して保存する', async () => {
@@ -289,10 +309,9 @@ describe('TopicRow', () => {
       makeTask('task-done-a', '完了A', 2, 'done'),
       makeTask('task-done-b', '完了B', 3, 'done'),
     ]
-    taskRepoMock.getByTopicId.mockResolvedValue({ ok: true, data: tasks })
     taskRepoMock.update.mockReturnValue(update.promise)
 
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    render(<TopicRow topic={TOPIC} tasks={tasks} canEdit onAddTask={vi.fn()} />)
     expect(await screen.findByText('未完了A')).toBeInTheDocument()
 
     let dragPromise: Promise<void> | undefined
@@ -322,12 +341,9 @@ describe('TopicRow', () => {
   })
 
   it('未完了と完了のグループをまたぐドラッグを保存しない', async () => {
-    taskRepoMock.getByTopicId.mockResolvedValue({
-      ok: true,
-      data: [makeTask('task-active', '未完了', 0), makeTask('task-done', '完了', 1, 'done')],
-    })
+    const tasks = [makeTask('task-active', '未完了', 0), makeTask('task-done', '完了', 1, 'done')]
 
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    render(<TopicRow topic={TOPIC} tasks={tasks} canEdit onAddTask={vi.fn()} />)
     expect(await screen.findByText('未完了')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '完了タスク（1）' }))
 
@@ -348,10 +364,9 @@ describe('TopicRow', () => {
       makeTask('task-done-a', '完了A', 1, 'done'),
       makeTask('task-done-b', '完了B', 2, 'done'),
     ]
-    taskRepoMock.getByTopicId.mockResolvedValue({ ok: true, data: tasks })
     taskRepoMock.update.mockResolvedValue({ ok: true, data: tasks[0] })
 
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    render(<TopicRow topic={TOPIC} tasks={tasks} canEdit onAddTask={vi.fn()} />)
     expect(await screen.findByText('未完了')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '完了タスク（2）' }))
 
@@ -372,13 +387,12 @@ describe('TopicRow', () => {
   it('一部の保存が失敗した場合は全保存の完了後に再取得する', async () => {
     const lastUpdate = deferred<{ ok: true; data: Task }>()
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    taskRepoMock.getByTopicId.mockResolvedValue({ ok: true, data: TASKS })
     taskRepoMock.update
       .mockResolvedValueOnce({ ok: true, data: TASKS[1] })
       .mockRejectedValueOnce(new Error('保存に失敗'))
       .mockReturnValueOnce(lastUpdate.promise)
 
-    render(<TopicRow topic={TOPIC} canEdit onAddTask={vi.fn()} />)
+    render(<TopicRow topic={TOPIC} tasks={TASKS} canEdit onAddTask={vi.fn()} />)
     expect(await screen.findByText('タスクA')).toBeInTheDocument()
 
     let dragPromise: Promise<void> | undefined
@@ -391,7 +405,7 @@ describe('TopicRow', () => {
     })
 
     expect(displayedTaskTitles()).toEqual(['タスクB', 'タスクC', 'タスクA'])
-    expect(taskRepoMock.getByTopicId).toHaveBeenCalledTimes(1)
+    expect(invalidateProjectTasksMock).not.toHaveBeenCalled()
 
     await act(async () => {
       lastUpdate.resolve({ ok: true, data: TASKS[0] })
@@ -399,9 +413,10 @@ describe('TopicRow', () => {
     })
 
     await waitFor(() => {
-      expect(taskRepoMock.getByTopicId).toHaveBeenCalledTimes(2)
       expect(displayedTaskTitles()).toEqual(['タスクA', 'タスクB', 'タスクC'])
     })
+    expect(invalidateProjectTasksMock).toHaveBeenCalledTimes(1)
+    expect(invalidateProjectTasksMock).toHaveBeenCalledWith(TOPIC.projectId)
     expect(consoleError).toHaveBeenCalledWith('タスクの並び替えに失敗しました', expect.any(Error))
     consoleError.mockRestore()
   })

@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { startOfDay, addDays } from 'date-fns'
-import { topicRepo, taskRepo } from '@/repositories'
-import { sortByOrder, sortGanttTasks } from '@/utils/sortUtils'
+import { sortGanttTasks } from '@/utils/sortUtils'
 import { expandOccurrences, hasRepeatRule } from '@/utils/recurrenceUtils'
-import { useRefreshStore } from './useDataRefresh'
+import { useProjectData } from './useTasks'
 import type { Task, Topic } from '@/types'
 
 const GANTT_LOOKAHEAD_DAYS = 3650 // 繰り返しタスクの展開上限: 約10年
@@ -13,72 +12,38 @@ export interface GanttRow {
   tasks: Task[]
 }
 
-interface RawGanttData {
-  projectId: string
-  topics: Topic[]
-  tasksByTopic: Record<string, Task[]>
-}
-
 export function useGanttData(projectId: string | null): GanttRow[] {
-  const [raw, setRaw] = useState<RawGanttData | null>(null)
-  const counter = useRefreshStore((s) => s.counter)
-
-  useEffect(() => {
-    let cancelled = false
-    if (!projectId) {
-      Promise.resolve().then(() => {
-        if (!cancelled) setRaw(null)
-      })
-      return () => {
-        cancelled = true
-      }
-    }
-    Promise.all([topicRepo.getByProjectId(projectId), taskRepo.getByProjectId(projectId)]).then(
-      ([tr, taskR]) => {
-        if (cancelled) return
-        if (!tr.ok || !taskR.ok) {
-          setRaw({ projectId, topics: [], tasksByTopic: {} })
-          return
-        }
-        const topics: Topic[] = sortByOrder(tr.data)
-        const tasksByTopic: Record<string, Task[]> = {}
-        for (const task of taskR.data) {
-          ;(tasksByTopic[task.topicId] ??= []).push(task)
-        }
-        setRaw({ projectId, topics, tasksByTopic })
-      }
-    )
-    return () => {
-      cancelled = true
-    }
-  }, [projectId, counter])
+  const { topics, tasks } = useProjectData(projectId)
 
   return useMemo(() => {
-    if (!raw || raw.projectId !== projectId) return []
+    if (!topics || !tasks) return []
     const today = startOfDay(new Date())
+    const tasksByTopic: Record<string, Task[]> = {}
+    for (const task of tasks) {
+      ;(tasksByTopic[task.topicId] ??= []).push(task)
+    }
 
-    return raw.topics.map((topic) => {
-      const baseTasks = raw.tasksByTopic[topic.id] ?? []
-      const tasks: Task[] = []
+    return topics.map((topic) => {
+      const expandedTasks: Task[] = []
 
-      for (const task of baseTasks) {
+      for (const task of tasksByTopic[topic.id] ?? []) {
         if (hasRepeatRule(task.repeatRule) && task.dueDate) {
           const farFuture = addDays(today, GANTT_LOOKAHEAD_DAYS)
           const upcoming = expandOccurrences(task.repeatRule, task.dueDate, today, farFuture)
           const nextDate = upcoming[0] ?? task.dueDate
           const duration = task.startDate ? task.dueDate.getTime() - task.startDate.getTime() : null
-          tasks.push({
+          expandedTasks.push({
             ...task,
             id: `${task.id}_${nextDate.getTime()}`,
             dueDate: nextDate,
             startDate: duration !== null ? new Date(nextDate.getTime() - duration) : null,
           })
         } else {
-          tasks.push(task)
+          expandedTasks.push(task)
         }
       }
 
-      return { topic, tasks: sortGanttTasks(tasks) }
+      return { topic, tasks: sortGanttTasks(expandedTasks) }
     })
-  }, [projectId, raw])
+  }, [tasks, topics])
 }

@@ -9,7 +9,7 @@ import { useCalendarTasks } from '@/hooks/useCalendarTasks'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { taskRepo } from '@/repositories'
-import { useRefreshStore } from '@/hooks/useDataRefresh'
+import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { resolveTaskId } from '@/utils/recurrenceUtils'
 import './calendar.css'
 
@@ -33,7 +33,8 @@ export function CalendarView() {
   // Hooks はすべて early return より前に呼ぶ（React の規則）
   const { selectedProjectId, openTaskDrawer } = useUIStore()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const refresh = useRefreshStore((s) => s.refresh)
+  const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
+  const updateProjectTask = useDataQueryStore((state) => state.updateProjectTask)
   const [rangeStart, setRangeStart] = useState<Date | null>(null)
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null)
   const events = useCalendarTasks(selectedProjectId, rangeStart, rangeEnd)
@@ -70,14 +71,17 @@ export function CalendarView() {
           arg.revert()
           console.error('[CalendarView] dueDate 更新失敗:', result.error)
         } else {
-          refresh()
+          if (selectedProjectId) {
+            updateProjectTask(selectedProjectId, result.data)
+            invalidateProjectTasks(selectedProjectId)
+          }
         }
       } catch (e) {
         arg.revert()
         console.error('[CalendarView] dueDate 更新中に予期しないエラー:', e)
       }
     },
-    [isAuthenticated, refresh]
+    [invalidateProjectTasks, isAuthenticated, selectedProjectId, updateProjectTask]
   )
 
   const handleDateSelect = useCallback((arg: DateSelectArg) => {

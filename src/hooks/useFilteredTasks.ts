@@ -1,11 +1,9 @@
 import { useMemo } from 'react'
-import { useTasksByTopic } from './useTasks'
 import { useFilterStore } from '@/store/filterStore'
 import { applyFilter } from '@/utils/filterUtils'
 import type { Task } from '@/types'
 
-export function useFilteredTasksByTopic(topicId: string): Task[] {
-  const tasks = useTasksByTopic(topicId)
+export function useFilteredTasks(tasks: Task[]): Task[] {
   const { searchText, statuses, priorities, tagIds, dueDateFrom, dueDateTo } = useFilterStore()
 
   // Date オブジェクトは参照比較で差異なしと誤判定されることがあるため、

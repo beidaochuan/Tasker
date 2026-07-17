@@ -6,7 +6,7 @@ import { useTopics } from '@/hooks/useTasks'
 export function useKeyboardShortcuts() {
   const { selectedProjectId, openNewTaskDrawer } = useUIStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
-  // useLiveQuery のキャッシュを共有するため useTopics を使用
+  // project-scoped query cache をビューと共有し、同じtopics取得を重複させない。
   const topics = useTopics(selectedProjectId)
 
   useEffect(() => {

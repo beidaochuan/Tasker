@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
+import { deleteTaskHierarchy } from '../services/deleteHierarchy.js'
+import { decodeTaskTags, encodeTaskTags, taskRowToApi, type TaskRow } from '../taskRecord.js'
 import {
   completeRecurringSchema,
   ganttOrderSchema,
@@ -32,8 +34,8 @@ tasksRouter.get('/', (req, res) => {
   if (topicId) {
     const rows = db
       .prepare('SELECT * FROM tasks WHERE topicId = ? ORDER BY "order" ASC')
-      .all(topicId as string) as RawTask[]
-    return res.json(rows.map(parseTask))
+      .all(topicId as string) as TaskRow[]
+    return res.json(rows.map(taskRowToApi))
   }
   if (projectId) {
     const rows = db
@@ -41,23 +43,23 @@ tasksRouter.get('/', (req, res) => {
         'SELECT t.* FROM tasks t INNER JOIN topics tp ON t.topicId = tp.id WHERE tp.projectId = ? ORDER BY t."order" ASC'
       )
       .all(projectId as string)
-    return res.json((rows as RawTask[]).map(parseTask))
+    return res.json((rows as TaskRow[]).map(taskRowToApi))
   }
-  const rows = db.prepare('SELECT * FROM tasks ORDER BY "order" ASC').all() as RawTask[]
-  res.json(rows.map(parseTask))
+  const rows = db.prepare('SELECT * FROM tasks ORDER BY "order" ASC').all() as TaskRow[]
+  res.json(rows.map(taskRowToApi))
 })
 
 tasksRouter.get('/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as
-    | RawTask
+    | TaskRow
     | undefined
   if (!row) return res.status(404).json({ error: 'NOT_FOUND' })
-  res.json(parseTask(row))
+  res.json(taskRowToApi(row))
 })
 
 tasksRouter.post('/:id/complete-recurring', (req, res) => {
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as
-    | RawTask
+    | TaskRow
     | undefined
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
@@ -77,7 +79,7 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
       'INSERT INTO task_completions (id, taskId, completedAt) VALUES (@id, @taskId, @completedAt)'
     ).run(completion)
 
-    let createdNextTask: RawTask | null = null
+    let createdNextTask: TaskRow | null = null
     if (nextTask) {
       createdNextTask = {
         id: nanoid(10),
@@ -90,7 +92,7 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
         startDate: nextTask.startDate,
         order: nextTask.order,
         ganttOrder: null,
-        tags: JSON.stringify(nextTask.tags),
+        tags: encodeTaskTags(nextTask.tags),
         repeatRule: nextTask.repeatRule,
         statusChangedAt: completedAt,
         createdAt: completedAt,
@@ -101,11 +103,11 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
       ).run(createdNextTask)
     }
 
-    const updatedTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(existing.id) as RawTask
+    const updatedTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(existing.id) as TaskRow
     return {
-      task: parseTask(updatedTask),
+      task: taskRowToApi(updatedTask),
       completion,
-      nextTask: createdNextTask ? parseTask(createdNextTask) : null,
+      nextTask: createdNextTask ? taskRowToApi(createdNextTask) : null,
     }
   })()
 
@@ -140,7 +142,7 @@ tasksRouter.post('/', (req, res) => {
     startDate,
     order,
     ganttOrder,
-    tags: JSON.stringify(tags),
+    tags: encodeTaskTags(tags),
     repeatRule,
     statusChangedAt: now,
     createdAt: now,
@@ -149,7 +151,7 @@ tasksRouter.post('/', (req, res) => {
   db.prepare(
     'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, statusChangedAt, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @statusChangedAt, @createdAt, @updatedAt)'
   ).run(row)
-  res.status(201).json(parseTask(row))
+  res.status(201).json(taskRowToApi(row))
 })
 
 tasksRouter.patch('/gantt-order', (req, res) => {
@@ -179,7 +181,7 @@ tasksRouter.patch('/gantt-order', (req, res) => {
 
 tasksRouter.patch('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as
-    | RawTask
+    | TaskRow
     | undefined
   if (!existing) return res.status(404).json({ error: 'NOT_FOUND' })
 
@@ -215,7 +217,7 @@ tasksRouter.patch('/:id', (req, res) => {
   if (order !== undefined) patch.order = order
   if (topicChanged) patch.ganttOrder = null
   else if (ganttOrder !== undefined) patch.ganttOrder = ganttOrder
-  if (tags !== undefined) patch.tags = JSON.stringify(tags)
+  if (tags !== undefined) patch.tags = encodeTaskTags(tags)
   if (repeatRule !== undefined) patch.repeatRule = repeatRule
 
   const sets = Object.keys(patch)
@@ -223,45 +225,14 @@ tasksRouter.patch('/:id', (req, res) => {
     .map((k) => `"${k}" = @${k}`)
     .join(', ')
   db.prepare(`UPDATE tasks SET ${sets} WHERE id = @id`).run({ ...patch, id: req.params.id })
-  const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as RawTask
-  res.json(parseTask(updated))
+  const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) as TaskRow
+  res.json(taskRowToApi(updated))
 })
 
 tasksRouter.delete('/:id', (req, res) => {
-  const id = req.params.id
-  db.transaction(() => {
-    db.prepare('DELETE FROM subtasks WHERE taskId = ?').run(id)
-    db.prepare('DELETE FROM task_completions WHERE taskId = ?').run(id)
-    db.prepare('DELETE FROM tasks WHERE id = ?').run(id)
-  })()
+  deleteTaskHierarchy(db, req.params.id)
   res.status(204).send()
 })
-
-interface RawTask {
-  id: string
-  topicId: string
-  title: string
-  description: string
-  status: string
-  priority: string
-  dueDate: number | null
-  startDate: number | null
-  order: number
-  ganttOrder: number | null
-  tags: string
-  repeatRule: string | null
-  statusChangedAt: number | null
-  createdAt: number
-  updatedAt: number
-}
-
-function parseTask(row: RawTask) {
-  return {
-    ...row,
-    statusChangedAt: row.statusChangedAt ?? row.updatedAt,
-    tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags,
-  }
-}
 
 interface NextTaskInput {
   topicId: string
@@ -275,7 +246,7 @@ interface NextTaskInput {
   repeatRule: string | null
 }
 
-function normalizeNextTask(value: unknown, existing: RawTask): NextTaskInput | null {
+function normalizeNextTask(value: unknown, existing: TaskRow): NextTaskInput | null {
   if (!value || typeof value !== 'object') return null
   const input = value as Record<string, unknown>
   const topicId =
@@ -293,22 +264,11 @@ function normalizeNextTask(value: unknown, existing: RawTask): NextTaskInput | n
   const order = typeof input.order === 'number' ? input.order : 9999
   const tags = Array.isArray(input.tags)
     ? input.tags.filter((tag): tag is string => typeof tag === 'string')
-    : parseTags(existing.tags)
+    : decodeTaskTags(existing.tags)
   const repeatRule =
     typeof input.repeatRule === 'string' || input.repeatRule === null
       ? input.repeatRule
       : existing.repeatRule
 
   return { topicId, title, description, priority, dueDate, startDate, order, tags, repeatRule }
-}
-
-function parseTags(value: string): string[] {
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed)
-      ? parsed.filter((tag): tag is string => typeof tag === 'string')
-      : []
-  } catch {
-    return []
-  }
 }

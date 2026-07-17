@@ -1,83 +1,56 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import type { Task, Topic, TaskStatus } from '@/types'
-import { topicRepo, taskRepo } from '@/repositories'
 import { sortByOrder, sortKanbanColumnTasks } from '@/utils/sortUtils'
-import { useRefreshStore } from './useDataRefresh'
+import { useProjectTasksQuery, useProjectTopicsQuery } from './useDataQueries'
+
+export interface ProjectDataWithLoading {
+  topics: Topic[] | undefined
+  tasks: Task[] | undefined
+  isLoading: boolean
+  isTopicsLoading: boolean
+  isTasksLoading: boolean
+}
+
+export function useTopics(projectId: string | null): Topic[] | undefined {
+  const query = useProjectTopicsQuery(projectId)
+  const rawTopics = query?.data
+  return useMemo(() => {
+    if (!projectId) return []
+    return rawTopics ? sortByOrder(rawTopics) : undefined
+  }, [projectId, rawTopics])
+}
+
+export function useProjectTasks(projectId: string | null): Task[] | undefined {
+  const query = useProjectTasksQuery(projectId)
+  const rawTasks = query?.data
+  return useMemo(() => {
+    if (!projectId) return []
+    return rawTasks ? sortByOrder(rawTasks) : undefined
+  }, [projectId, rawTasks])
+}
+
+export function useProjectData(projectId: string | null): ProjectDataWithLoading {
+  const topics = useTopics(projectId)
+  const tasks = useProjectTasks(projectId)
+  const isTopicsLoading = projectId !== null && topics === undefined
+  const isTasksLoading = projectId !== null && tasks === undefined
+  return {
+    topics,
+    tasks,
+    isLoading: isTopicsLoading || isTasksLoading,
+    isTopicsLoading,
+    isTasksLoading,
+  }
+}
+
+export function useTask(id: string | null, projectId: string | null): Task | undefined {
+  const tasks = useProjectTasks(id ? projectId : null)
+  return useMemo(() => tasks?.find((task) => task.id === id), [id, tasks])
+}
 
 export interface KanbanData {
   tasksByStatus: Record<TaskStatus, Task[]>
   defaultTopicId: string | null
-}
-
-export function useTopics(projectId: string | null): Topic[] | undefined {
-  const [loaded, setLoaded] = useState<{ projectId: string | null; topics: Topic[] } | null>(null)
-  const counter = useRefreshStore((s) => s.counter)
-
-  useEffect(() => {
-    let cancelled = false
-    if (!projectId) {
-      Promise.resolve().then(() => {
-        if (!cancelled) setLoaded({ projectId: null, topics: [] })
-      })
-      return () => {
-        cancelled = true
-      }
-    }
-    topicRepo.getByProjectId(projectId).then((r) => {
-      if (!cancelled) {
-        setLoaded({ projectId, topics: r.ok ? sortByOrder(r.data) : [] })
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [projectId, counter])
-
-  return loaded?.projectId === projectId ? loaded.topics : undefined
-}
-
-export function useTasksByTopic(topicId: string): Task[] {
-  const [loaded, setLoaded] = useState<{ topicId: string; tasks: Task[] } | null>(null)
-  const counter = useRefreshStore((s) => s.counter)
-
-  useEffect(() => {
-    let cancelled = false
-    taskRepo.getByTopicId(topicId).then((r) => {
-      if (!cancelled) {
-        setLoaded({ topicId, tasks: r.ok ? sortByOrder(r.data) : [] })
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [topicId, counter])
-
-  return loaded?.topicId === topicId ? loaded.tasks : []
-}
-
-export function useTask(id: string | null): Task | undefined {
-  const [task, setTask] = useState<Task | undefined>(undefined)
-  const counter = useRefreshStore((s) => s.counter)
-
-  useEffect(() => {
-    let cancelled = false
-    if (!id) {
-      Promise.resolve().then(() => {
-        if (!cancelled) setTask(undefined)
-      })
-      return () => {
-        cancelled = true
-      }
-    }
-    taskRepo.getById(id).then((r) => {
-      if (!cancelled) setTask(r.ok ? r.data : undefined)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [id, counter])
-
-  return task
 }
 
 export interface KanbanDataWithLoading extends KanbanData {
@@ -85,62 +58,24 @@ export interface KanbanDataWithLoading extends KanbanData {
 }
 
 export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
-  const [data, setData] = useState<{
-    projectId: string
-    allTasks: Task[]
-    defaultTopicId: string | null
-  } | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const counter = useRefreshStore((s) => s.counter)
-
-  useEffect(() => {
-    let cancelled = false
-    if (!projectId) {
-      Promise.resolve().then(() => {
-        if (!cancelled) setData(null)
-      })
-      return () => {
-        cancelled = true
-      }
-    }
-    const promise = Promise.all([
-      topicRepo.getByProjectId(projectId),
-      taskRepo.getByProjectId(projectId),
-    ])
-    promise.then(([tr, taskR]) => {
-      if (cancelled) return
-      setIsLoading(false)
-      if (!tr.ok || !taskR.ok) {
-        setData({ projectId, allTasks: [], defaultTopicId: null })
-        return
-      }
-      const defaultTopicId = tr.data[0]?.id ?? null
-      const allTasks = sortByOrder(taskR.data)
-      setData({ projectId, allTasks, defaultTopicId })
-    })
-    Promise.resolve().then(() => {
-      if (!cancelled) setIsLoading(true)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [projectId, counter])
+  const { topics, tasks, isLoading } = useProjectData(projectId)
 
   return useMemo(() => {
-    const currentData = data?.projectId === projectId ? data : null
-    const allTasks = currentData?.allTasks ?? []
-    const defaultTopicId = currentData?.defaultTopicId ?? null
     const tasksByStatus: Record<TaskStatus, Task[]> = {
       todo: [],
       in_progress: [],
       done: [],
     }
-    for (const task of allTasks) {
+    for (const task of tasks ?? []) {
       tasksByStatus[task.status].push(task)
     }
     for (const status of Object.keys(tasksByStatus) as TaskStatus[]) {
       tasksByStatus[status] = sortKanbanColumnTasks(status, tasksByStatus[status])
     }
-    return { tasksByStatus, defaultTopicId, isLoading: isLoading && projectId !== null }
-  }, [data, isLoading, projectId])
+    return {
+      tasksByStatus,
+      defaultTopicId: topics?.[0]?.id ?? null,
+      isLoading,
+    }
+  }, [isLoading, tasks, topics])
 }

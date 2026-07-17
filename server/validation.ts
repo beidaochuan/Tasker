@@ -6,7 +6,8 @@ const nameSchema = z.string().trim().min(1).max(200)
 const titleSchema = z.string().trim().min(1).max(500)
 const descriptionSchema = z.string().max(100_000)
 const colorSchema = z.string().min(1).max(64)
-const timestampSchema = z.number().int().nonnegative().finite()
+const MAX_DATE_MS = 8_640_000_000_000_000
+const timestampSchema = z.number().int().nonnegative().max(MAX_DATE_MS).finite()
 const nullableTimestampSchema = timestampSchema.nullable()
 const orderSchema = z.number().int().nonnegative().finite()
 const statusSchema = z.enum(['todo', 'in_progress', 'done'])
@@ -168,7 +169,7 @@ const importedTaskSchema = z
     ganttOrder: orderSchema.nullable().optional().default(null),
     tags: z.union([tagsSchema, serializedTagsSchema]),
     repeatRule: repeatRuleSchema,
-    statusChangedAt: timestampSchema.optional(),
+    statusChangedAt: timestampSchema.nullish(),
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
   })

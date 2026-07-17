@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
+import { deleteProjectHierarchy } from '../services/deleteHierarchy.js'
 import { parseOrRespond, projectCreateSchema, projectUpdateSchema } from '../validation.js'
 
 export const projectsRouter = Router()
@@ -63,27 +64,6 @@ projectsRouter.patch('/:id', (req, res) => {
 })
 
 projectsRouter.delete('/:id', (req, res) => {
-  const id = req.params.id
-  db.transaction(() => {
-    const topicIds = (
-      db.prepare('SELECT id FROM topics WHERE projectId = ?').all(id) as { id: string }[]
-    ).map((r) => r.id)
-    if (topicIds.length > 0) {
-      const placeholders = topicIds.map(() => '?').join(',')
-      const taskIds = (
-        db.prepare(`SELECT id FROM tasks WHERE topicId IN (${placeholders})`).all(...topicIds) as {
-          id: string
-        }[]
-      ).map((r) => r.id)
-      if (taskIds.length > 0) {
-        const tp = taskIds.map(() => '?').join(',')
-        db.prepare(`DELETE FROM subtasks WHERE taskId IN (${tp})`).run(...taskIds)
-        db.prepare(`DELETE FROM task_completions WHERE taskId IN (${tp})`).run(...taskIds)
-        db.prepare(`DELETE FROM tasks WHERE id IN (${tp})`).run(...taskIds)
-      }
-      db.prepare(`DELETE FROM topics WHERE id IN (${placeholders})`).run(...topicIds)
-    }
-    db.prepare('DELETE FROM projects WHERE id = ?').run(id)
-  })()
+  deleteProjectHierarchy(db, req.params.id)
   res.status(204).send()
 })

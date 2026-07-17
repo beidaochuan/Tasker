@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { addDays } from 'date-fns'
-import { taskRepo } from '@/repositories'
 import { expandOccurrences, hasRepeatRule } from '@/utils/recurrenceUtils'
-import { useRefreshStore } from './useDataRefresh'
+import { useProjectTasks } from './useTasks'
 import type { Task, TaskStatus } from '@/types'
 
 export interface CalendarEvent {
@@ -27,31 +26,11 @@ export function useCalendarTasks(
   rangeStart: Date | null,
   rangeEnd: Date | null
 ): CalendarEvent[] {
-  const [loaded, setLoaded] = useState<{ projectId: string; tasks: Task[] } | null>(null)
-  const counter = useRefreshStore((s) => s.counter)
-
-  useEffect(() => {
-    let cancelled = false
-    if (!projectId) {
-      Promise.resolve().then(() => {
-        if (!cancelled) setLoaded(null)
-      })
-      return () => {
-        cancelled = true
-      }
-    }
-    taskRepo.getByProjectId(projectId).then((r) => {
-      if (!cancelled) setLoaded({ projectId, tasks: r.ok ? r.data : [] })
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [projectId, counter])
+  const tasks = useProjectTasks(projectId)
 
   return useMemo(() => {
-    const tasks = loaded?.projectId === projectId ? loaded.tasks : []
     const events: CalendarEvent[] = []
-    for (const task of tasks) {
+    for (const task of tasks ?? []) {
       if (!task.dueDate) continue
       const color = STATUS_COLORS[task.status]
 
@@ -86,5 +65,5 @@ export function useCalendarTasks(
       }
     }
     return events
-  }, [loaded, projectId, rangeStart, rangeEnd])
+  }, [tasks, rangeStart, rangeEnd])
 }

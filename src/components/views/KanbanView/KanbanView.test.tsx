@@ -182,7 +182,7 @@ describe('KanbanView drag focus', () => {
   it('ドロップ後は保存完了を待たずに列の枠を解除する', async () => {
     const update = deferred<{ ok: true; data: Task }>()
     taskRepoMock.update.mockReturnValue(update.promise)
-    render(<KanbanView />)
+    const { rerender } = render(<KanbanView />)
 
     act(() => {
       dndMock.onDragStart?.({ active: dragEvent(null).active })
@@ -200,5 +200,58 @@ describe('KanbanView drag focus', () => {
     await act(async () => {
       await dropPromise
     })
+
+    expect(screen.getByTestId('column-in_progress')).toHaveTextContent(TASK.id)
+    expect(screen.getByTestId('column-todo')).toBeEmptyDOMElement()
+
+    kanbanDataMock.tasksByStatus = {
+      todo: [],
+      in_progress: [{ ...TASK, status: 'in_progress' }],
+      done: [],
+    }
+    await act(async () => {
+      rerender(<KanbanView />)
+      await Promise.resolve()
+    })
+
+    kanbanDataMock.tasksByStatus = {
+      todo: [],
+      in_progress: [],
+      done: [{ ...TASK, status: 'done' }],
+    }
+    rerender(<KanbanView />)
+    expect(screen.getByTestId('column-done')).toHaveTextContent(TASK.id)
+  })
+
+  it('保存済みpreviewの再取得待ちでもプロジェクト切替時に旧タスクを残さない', async () => {
+    taskRepoMock.update.mockResolvedValue({
+      ok: true,
+      data: { ...TASK, status: 'in_progress' },
+    })
+    const project2Task = makeTask('project-2-task', 'todo')
+    render(<KanbanView />)
+
+    act(() => {
+      dndMock.onDragStart?.({ active: dragEvent(null).active })
+      dndMock.onDragOver?.(dragEvent('in_progress'))
+    })
+    await act(async () => {
+      await dndMock.onDragEnd?.(dragEvent('in_progress'))
+    })
+    expect(screen.getByTestId('column-in_progress')).toHaveTextContent(TASK.id)
+
+    kanbanDataMock.tasksByStatus = {
+      todo: [project2Task],
+      in_progress: [],
+      done: [],
+    }
+    await act(async () => {
+      useUIStore.getState().setSelectedProjectId('project-2')
+      await Promise.resolve()
+    })
+
+    expect(screen.getByTestId('column-todo')).toHaveTextContent(project2Task.id)
+    expect(screen.getByTestId('column-in_progress')).toBeEmptyDOMElement()
+    expect(screen.queryByText(TASK.id)).toBeNull()
   })
 })

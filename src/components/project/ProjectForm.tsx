@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useProject } from '@/hooks/useProjects'
-import { useRefreshStore } from '@/hooks/useDataRefresh'
+import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { projectRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
 
@@ -34,7 +34,7 @@ export function ProjectForm() {
   const { isProjectFormOpen, editingProjectId, closeProjectForm } = useUIStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const refresh = useRefreshStore((s) => s.refresh)
+  const invalidateProjects = useDataQueryStore((state) => state.invalidateProjects)
   const editingProject = useProject(editingProjectId)
   const isEditing = editingProjectId !== null
 
@@ -136,7 +136,7 @@ export function ProjectForm() {
           })
         )
       }
-      refresh()
+      invalidateProjects()
       reset()
       handleClose()
     } catch (err) {

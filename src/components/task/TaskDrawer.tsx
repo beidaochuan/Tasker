@@ -1,19 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { X, Trash2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TaskWorkList } from '@/components/task/TaskWorkList'
+import {
+  createEmptyTaskFormValues,
+  createExistingTaskFormValues,
+  createNewTaskFormValues,
+  repeatRuleFromFormValues,
+  taskFormSchema,
+  type TaskFormValues,
+} from '@/components/task/taskFormModel'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useTask, useTopics } from '@/hooks/useTasks'
 import { useProjects } from '@/hooks/useProjects'
 import { useRecurrence } from '@/hooks/useRecurrence'
-import { useRefreshStore } from '@/hooks/useDataRefresh'
+import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo } from '@/repositories'
-import { buildRRule, parseRRule, describeRRule } from '@/utils/recurrenceUtils'
-import { formatDateInput, parseDateInput } from '@/utils/dateUtils'
+import { buildRRule, describeRRule } from '@/utils/recurrenceUtils'
+import { parseDateInput } from '@/utils/dateUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 
 const FREQ_OPTIONS = [
@@ -31,56 +38,20 @@ const TEXTAREA_CLASS =
 
 const LABEL_CLASS = 'text-xs font-semibold text-muted-foreground'
 
-const dateTextSchema = z
-  .string()
-  .refine((value) => value.trim() === '' || parseDateInput(value) !== null, {
-    message: '日付を正しく入力してください',
-  })
-
-const taskSchema = z
-  .object({
-    title: z.string().min(1, 'タイトルは必須です'),
-    projectId: z.string().min(1, 'プロジェクトを選択してください'),
-    topicId: z.string().min(1, 'トピックを選択してください'),
-    description: z.string(),
-    status: z.enum(['todo', 'in_progress', 'done'] as const),
-    priority: z.enum(['low', 'medium', 'high', 'urgent'] as const),
-    startDate: dateTextSchema,
-    dueDate: dateTextSchema,
-    repeatEnabled: z.boolean(),
-    repeatFreq: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const),
-    repeatInterval: z.coerce.number().int().min(1).max(99),
-  })
-  .superRefine((values, ctx) => {
-    const startDate = parseDateInput(values.startDate)
-    const dueDate = parseDateInput(values.dueDate)
-    if (startDate && dueDate && startDate.getTime() > dueDate.getTime()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['dueDate'],
-        message: '期日は開始日以降にしてください',
-      })
-    }
-  })
-
-type TaskFormValues = z.infer<typeof taskSchema>
-
-function repeatRuleFromValues(values: TaskFormValues): string | null {
-  if (!values.repeatEnabled) return null
-  return buildRRule({ freq: values.repeatFreq, interval: values.repeatInterval })
-}
-
 export function TaskDrawer() {
   const { isTaskDrawerOpen, selectedProjectId, selectedTaskId, newTaskTopicId, closeTaskDrawer } =
     useUIStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
   const { completeRecurringTask } = useRecurrence()
-  const refresh = useRefreshStore((s) => s.refresh)
+  const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [autoSelectTopicProjectId, setAutoSelectTopicProjectId] = useState<string | null>(null)
 
   const isNew = newTaskTopicId !== null
-  const existingTask = useTask(isNew ? null : selectedTaskId)
+  const existingTask = useTask(
+    isTaskDrawerOpen && !isNew ? selectedTaskId : null,
+    isTaskDrawerOpen ? selectedProjectId : null
+  )
 
   const {
     register,
@@ -90,20 +61,8 @@ export function TaskDrawer() {
     control,
     formState: { errors, isSubmitting },
   } = useForm<TaskFormValues>({
-    resolver: zodResolver(taskSchema),
-    defaultValues: {
-      title: '',
-      projectId: '',
-      topicId: '',
-      description: '',
-      status: 'todo',
-      priority: 'medium',
-      startDate: '',
-      dueDate: '',
-      repeatEnabled: false,
-      repeatFreq: 'DAILY',
-      repeatInterval: 1,
-    },
+    resolver: zodResolver(taskFormSchema),
+    defaultValues: createEmptyTaskFormValues(),
   })
 
   const repeatEnabled = useWatch({ control, name: 'repeatEnabled' })
@@ -113,7 +72,9 @@ export function TaskDrawer() {
   const selectedFormTopicId = useWatch({ control, name: 'topicId' })
 
   const projects = useProjects()
-  const projectTopics = useTopics(selectedFormProjectId || null)
+  const projectTopics = useTopics(
+    isTaskDrawerOpen && selectedFormProjectId ? selectedFormProjectId : null
+  )
 
   const handleClose = useCallback(() => {
     setSubmitError(null)
@@ -133,39 +94,13 @@ export function TaskDrawer() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleClose, isTaskDrawerOpen])
 
-  // #6: isTaskDrawerOpen を依存配列に含め、開くたびに確実に reset する
+  // 同じタスクを開き直した場合も、保存済みの値からフォームを作り直す。
   useEffect(() => {
     if (!isTaskDrawerOpen) return
     if (existingTask && existingTask.id === selectedTaskId) {
-      const parsed = parseRRule(existingTask.repeatRule)
-      reset({
-        title: existingTask.title,
-        projectId: selectedProjectId ?? '',
-        topicId: existingTask.topicId,
-        description: existingTask.description,
-        status: existingTask.status,
-        priority: existingTask.priority,
-        startDate: formatDateInput(existingTask.startDate),
-        dueDate: formatDateInput(existingTask.dueDate),
-        repeatEnabled: parsed !== null,
-        repeatFreq: parsed?.freq ?? 'DAILY',
-        repeatInterval: parsed?.interval ?? 1,
-      })
+      reset(createExistingTaskFormValues(existingTask, selectedProjectId))
     } else if (isNew) {
-      const defaultDate = formatDateInput(new Date())
-      reset({
-        title: '',
-        projectId: selectedProjectId ?? '',
-        topicId: newTaskTopicId ?? '',
-        description: '',
-        status: 'todo',
-        priority: 'medium',
-        startDate: defaultDate,
-        dueDate: defaultDate,
-        repeatEnabled: false,
-        repeatFreq: 'DAILY',
-        repeatInterval: 1,
-      })
+      reset(createNewTaskFormValues(selectedProjectId, newTaskTopicId))
     }
   }, [
     existingTask,
@@ -205,8 +140,8 @@ export function TaskDrawer() {
     try {
       const startDate = parseDateInput(values.startDate)
       const dueDate = parseDateInput(values.dueDate)
-      // #7: existingTask.repeatRule（DB値）ではなくフォームの現在値で判定
-      const repeatRule = repeatRuleFromValues(values)
+      // 保存前のフォーム値を、通常更新と繰り返し完了の両方で共通利用する。
+      const repeatRule = repeatRuleFromFormValues(values)
 
       if (isNew) {
         const existing = unwrapResult(await taskRepo.getByTopicId(values.topicId))
@@ -227,16 +162,19 @@ export function TaskDrawer() {
         )
       } else if (existingTask) {
         if (values.status === 'done' && existingTask.status !== 'done' && repeatRule) {
-          await completeRecurringTask({
-            ...existingTask,
-            topicId: values.topicId,
-            title: values.title,
-            description: values.description,
-            priority: values.priority,
-            startDate,
-            dueDate,
-            repeatRule,
-          })
+          await completeRecurringTask(
+            {
+              ...existingTask,
+              topicId: values.topicId,
+              title: values.title,
+              description: values.description,
+              priority: values.priority,
+              startDate,
+              dueDate,
+              repeatRule,
+            },
+            [selectedProjectId, values.projectId].filter((id): id is string => Boolean(id))
+          )
           handleClose()
           return
         }
@@ -254,7 +192,10 @@ export function TaskDrawer() {
         )
       }
 
-      refresh()
+      const affectedProjectIds = isNew
+        ? [values.projectId]
+        : [selectedProjectId, values.projectId].filter((id): id is string => Boolean(id))
+      for (const projectId of new Set(affectedProjectIds)) invalidateProjectTasks(projectId)
       handleClose()
     } catch (err) {
       console.error('タスクの保存に失敗しました', err)
@@ -270,7 +211,7 @@ export function TaskDrawer() {
     if (!existingTask) return
     try {
       unwrapResult(await taskRepo.delete(existingTask.id))
-      refresh()
+      if (selectedProjectId) invalidateProjectTasks(selectedProjectId)
       handleClose()
     } catch (err) {
       console.error('タスクの削除に失敗しました', err)
@@ -278,7 +219,6 @@ export function TaskDrawer() {
     }
   }
 
-  // #5: useMemo で依存値が変わったときだけ再計算
   const repeatSummary = useMemo(() => {
     if (!repeatEnabled || !repeatFreq) return ''
     return describeRRule(buildRRule({ freq: repeatFreq, interval: repeatInterval }))

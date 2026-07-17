@@ -17,22 +17,25 @@ export default defineConfig([
       reactRefresh.configs.vite,
       prettier,
     ],
-    languageOptions: {
-      globals: globals.browser,
-    },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {
-    files: ['src/test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
+  {
+    files: ['src/test/**/*.{ts,tsx}', 'src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}'],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
     },
   },
   {
-    files: ['server/**/*.ts'],
+    files: ['server/**/*.ts', 'vite.config.ts', 'vitest.config.ts'],
     languageOptions: {
       globals: globals.node,
     },

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Task, Topic } from '@/types'
 import { useCalendarTasks } from './useCalendarTasks'
 import { useGanttData } from './useGanttData'
-import { useRefreshStore } from './useDataRefresh'
+import { resetDataQueries } from './useDataQueries'
 
 const { taskRepoMock, topicRepoMock } = vi.hoisted(() => ({
   taskRepoMock: { getByProjectId: vi.fn() },
@@ -42,7 +42,7 @@ const task: Task = {
 beforeEach(() => {
   taskRepoMock.getByProjectId.mockReset()
   topicRepoMock.getByProjectId.mockReset()
-  useRefreshStore.setState({ counter: 0 })
+  resetDataQueries()
 })
 
 describe('プロジェクト別ビューのデータ取得', () => {
@@ -80,5 +80,6 @@ describe('プロジェクト別ビューのデータ取得', () => {
     rerender({ projectId: 'project-2' })
 
     expect(result.current).toEqual([])
+    expect(topicRepoMock.getByProjectId).not.toHaveBeenCalled()
   })
 })
