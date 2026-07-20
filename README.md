@@ -192,6 +192,45 @@ npm run service:install
 
 > リリースZIPはビルド済みのため、`npm run build` は不要です。
 
+### GitHub取得からLAN公開まで一括セットアップする
+
+新規のWindows環境では、`scripts/setup-windows.ps1` を使うと次を一度に実行できます。
+
+- GitHub Releasesから最新のTasker配布ZIPを取得し、Release記載のSHA-256を検証
+- Node.js v22以上がなければwingetでNode.js LTSをインストール
+- Tasker管理者のユーザー名・パスワードを画面に表示せず入力し、実際のログインを確認
+- Taskerを `0.0.0.0` 待受でWindowsサービスへ登録
+- Windowsファイアウォールで現在のネットワークプロファイルのローカルサブネットだけにTCPポートを許可
+
+この方法は、同じ社内・家庭内LANにある別PCから利用するためのものです。インターネット公開、Cloudflare、ルーターのポート転送は使用しません。
+
+管理者としてPowerShellまたはWindows Terminalを開きます。実行前に内容を確認できるよう、ダウンロードと実行は分けています。
+
+```powershell
+$setup = Join-Path $env:TEMP 'tasker-setup-windows.ps1'
+Invoke-WebRequest `
+  -UseBasicParsing `
+  -Uri 'https://raw.githubusercontent.com/beidaochuan/Tasker/main/scripts/setup-windows.ps1' `
+  -OutFile $setup
+Get-Content $setup
+Unblock-File $setup
+& $setup
+```
+
+実行すると、このWindows PCに設定されているIPv4アドレスの候補が表示され、社内の他PCから接続するときに使うIPアドレスを質問します。WindowsのDomain、Private、Publicの判定とファイアウォール規則の選択もスクリプトが自動で行います。いずれの場合も接続元は同じローカルサブネットだけに限定します。
+
+既定のインストール先は `C:\Tasker`、Taskerのポートは `3208` です。変更する場合は次のように指定します。
+
+```powershell
+& $setup `
+  -InstallPath 'D:\Apps\Tasker' `
+  -Port 8080
+```
+
+セットアップ完了時に、別PCから開くURLを画面へ表示します。既定ポートでは `http://<入力したIPアドレス>:3208` という形式です。特定バージョンを導入する場合は `-ReleaseTag 'v0.11.0'` を追加します。既存のTaskerサービス、同名のファイアウォール規則、または空でないインストール先がある場合は、誤上書きを避けるため処理を中止します。
+
+> **LAN利用時の制約:** HTTP通信なのでログイン情報とCookieは暗号化されません。信頼できるLANだけで使用し、可能ならWindowsのネットワークプロファイルはDomainまたはPrivateにしてください。未ログインでも閲覧用GET APIは利用できるため、同じローカルサブネットから到達できる利用者はTaskerの閲覧データを参照できます。作成・編集・削除にはTasker管理者ログインが必要です。ルーターでこのポートをインターネットへ転送しないでください。
+
 ---
 
 ## 開発
@@ -361,6 +400,12 @@ npm run service:uninstall
 ```
 
 サービスを削除しても、Taskerフォルダ内の `tasker.db` は削除されません。再登録やポート変更を行う場合も、先にサービスを削除してから `service:install` を実行してください。
+
+`setup-windows.ps1`でLAN用ファイアウォール規則も登録した場合は、使用していたポート番号に合わせて規則を削除します。
+
+```powershell
+Remove-NetFirewallRule -DisplayName 'Tasker (LAN TCP 3208)'
+```
 
 ---
 

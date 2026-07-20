@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.11.0] - 2026-07-18
+## [0.11.0] - 2026-07-20
 
 ### Added
 
+- GitHub Releaseの取得・SHA-256検証、管理者ログイン確認、TaskerのWindowsサービス登録、ローカルサブネット限定のファイアウォール設定を一括で行うPowerShellセットアップを追加
 - 単一管理者向けのログイン・ログアウト・セッション確認APIと、サーバー管理セッション認証を追加
 - プロジェクト単位の共有クエリキャッシュと、ZodによるAPIレスポンス検証を追加
 
