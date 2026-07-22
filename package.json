@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "licenses:generate": "license-checker-rseidelsohn --json --excludePrivatePackages --out public/third-party-licenses.json",
-    "server": "tsx watch server/index.ts",
+    "server": "tsx watch --env-file-if-exists=.env server/index.ts",
     "start": "node dist-server/index.js",
     "dev": "npm run licenses:generate && vite",
     "dev:full": "concurrently \"cross-env PORT=3209 npm run server\" \"npm run dev\"",

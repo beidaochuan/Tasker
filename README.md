@@ -120,6 +120,8 @@ $env:TASKER_ADMIN_PASSWORD = 'replace-with-12-or-more-characters'
 
 設定値は現在のターミナルにだけ反映されます。実際の資格情報をソースコード、README、共有スクリプトへ書き込まないでください。
 
+開発時または `npm run preview:full` によるプレビュー時は、`.env.example` を `.env` としてコピーし、同じ値を設定することもできます。`.env` はGitで除外されるため、実際の資格情報をコミットしないでください。`npm start` とWindowsサービスは `.env` を読み込まないため、上記のように環境変数を明示して起動します。
+
 | 環境変数                      | 必須 / 既定値 | 説明                                                                                          |
 | ----------------------------- | ------------- | --------------------------------------------------------------------------------------------- |
 | `TASKER_ADMIN_USERNAME`       | 必須          | 単一管理者のログイン名（256文字以下）                                                         |
@@ -239,7 +241,11 @@ Unblock-File $setup
 
 フロントエンドと API サーバーを同時に起動します。
 
-最初に、インストール手順の「環境変数を設定する」と同様に `TASKER_ADMIN_USERNAME` と `TASKER_ADMIN_PASSWORD` を現在のターミナルへ設定してください。
+最初に `.env.example` を `.env` としてコピーし、`TASKER_ADMIN_USERNAME` と `TASKER_ADMIN_PASSWORD` を設定してください。`.env` を使わない場合は、インストール手順の「環境変数を設定する」と同様に現在のターミナルへ設定します。
+
+```bash
+cp .env.example .env
+```
 
 ```bash
 npm run dev:full
@@ -260,6 +266,8 @@ npm start
 ```
 
 `dist/` の静的ファイルと `/api/*` を同一 Express サーバーで配信します。
+
+`npm start` は `.env` を読み込まないため、管理者資格情報は現在のターミナルまたはサービス設定の環境変数として明示してください。一方、`npm run preview:full` は開発用 `.env` を利用できます。
 
 ### コマンド一覧
 
