@@ -5,13 +5,15 @@
 param(
   [string]$LanAddress,
 
-  [string]$InstallPath = 'C:\Tasker',
+  [string]$InstallPath = 'D:\Tasker',
 
   [ValidateRange(1, 65535)]
   [int]$Port = 3208,
 
   [ValidatePattern('^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$')]
   [string]$ReleaseTag,
+
+  [string]$BackupPath,
 
   [switch]$SkipNodeInstall,
 
@@ -436,6 +438,38 @@ function Install-LanFirewallRule {
   Write-Host "$($Profiles -join '/')ネットワークのLocalSubnetだけを許可しました。"
 }
 
+function Invoke-ExistingTaskerUpdate {
+  param([string]$ResolvedInstallPath)
+
+  $updateScript = Join-Path $PSScriptRoot 'update-windows.ps1'
+  if (-not (Test-Path -LiteralPath $updateScript -PathType Leaf)) {
+    New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
+    $updateScript = Join-Path $temporaryRoot 'tasker-update-windows.ps1'
+    Invoke-WebRequest `
+      -UseBasicParsing `
+      -Uri 'https://raw.githubusercontent.com/beidaochuan/Tasker/main/scripts/update-windows.ps1' `
+      -OutFile $updateScript `
+      -Headers @{ 'User-Agent' = 'Tasker-Windows-Setup' }
+  }
+
+  $updateArguments = @{
+    InstallPath = $ResolvedInstallPath
+    HealthCheckUrl = "http://127.0.0.1:$Port/api/auth/session"
+  }
+  if ($ReleaseTag) {
+    $updateArguments.ReleaseTag = $ReleaseTag
+  }
+  if ($BackupPath) {
+    $updateArguments.BackupPath = $BackupPath
+  }
+  if ($KeepDownloadedFiles) {
+    $updateArguments.KeepDownloadedFiles = $true
+  }
+
+  Write-Step '既存のTaskerを更新'
+  & $updateScript @updateArguments
+}
+
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ("tasker-setup-{0}" -f [Guid]::NewGuid().ToString('N'))
 $adminPassword = $null
 
@@ -443,18 +477,22 @@ try {
   Assert-WindowsAdministrator
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+  $resolvedInstallPath = [IO.Path]::GetFullPath($InstallPath)
+  $installRoot = [IO.Path]::GetPathRoot($resolvedInstallPath)
+  if ($resolvedInstallPath.TrimEnd('\') -eq $installRoot.TrimEnd('\')) {
+    throw 'ドライブ直下はInstallPathに指定できません。例: D:\Tasker'
+  }
+  if (Test-Path -LiteralPath $resolvedInstallPath) {
+    Invoke-ExistingTaskerUpdate -ResolvedInstallPath $resolvedInstallPath
+    return
+  }
+
   if ([string]::IsNullOrWhiteSpace($LanAddress)) {
     $LanAddress = Read-LanAddress
   }
   $lanConnection = Assert-LanAddress $LanAddress
   $resolvedLanAddress = $lanConnection.Address
   $firewallProfiles = @($lanConnection.FirewallProfile)
-  $resolvedInstallPath = [IO.Path]::GetFullPath($InstallPath)
-  $installRoot = [IO.Path]::GetPathRoot($resolvedInstallPath)
-  if ($resolvedInstallPath.TrimEnd('\') -eq $installRoot.TrimEnd('\')) {
-    throw 'ドライブ直下はInstallPathに指定できません。例: C:\Tasker'
-  }
-
   if (Get-ServiceByNameOrDisplayName 'Tasker') {
     throw 'Taskerサービスはすでに登録されています。既存環境の更新にはREADMEの更新手順を使用してください。'
   }
@@ -462,13 +500,6 @@ try {
   if (Get-NetFirewallRule -DisplayName $firewallRuleName -ErrorAction SilentlyContinue) {
     throw "同名のWindowsファイアウォール規則がすでにあります: $firewallRuleName"
   }
-  if (Test-Path -LiteralPath $resolvedInstallPath) {
-    $existingItems = @(Get-ChildItem -LiteralPath $resolvedInstallPath -Force)
-    if ($existingItems.Count -gt 0) {
-      throw "InstallPathが空ではありません: $resolvedInstallPath"
-    }
-  }
-
   Assert-PortAvailable -TargetPort $Port
 
   Write-Step 'ログイン情報を入力'

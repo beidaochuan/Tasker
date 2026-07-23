@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-24
+
+### Added
+
+- 既存のWindowsサービス設定を保持したまま、バックアップ・SHA-256検証・ロールバック付きで更新する `update-windows.ps1` を追加
+
 ## [0.12.0] - 2026-07-23
 
 ### Added

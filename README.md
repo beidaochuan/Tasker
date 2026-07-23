@@ -88,7 +88,7 @@
 
 1. [GitHub Releases](https://github.com/beidaochuan/Tasker/releases) を開く
 2. 最新リリースの **Assets** から `tasker-vX.X.X.zip` をダウンロードする
-3. `C:\Tasker` など、継続して利用するフォルダへZIPを解凍する
+3. `D:\Tasker` など、継続して利用するフォルダへZIPを解凍する
 
 > `Source code (zip)` ではなく、Assets に添付された `tasker-vX.X.X.zip` を使用してください。配布ZIPにはビルド済みの `dist/` と `dist-server/` が含まれています。サービス登録後は、解凍したフォルダを移動・削除しないでください。
 
@@ -196,7 +196,7 @@ npm run service:install
 
 ### GitHub取得からLAN公開まで一括セットアップする
 
-新規のWindows環境では、`scripts/setup-windows.ps1` を使うと次を一度に実行できます。
+Windows環境では、`scripts/setup-windows.ps1` が最初に `InstallPath` を確認します。既定の `D:\Tasker` が存在する場合は既存サービスを更新し、存在しない場合は新規セットアップを実行します。
 
 - GitHub Releasesから最新のTasker配布ZIPを取得し、Release記載のSHA-256を検証
 - Node.js v22以上がなければwingetでNode.js LTSをインストール
@@ -219,9 +219,9 @@ Unblock-File $setup
 & $setup
 ```
 
-実行すると、このWindows PCに設定されているIPv4アドレスの候補が表示され、社内の他PCから接続するときに使うIPアドレスを質問します。WindowsのDomain、Private、Publicの判定とファイアウォール規則の選択もスクリプトが自動で行います。いずれの場合も接続元は同じローカルサブネットだけに限定します。
+新規セットアップ時は、このWindows PCに設定されているIPv4アドレスの候補が表示され、社内の他PCから接続するときに使うIPアドレスを質問します。WindowsのDomain、Private、Publicの判定とファイアウォール規則の選択もスクリプトが自動で行います。いずれの場合も接続元は同じローカルサブネットだけに限定します。既存環境の更新時は、保存済みのサービス設定を利用するため、管理者資格情報やLAN設定を入力し直しません。
 
-既定のインストール先は `C:\Tasker`、Taskerのポートは `3208` です。変更する場合は次のように指定します。
+既定のインストール先は `D:\Tasker`、Taskerのポートは `3208` です。変更する場合は次のように指定します。
 
 ```powershell
 & $setup `
@@ -229,7 +229,13 @@ Unblock-File $setup
   -Port 8080
 ```
 
-セットアップ完了時に、別PCから開くURLを画面へ表示します。既定ポートでは `http://<入力したIPアドレス>:3208` という形式です。特定バージョンを導入する場合は `-ReleaseTag 'v0.11.0'` を追加します。既存のTaskerサービス、同名のファイアウォール規則、または空でないインストール先がある場合は、誤上書きを避けるため処理を中止します。
+新規セットアップ完了時に、別PCから開くURLを画面へ表示します。既定ポートでは `http://<入力したIPアドレス>:3208` という形式です。特定バージョンを導入する場合は `-ReleaseTag 'v0.12.0'` を追加します。既存環境では、同じコマンドが更新処理へ自動的に切り替わります。既定以外のポートを使う既存環境では、HTTP起動確認のため同じ `-Port` を指定してください。
+
+以前の既定値である `C:\Tasker` にTaskerをインストール済みの場合は、既存環境を判定できるよう明示します。
+
+```powershell
+& $setup -InstallPath 'C:\Tasker'
+```
 
 > **LAN利用時の制約:** HTTP通信なのでログイン情報とCookieは暗号化されません。信頼できるLANだけで使用し、可能ならWindowsのネットワークプロファイルはDomainまたはPrivateにしてください。未ログインでも閲覧用GET APIは利用できるため、同じローカルサブネットから到達できる利用者はTaskerの閲覧データを参照できます。作成・編集・削除にはTasker管理者ログインが必要です。ルーターでこのポートをインターネットへ転送しないでください。
 
@@ -379,27 +385,32 @@ src/
 
 ### 新しいバージョンへ更新する
 
-1. アプリのJSONエクスポートでバックアップを取得する
-2. 現在のサービスを削除する
+既存のWindowsサービスを再登録せず、管理者資格情報・ポート・LAN設定を保持したまま更新できます。PowerShellまたはWindows Terminalを**管理者として実行**し、更新スクリプトを取得して実行します。
 
 ```powershell
-npm run service:uninstall
+$update = Join-Path $env:TEMP 'tasker-update-windows.ps1'
+Invoke-WebRequest `
+  -UseBasicParsing `
+  -Uri 'https://raw.githubusercontent.com/beidaochuan/Tasker/main/scripts/update-windows.ps1' `
+  -OutFile $update
+Get-Content $update
+Unblock-File $update
+& $update
 ```
 
-3. 新しいリリースZIPをダウンロードし、別のフォルダへ解凍する
-4. 以前のフォルダにある `tasker.db` を新しいフォルダへコピーする
-5. 新しいフォルダで依存関係をインストールし、サービスを登録する
+スクリプトはTaskerサービスを停止し、`tasker.db` を `D:\Tasker-backup-<日時>` へバックアップした後、最新の正式ReleaseをSHA-256検証付きでダウンロードします。アプリ本体と実行時依存関係だけを更新してサービスを再起動するため、`TASKER_ADMIN_USERNAME`、`TASKER_ADMIN_PASSWORD`、`PORT`、`TASKER_HOST`、Cookie、セッション、CORSの設定を再入力する必要はありません。
+
+特定バージョンを導入する場合、または既定以外のポートでHTTP起動確認する場合は、次のように指定します。
 
 ```powershell
-npm ci --omit=dev
-$env:TASKER_ADMIN_USERNAME = 'your-admin-name'
-$env:TASKER_ADMIN_PASSWORD = 'replace-with-12-or-more-characters'
-npm run service:install
+& $update `
+  -ReleaseTag 'v0.12.0' `
+  -HealthCheckUrl 'http://127.0.0.1:8080/api/auth/session'
 ```
 
-必要に応じて `PORT`、`TASKER_HOST`、Cookie、セッション、試行制限、CORSの環境変数も再設定してください。以前のサービス設定は新しいサービスへ自動では引き継がれません。
+更新に失敗した場合は、アプリ本体と依存関係を更新前の状態へ自動復旧します。JSONエクスポートも、更新前の追加バックアップとして推奨します。旧フォルダへ移すなど、インストール先自体を変更する場合は、サービスを削除して新しいフォルダで再登録してください。
 
-更新後にTaskerを開き、データとバージョンを確認してから以前のフォルダを削除してください。サービスの再起動により以前のログインセッションは失効します。
+更新後にTaskerを開き、データとバージョンを確認してください。サービスの再起動により以前のログインセッションは失効します。
 
 ### サービスを削除する
 
