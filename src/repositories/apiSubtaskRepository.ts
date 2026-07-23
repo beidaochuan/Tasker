@@ -1,5 +1,10 @@
 import type { Subtask, Result } from '@/types'
-import type { ISubtaskRepository, CreateSubtask, UpdateSubtask } from './interface'
+import type {
+  ISubtaskRepository,
+  CreateSubtask,
+  SubtaskOrderUpdate,
+  UpdateSubtask,
+} from './interface'
 import { apiFetch, apiFetchNoContent } from './apiFetch'
 import { subtaskResponseSchema, subtasksResponseSchema } from './apiResponseSchemas'
 
@@ -31,6 +36,14 @@ export class ApiSubtaskRepository implements ISubtaskRepository {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       },
+    })
+  }
+
+  async updateOrder(items: SubtaskOrderUpdate[]): Promise<Result<void>> {
+    return apiFetchNoContent(`${BASE}/order`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
     })
   }
 

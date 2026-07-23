@@ -122,6 +122,18 @@ export const subtaskUpdateSchema = nonEmptyPatch({
   order: orderSchema.optional(),
 })
 
+export const subtaskOrderSchema = z
+  .object({
+    items: z
+      .array(z.object({ id: idSchema, order: orderSchema }).strict())
+      .min(1)
+      .max(100_000)
+      .refine((items) => new Set(items.map((item) => item.id)).size === items.length, {
+        message: 'IDが重複しています',
+      }),
+  })
+  .strict()
+
 export const tagCreateSchema = z
   .object({ name: nameSchema, color: colorSchema.default('#6366f1') })
   .strict()

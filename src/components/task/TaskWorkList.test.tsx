@@ -1,20 +1,57 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Subtask } from '@/types'
 import { TaskWorkList } from './TaskWorkList'
 
-const { subtaskRepoMock } = vi.hoisted(() => ({
+const { dndMock, subtaskRepoMock } = vi.hoisted(() => ({
+  dndMock: {
+    onDragEnd: null as
+      | ((event: { active: { id: string }; over: { id: string } | null }) => unknown)
+      | null,
+  },
   subtaskRepoMock: {
     getByTaskId: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    updateOrder: vi.fn(),
     delete: vi.fn(),
   },
 }))
 
 vi.mock('@/repositories', () => ({
   subtaskRepo: subtaskRepoMock,
+}))
+
+vi.mock('@dnd-kit/core', () => ({
+  DndContext: ({
+    children,
+    onDragEnd,
+  }: {
+    children: ReactNode
+    onDragEnd: NonNullable<typeof dndMock.onDragEnd>
+  }) => {
+    dndMock.onDragEnd = onDragEnd
+    return children
+  },
+  KeyboardSensor: class KeyboardSensor {},
+  PointerSensor: class PointerSensor {},
+  closestCenter: vi.fn(),
+  useSensor: vi.fn(() => ({})),
+  useSensors: vi.fn(() => []),
+}))
+
+vi.mock('@dnd-kit/sortable', () => ({
+  SortableContext: ({ children }: { children: ReactNode }) => children,
+  sortableKeyboardCoordinates: vi.fn(),
+  useSortable: vi.fn(() => ({
+    attributes: {},
+    listeners: {},
+    setNodeRef: vi.fn(),
+    isDragging: false,
+  })),
+  verticalListSortingStrategy: vi.fn(),
 }))
 
 const SUBTASKS: Subtask[] = [
@@ -41,7 +78,9 @@ describe('TaskWorkList', () => {
     subtaskRepoMock.getByTaskId.mockReset().mockResolvedValue({ ok: true, data: SUBTASKS })
     subtaskRepoMock.create.mockReset()
     subtaskRepoMock.update.mockReset()
+    subtaskRepoMock.updateOrder.mockReset().mockResolvedValue({ ok: true, data: undefined })
     subtaskRepoMock.delete.mockReset().mockResolvedValue({ ok: true, data: undefined })
+    dndMock.onDragEnd = null
   })
 
   afterEach(() => {
@@ -178,6 +217,26 @@ describe('TaskWorkList', () => {
     expect(screen.getByText('1 / 1 完了')).toBeInTheDocument()
   })
 
+  it('ドラッグで作業の順序を入れ替え、まとめて保存する', async () => {
+    render(<TaskWorkList taskId="task-1" canEdit />)
+
+    await screen.findByText('仕様を確認')
+    await act(async () => {
+      await dndMock.onDragEnd?.({
+        active: { id: 'subtask-2' },
+        over: { id: 'subtask-1' },
+      })
+    })
+
+    expect(subtaskRepoMock.updateOrder).toHaveBeenCalledWith([
+      { id: 'subtask-2', order: 0 },
+      { id: 'subtask-1', order: 1 },
+    ])
+    expect(
+      screen.getAllByRole('checkbox').map((checkbox) => checkbox.getAttribute('aria-label'))
+    ).toEqual(['「レビューを依頼」を未完了に戻す', '「仕様を確認」を完了にする'])
+  })
+
   it('未認証では作業リストを閲覧のみできる', async () => {
     render(<TaskWorkList taskId="task-1" canEdit={false} />)
 
@@ -186,6 +245,9 @@ describe('TaskWorkList', () => {
     expect(screen.queryByLabelText('新しい作業')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '「仕様を確認」を編集' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '「仕様を確認」を削除' })).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: '「仕様を確認」をドラッグして並べ替え' })
+    ).toBeDisabled()
   })
 
   it('新規タスクでは作成後に追加できることを案内する', () => {

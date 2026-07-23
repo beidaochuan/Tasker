@@ -143,4 +143,28 @@ describe('ApiSubtaskRepository', () => {
       })
     })
   })
+
+  describe('updateOrder', () => {
+    it('作業項目の順序をまとめて更新する', async () => {
+      vi.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 204,
+        json: () => Promise.resolve({}),
+      } as unknown as Response)
+
+      const items = [
+        { id: 'subtask-2', order: 0 },
+        { id: 'subtask-1', order: 1 },
+      ]
+      const result = await repo.updateOrder(items)
+
+      expect(result.ok).toBe(true)
+      expect(global.fetch).toHaveBeenCalledWith('/api/subtasks/order', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+        credentials: 'same-origin',
+      })
+    })
+  })
 })

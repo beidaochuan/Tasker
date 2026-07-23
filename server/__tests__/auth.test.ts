@@ -388,6 +388,7 @@ describe('authentication middleware', () => {
     ['PATCH', '/api/tasks/task-1'],
     ['DELETE', '/api/tasks/task-1'],
     ['POST', '/api/subtasks'],
+    ['PATCH', '/api/subtasks/order'],
     ['PATCH', '/api/subtasks/subtask-1'],
     ['DELETE', '/api/subtasks/subtask-1'],
     ['POST', '/api/tags'],

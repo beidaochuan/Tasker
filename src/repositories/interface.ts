@@ -20,6 +20,10 @@ export type CompleteRecurringTaskResult = {
 
 export type CreateSubtask = Omit<Subtask, 'id' | 'createdAt'>
 export type UpdateSubtask = Partial<Omit<Subtask, 'id' | 'createdAt'>>
+export interface SubtaskOrderUpdate {
+  id: string
+  order: number
+}
 
 export type CreateTag = Omit<Tag, 'id'>
 
@@ -57,6 +61,7 @@ export interface ISubtaskRepository {
   getByTaskId(taskId: string): Promise<Result<Subtask[]>>
   create(data: CreateSubtask): Promise<Result<Subtask>>
   update(id: string, data: UpdateSubtask): Promise<Result<Subtask>>
+  updateOrder(items: SubtaskOrderUpdate[]): Promise<Result<void>>
   delete(id: string): Promise<Result<void>>
 }
 

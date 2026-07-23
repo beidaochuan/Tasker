@@ -1,4 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { subtaskRepo } from '@/repositories'
@@ -6,6 +20,7 @@ import type { Subtask } from '@/types'
 import { cn } from '@/utils/cn'
 import { unwrapResult } from '@/utils/resultUtils'
 import { sortByOrder } from '@/utils/sortUtils'
+import { SortableSubtaskRow } from './SortableSubtaskRow'
 
 interface TaskWorkListProps {
   taskId: string | null
@@ -22,6 +37,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
   const [editingTitle, setEditingTitle] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [isReordering, setIsReordering] = useState(false)
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set())
   const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -79,6 +95,10 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
   )
   const progress = subtasks.length === 0 ? 0 : Math.floor((doneCount / subtasks.length) * 100)
   const isLoadingCurrentTask = taskId !== null && (isLoading || loadedTaskId !== taskId)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
 
   function setItemPending(id: string, isPending: boolean) {
     setPendingIds((current) => {
@@ -91,7 +111,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
 
   async function handleAdd() {
     const title = newTitle.trim()
-    if (!taskId || !canEdit || !title || isAdding) return
+    if (!taskId || !canEdit || !title || isAdding || isReordering) return
 
     setIsAdding(true)
     setActionError(null)
@@ -110,7 +130,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
   }
 
   async function handleToggle(subtask: Subtask) {
-    if (!canEdit || pendingIds.has(subtask.id)) return
+    if (!canEdit || isReordering || pendingIds.has(subtask.id)) return
 
     setItemPending(subtask.id, true)
     setActionError(null)
@@ -139,7 +159,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
 
   async function handleRename(subtask: Subtask) {
     const title = editingTitle.trim()
-    if (!canEdit || pendingIds.has(subtask.id)) return
+    if (!canEdit || isReordering || pendingIds.has(subtask.id)) return
     if (!title) {
       setActionError('作業内容を入力してください')
       return
@@ -163,7 +183,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
   }
 
   async function handleDelete(subtask: Subtask) {
-    if (!canEdit || pendingIds.has(subtask.id)) return
+    if (!canEdit || isReordering || pendingIds.has(subtask.id)) return
 
     setItemPending(subtask.id, true)
     setActionError(null)
@@ -175,6 +195,32 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
       setActionError(error instanceof Error ? error.message : '作業の削除に失敗しました')
     } finally {
       setItemPending(subtask.id, false)
+    }
+  }
+
+  async function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!canEdit || isReordering || !over || active.id === over.id) return
+
+    const fromIndex = subtasks.findIndex((item) => item.id === active.id)
+    const toIndex = subtasks.findIndex((item) => item.id === over.id)
+    if (fromIndex < 0 || toIndex < 0) return
+
+    const previous = subtasks
+    const next = [...previous]
+    const [moved] = next.splice(fromIndex, 1)
+    next.splice(toIndex, 0, moved)
+    const reordered = next.map((item, order) => ({ ...item, order }))
+
+    setSubtasks(reordered)
+    setIsReordering(true)
+    setActionError(null)
+    try {
+      unwrapResult(await subtaskRepo.updateOrder(reordered.map(({ id, order }) => ({ id, order }))))
+    } catch (error) {
+      setSubtasks(previous)
+      setActionError(error instanceof Error ? error.message : '作業リストの並び替えに失敗しました')
+    } finally {
+      setIsReordering(false)
     }
   }
 
@@ -236,109 +282,125 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
         </div>
       ) : (
         <>
-          <div className="space-y-1">
-            {subtasks.length === 0 && (
-              <p className="py-2 text-center text-xs text-muted-foreground">作業はまだありません</p>
-            )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={subtasks.map((subtask) => subtask.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-1">
+                {subtasks.length === 0 && (
+                  <p className="py-2 text-center text-xs text-muted-foreground">
+                    作業はまだありません
+                  </p>
+                )}
 
-            {subtasks.map((subtask) => {
-              const isPending = pendingIds.has(subtask.id)
-              const isEditing = editingId === subtask.id
+                {subtasks.map((subtask) => {
+                  const isPending = pendingIds.has(subtask.id)
+                  const isEditing = editingId === subtask.id
 
-              return (
-                <div
-                  key={subtask.id}
-                  className="group flex min-h-9 items-center gap-2 rounded-md px-1.5 py-1 hover:bg-accent/40"
-                >
-                  <input
-                    type="checkbox"
-                    checked={subtask.isDone}
-                    onChange={() => void handleToggle(subtask)}
-                    disabled={!canEdit || isPending}
-                    aria-label={`「${subtask.title}」を${subtask.isDone ? '未完了に戻す' : '完了にする'}`}
-                    className="h-4 w-4 shrink-0 rounded border-input accent-primary"
-                  />
-
-                  {isEditing ? (
-                    <>
-                      <label htmlFor={`work-item-${subtask.id}`} className="sr-only">
-                        作業内容
-                      </label>
+                  return (
+                    <SortableSubtaskRow
+                      key={subtask.id}
+                      subtask={subtask}
+                      disabled={
+                        !canEdit || isReordering || isAdding || editingId !== null || isPending
+                      }
+                    >
                       <input
-                        id={`work-item-${subtask.id}`}
-                        value={editingTitle}
-                        onChange={(event) => setEditingTitle(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                            event.preventDefault()
-                            void handleRename(subtask)
-                          } else if (event.key === 'Escape') {
-                            event.preventDefault()
-                            cancelEditing()
-                          }
-                        }}
-                        disabled={isPending}
-                        autoFocus
-                        className={ITEM_INPUT_CLASS}
+                        type="checkbox"
+                        checked={subtask.isDone}
+                        onChange={() => void handleToggle(subtask)}
+                        disabled={!canEdit || isReordering || isPending}
+                        aria-label={`「${subtask.title}」を${subtask.isDone ? '未完了に戻す' : '完了にする'}`}
+                        className="h-4 w-4 shrink-0 rounded border-input accent-primary"
                       />
-                      <button
-                        type="button"
-                        onClick={() => void handleRename(subtask)}
-                        disabled={isPending}
-                        aria-label={`「${subtask.title}」の変更を保存`}
-                        className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-primary disabled:opacity-50"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEditing}
-                        disabled={isPending}
-                        aria-label={`「${subtask.title}」の編集をキャンセル`}
-                        className="rounded-md p-1 text-muted-foreground hover:bg-accent disabled:opacity-50"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span
-                        className={cn(
-                          'min-w-0 flex-1 break-words text-sm',
-                          subtask.isDone &&
-                            'text-muted-foreground line-through decoration-foreground/40'
-                        )}
-                      >
-                        {subtask.title}
-                      </span>
-                      {canEdit && (
+
+                      {isEditing ? (
                         <>
+                          <label htmlFor={`work-item-${subtask.id}`} className="sr-only">
+                            作業内容
+                          </label>
+                          <input
+                            id={`work-item-${subtask.id}`}
+                            value={editingTitle}
+                            onChange={(event) => setEditingTitle(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                                event.preventDefault()
+                                void handleRename(subtask)
+                              } else if (event.key === 'Escape') {
+                                event.preventDefault()
+                                cancelEditing()
+                              }
+                            }}
+                            disabled={isReordering || isPending}
+                            autoFocus
+                            className={ITEM_INPUT_CLASS}
+                          />
                           <button
                             type="button"
-                            onClick={() => startEditing(subtask)}
-                            disabled={isPending}
-                            aria-label={`「${subtask.title}」を編集`}
-                            className="rounded-md p-1 text-muted-foreground opacity-70 hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
+                            onClick={() => void handleRename(subtask)}
+                            disabled={isReordering || isPending}
+                            aria-label={`「${subtask.title}」の変更を保存`}
+                            className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-primary disabled:opacity-50"
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Check className="h-3.5 w-3.5" />
                           </button>
                           <button
                             type="button"
-                            onClick={() => void handleDelete(subtask)}
-                            disabled={isPending}
-                            aria-label={`「${subtask.title}」を削除`}
-                            className="rounded-md p-1 text-muted-foreground opacity-70 hover:bg-accent hover:text-danger focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
+                            onClick={cancelEditing}
+                            disabled={isReordering || isPending}
+                            aria-label={`「${subtask.title}」の編集をキャンセル`}
+                            className="rounded-md p-1 text-muted-foreground hover:bg-accent disabled:opacity-50"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <X className="h-3.5 w-3.5" />
                           </button>
                         </>
+                      ) : (
+                        <>
+                          <span
+                            className={cn(
+                              'min-w-0 flex-1 break-words text-sm',
+                              subtask.isDone &&
+                                'text-muted-foreground line-through decoration-foreground/40'
+                            )}
+                          >
+                            {subtask.title}
+                          </span>
+                          {canEdit && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEditing(subtask)}
+                                disabled={isReordering || isPending}
+                                aria-label={`「${subtask.title}」を編集`}
+                                className="rounded-md p-1 text-muted-foreground opacity-70 hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleDelete(subtask)}
+                                disabled={isReordering || isPending}
+                                aria-label={`「${subtask.title}」を削除`}
+                                className="rounded-md p-1 text-muted-foreground opacity-70 hover:bg-accent hover:text-danger focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </>
                       )}
-                    </>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                    </SortableSubtaskRow>
+                  )
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
 
           {canEdit && (
             <div className="flex gap-2 pt-1">
@@ -365,7 +427,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
                 type="button"
                 size="sm"
                 onClick={() => void handleAdd()}
-                disabled={isAdding || newTitle.trim() === ''}
+                disabled={isReordering || isAdding || newTitle.trim() === ''}
               >
                 <Plus className="h-3.5 w-3.5" />
                 追加

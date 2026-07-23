@@ -1,7 +1,12 @@
 import { Router } from 'express'
 import { nanoid } from 'nanoid'
 import { db } from '../db.js'
-import { parseOrRespond, subtaskCreateSchema, subtaskUpdateSchema } from '../validation.js'
+import {
+  parseOrRespond,
+  subtaskCreateSchema,
+  subtaskOrderSchema,
+  subtaskUpdateSchema,
+} from '../validation.js'
 
 export const subtasksRouter = Router()
 
@@ -36,6 +41,41 @@ subtasksRouter.post('/', (req, res) => {
     'INSERT INTO subtasks (id, taskId, title, isDone, "order", createdAt) VALUES (@id, @taskId, @title, @isDone, @order, @createdAt)'
   ).run(row)
   res.status(201).json(row)
+})
+
+subtasksRouter.patch('/order', (req, res) => {
+  const input = parseOrRespond(subtaskOrderSchema, req.body, res)
+  if (!input) return
+
+  const placeholders = input.items.map(() => '?').join(', ')
+  const subtasks = db
+    .prepare(`SELECT id, taskId FROM subtasks WHERE id IN (${placeholders})`)
+    .all(...input.items.map((item) => item.id)) as Array<{ id: string; taskId: string }>
+  if (subtasks.length !== input.items.length) {
+    return res.status(404).json({ error: 'NOT_FOUND' })
+  }
+  if (new Set(subtasks.map((subtask) => subtask.taskId)).size !== 1) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'items' })
+  }
+  const taskId = subtasks[0].taskId
+  const total = db
+    .prepare('SELECT COUNT(*) AS count FROM subtasks WHERE taskId = ?')
+    .get(taskId) as { count: number }
+  const expectedOrders = new Set(input.items.map((item) => item.order))
+  if (
+    total.count !== input.items.length ||
+    expectedOrders.size !== input.items.length ||
+    Array.from(expectedOrders).some((order) => order < 0 || order >= input.items.length)
+  ) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'items' })
+  }
+
+  const update = db.prepare('UPDATE subtasks SET "order" = ? WHERE id = ?')
+  db.transaction(() => {
+    for (const item of input.items) update.run(item.order, item.id)
+  })()
+
+  res.status(204).send()
 })
 
 subtasksRouter.patch('/:id', (req, res) => {

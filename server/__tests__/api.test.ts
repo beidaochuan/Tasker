@@ -93,6 +93,40 @@ afterAll(async () => {
 })
 
 describe('Tasker API', () => {
+  it('同じタスク内の作業リストをまとめて並び替える', async () => {
+    const project = await post('/api/projects', { name: 'Project' })
+    const topic = await post('/api/topics', { projectId: project.body.id, name: 'Topic' })
+    const task = await post('/api/tasks', { topicId: topic.body.id, title: 'Task' })
+    const first = await post('/api/subtasks', {
+      taskId: task.body.id,
+      title: 'First',
+      order: 0,
+    })
+    const second = await post('/api/subtasks', {
+      taskId: task.body.id,
+      title: 'Second',
+      order: 1,
+    })
+
+    const reordered = await request('/api/subtasks/order', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: [
+          { id: second.body.id, order: 0 },
+          { id: first.body.id, order: 1 },
+        ],
+      }),
+    })
+
+    expect(reordered.response.status).toBe(204)
+    expect(
+      (await request(`/api/subtasks?taskId=${task.body.id}`)).body.map(
+        (item: { id: string }) => item.id
+      )
+    ).toEqual([second.body.id, first.body.id])
+  })
+
   it('不正なタスク状態を400で拒否し、DBへ保存しない', async () => {
     const project = await post('/api/projects', { name: 'Project' })
     const topic = await post('/api/topics', {
