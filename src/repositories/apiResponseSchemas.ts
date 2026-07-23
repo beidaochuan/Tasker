@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Project, Subtask, Tag, Task, TaskCompletion, Topic } from '@/types'
+import type { Project, Subtask, Tag, Task, TaskCompletion, TaskRelation, Topic } from '@/types'
 import { fromUnixMs } from '@/utils/dateUtils'
 
 const idSchema = z.string().min(1).max(128)
@@ -163,6 +163,18 @@ export function mapCompletionDto(raw: CompletionWireDto): TaskCompletion {
 export const completionResponseSchema = completionWireSchema.transform(mapCompletionDto)
 export const completionsResponseSchema = z.array(completionResponseSchema)
 
+export const taskRelationWireSchema = z
+  .object({ taskId: idSchema, relatedTaskId: idSchema })
+  .strip()
+
+export function mapTaskRelationDto(raw: z.infer<typeof taskRelationWireSchema>): TaskRelation {
+  return raw
+}
+
+export const taskRelationsResponseSchema = z.array(
+  taskRelationWireSchema.transform(mapTaskRelationDto)
+)
+
 export const completeRecurringResponseSchema = z.object({
   task: taskResponseSchema,
   completion: completionResponseSchema,
@@ -183,3 +195,4 @@ export const tasksWireResponseSchema = z.array(
 export const subtasksWireResponseSchema = z.array(subtaskWireSchema.passthrough())
 export const tagsWireResponseSchema = z.array(tagWireSchema.passthrough())
 export const completionsWireResponseSchema = z.array(completionWireSchema.passthrough())
+export const taskRelationsWireResponseSchema = z.array(taskRelationWireSchema.passthrough())

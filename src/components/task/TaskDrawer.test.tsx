@@ -12,15 +12,19 @@ const { projectRepoMock, taskRepoMock, topicRepoMock, subtaskRepoMock } = vi.hoi
     getAll: vi.fn(),
   },
   taskRepoMock: {
+    getAll: vi.fn(),
     getByProjectId: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
     getByTopicId: vi.fn(),
     completeRecurring: vi.fn(),
+    getRelatedTasks: vi.fn(),
+    replaceRelatedTasks: vi.fn(),
   },
   topicRepoMock: {
     getByProjectId: vi.fn(),
+    getById: vi.fn(),
   },
   subtaskRepoMock: {
     getByTaskId: vi.fn(),
@@ -122,16 +126,27 @@ describe('TaskDrawer', () => {
       .mockImplementation((projectId: string) =>
         Promise.resolve({ ok: true, data: projectId === 'project-1' ? [TASK] : [] })
       )
+    taskRepoMock.getAll.mockReset().mockResolvedValue({ ok: true, data: [TASK] })
     taskRepoMock.create.mockReset()
     taskRepoMock.update.mockReset().mockResolvedValue({ ok: true, data: TASK })
     taskRepoMock.delete.mockReset()
     taskRepoMock.getByTopicId.mockReset()
     taskRepoMock.completeRecurring.mockReset()
+    taskRepoMock.getRelatedTasks.mockReset().mockResolvedValue({ ok: true, data: [] })
+    taskRepoMock.replaceRelatedTasks.mockReset().mockResolvedValue({ ok: true, data: [] })
     topicRepoMock.getByProjectId
       .mockReset()
       .mockImplementation((projectId: string) =>
         Promise.resolve({ ok: true, data: TOPICS[projectId] ?? [] })
       )
+    topicRepoMock.getById.mockReset().mockImplementation((topicId: string) => {
+      const topic = Object.values(TOPICS)
+        .flat()
+        .find((item) => item.id === topicId)
+      return Promise.resolve(
+        topic ? { ok: true, data: topic } : { ok: false, error: { message: 'NOT_FOUND' } }
+      )
+    })
     subtaskRepoMock.getByTaskId.mockReset().mockResolvedValue({ ok: true, data: [] })
     subtaskRepoMock.create.mockReset()
     subtaskRepoMock.update.mockReset()
@@ -172,6 +187,48 @@ describe('TaskDrawer', () => {
       expect(subtaskRepoMock.getByTaskId).toHaveBeenCalledWith('task-1')
     })
     expect(screen.getByRole('heading', { name: '作業リスト' })).toBeInTheDocument()
+  })
+
+  it('関連タスクを追加・解除できる', async () => {
+    const user = userEvent.setup()
+    const relatedTask: Task = { ...TASK, id: 'task-2', title: '関連するタスク' }
+    taskRepoMock.getAll.mockResolvedValue({ ok: true, data: [TASK, relatedTask] })
+    taskRepoMock.replaceRelatedTasks.mockResolvedValueOnce({ ok: true, data: [relatedTask] })
+
+    render(<TaskDrawer />)
+
+    const relatedTaskSelect = await screen.findByLabelText('関連タスクを追加')
+    await user.selectOptions(relatedTaskSelect, relatedTask.id)
+    await user.click(screen.getByRole('button', { name: '関連タスクを追加する' }))
+
+    await waitFor(() => {
+      expect(taskRepoMock.replaceRelatedTasks).toHaveBeenCalledWith('task-1', ['task-2'])
+    })
+    expect(await screen.findByText('関連するタスク')).toBeInTheDocument()
+
+    taskRepoMock.replaceRelatedTasks.mockResolvedValueOnce({ ok: true, data: [] })
+    await user.click(screen.getByRole('button', { name: '「関連するタスク」との関連を解除' }))
+
+    await waitFor(() => {
+      expect(taskRepoMock.replaceRelatedTasks).toHaveBeenLastCalledWith('task-1', [])
+    })
+  })
+
+  it('関連タスクをクリックして詳細を開ける', async () => {
+    const user = userEvent.setup()
+    const relatedTask: Task = { ...TASK, id: 'task-2', title: '関連するタスク' }
+    taskRepoMock.getRelatedTasks.mockResolvedValue({ ok: true, data: [relatedTask] })
+    taskRepoMock.getAll.mockResolvedValue({ ok: true, data: [TASK, relatedTask] })
+
+    render(<TaskDrawer />)
+
+    await user.click(await screen.findByRole('button', { name: '「関連するタスク」を開く' }))
+
+    expect(useUIStore.getState()).toMatchObject({
+      selectedProjectId: 'project-1',
+      selectedTaskId: 'task-2',
+      isTaskDrawerOpen: true,
+    })
   })
 
   it('新規作成中にESCを押すと保存せず閉じる', async () => {

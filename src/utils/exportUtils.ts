@@ -5,6 +5,7 @@ import {
   subtasksWireResponseSchema,
   tagsWireResponseSchema,
   tasksWireResponseSchema,
+  taskRelationsWireResponseSchema,
   topicsWireResponseSchema,
 } from '@/repositories/apiResponseSchemas'
 import type { output, ZodTypeAny } from 'zod'
@@ -53,19 +54,21 @@ export async function importAllData(file: File): Promise<void> {
 }
 
 export async function exportAllData(): Promise<void> {
-  const [projects, topics, tasks, subtasks, tags, task_completions] = await Promise.all([
-    fetchOrThrow('/api/projects', projectsWireResponseSchema),
-    fetchOrThrow('/api/topics', topicsWireResponseSchema),
-    fetchOrThrow('/api/tasks', tasksWireResponseSchema),
-    fetchOrThrow('/api/subtasks', subtasksWireResponseSchema),
-    fetchOrThrow('/api/tags', tagsWireResponseSchema),
-    fetchOrThrow('/api/completions', completionsWireResponseSchema),
-  ])
+  const [projects, topics, tasks, subtasks, tags, task_completions, task_relations] =
+    await Promise.all([
+      fetchOrThrow('/api/projects', projectsWireResponseSchema),
+      fetchOrThrow('/api/topics', topicsWireResponseSchema),
+      fetchOrThrow('/api/tasks', tasksWireResponseSchema),
+      fetchOrThrow('/api/subtasks', subtasksWireResponseSchema),
+      fetchOrThrow('/api/tags', tagsWireResponseSchema),
+      fetchOrThrow('/api/completions', completionsWireResponseSchema),
+      fetchOrThrow('/api/tasks/relations', taskRelationsWireResponseSchema),
+    ])
 
   const payload = {
     exportedAt: new Date().toISOString(),
     version: 1,
-    data: { projects, topics, tasks, subtasks, tags, task_completions },
+    data: { projects, topics, tasks, subtasks, tags, task_completions, task_relations },
   }
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })

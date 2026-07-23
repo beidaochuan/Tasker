@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { X, Trash2, RefreshCw } from 'lucide-react'
+import { X, Trash2, RefreshCw, Link2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TaskWorkList } from '@/components/task/TaskWorkList'
 import {
@@ -18,10 +18,11 @@ import { useTask, useTopics } from '@/hooks/useTasks'
 import { useProjects } from '@/hooks/useProjects'
 import { useRecurrence } from '@/hooks/useRecurrence'
 import { useDataQueryStore } from '@/hooks/useDataQueries'
-import { taskRepo } from '@/repositories'
+import { taskRepo, topicRepo } from '@/repositories'
 import { buildRRule, describeRRule } from '@/utils/recurrenceUtils'
 import { parseDateInput } from '@/utils/dateUtils'
 import { unwrapResult } from '@/utils/resultUtils'
+import type { Task } from '@/types'
 
 const FREQ_OPTIONS = [
   { value: 'DAILY', label: '毎日' },
@@ -39,13 +40,25 @@ const TEXTAREA_CLASS =
 const LABEL_CLASS = 'text-xs font-semibold text-muted-foreground'
 
 export function TaskDrawer() {
-  const { isTaskDrawerOpen, selectedProjectId, selectedTaskId, newTaskTopicId, closeTaskDrawer } =
-    useUIStore()
+  const {
+    isTaskDrawerOpen,
+    selectedProjectId,
+    selectedTaskId,
+    newTaskTopicId,
+    closeTaskDrawer,
+    openTaskDrawer,
+    setSelectedProjectId,
+  } = useUIStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
   const { completeRecurringTask } = useRecurrence()
   const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
+  const invalidateAllProjects = useDataQueryStore((state) => state.invalidateAllProjects)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [autoSelectTopicProjectId, setAutoSelectTopicProjectId] = useState<string | null>(null)
+  const [relatedTasks, setRelatedTasks] = useState<Task[]>([])
+  const [allTasks, setAllTasks] = useState<Task[]>([])
+  const [relatedTaskIdToAdd, setRelatedTaskIdToAdd] = useState('')
+  const [isSavingRelations, setIsSavingRelations] = useState(false)
 
   const isNew = newTaskTopicId !== null
   const existingTask = useTask(
@@ -75,6 +88,27 @@ export function TaskDrawer() {
   const projectTopics = useTopics(
     isTaskDrawerOpen && selectedFormProjectId ? selectedFormProjectId : null
   )
+
+  useEffect(() => {
+    if (!isTaskDrawerOpen || isNew || !selectedTaskId) return
+
+    let cancelled = false
+    void Promise.all([taskRepo.getRelatedTasks(selectedTaskId), taskRepo.getAll()])
+      .then(([relatedResult, allTasksResult]) => {
+        if (cancelled) return
+        if (relatedResult.ok) setRelatedTasks(relatedResult.data)
+        else setSubmitError(relatedResult.error.message)
+        if (allTasksResult.ok) setAllTasks(allTasksResult.data)
+        else setSubmitError(allTasksResult.error.message)
+      })
+      .catch(() => {
+        if (!cancelled) setSubmitError('関連タスクの読み込みに失敗しました')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isNew, isTaskDrawerOpen, selectedTaskId])
 
   const handleClose = useCallback(() => {
     setSubmitError(null)
@@ -219,10 +253,71 @@ export function TaskDrawer() {
     }
   }
 
+  async function handleOpenRelatedTask(task: Task) {
+    setSubmitError(null)
+    try {
+      const currentProjectTopic = projectTopics?.find((topic) => topic.id === task.topicId)
+      const projectId =
+        currentProjectTopic?.projectId ??
+        unwrapResult(await topicRepo.getById(task.topicId)).projectId
+      setSelectedProjectId(projectId)
+      openTaskDrawer(task.id)
+    } catch (err) {
+      console.error('関連タスクを開けませんでした', err)
+      setSubmitError(err instanceof Error ? err.message : '関連タスクを開けませんでした')
+    }
+  }
+
+  async function saveRelatedTasks(nextRelatedTaskIds: string[]) {
+    if (!existingTask || !isAuthenticated) return
+    setSubmitError(null)
+    setIsSavingRelations(true)
+    try {
+      const result = unwrapResult(
+        await taskRepo.replaceRelatedTasks(existingTask.id, nextRelatedTaskIds)
+      )
+      setRelatedTasks(result)
+      setRelatedTaskIdToAdd('')
+      invalidateAllProjects()
+    } catch (err) {
+      console.error('関連タスクの保存に失敗しました', err)
+      setSubmitError(err instanceof Error ? err.message : '関連タスクの保存に失敗しました')
+    } finally {
+      setIsSavingRelations(false)
+    }
+  }
+
+  function handleAddRelatedTask() {
+    if (!relatedTaskIdToAdd || relatedTasks.some((task) => task.id === relatedTaskIdToAdd)) return
+    void saveRelatedTasks([...relatedTasks.map((task) => task.id), relatedTaskIdToAdd])
+  }
+
+  function handleRemoveRelatedTask(taskId: string) {
+    void saveRelatedTasks(relatedTasks.filter((task) => task.id !== taskId).map((task) => task.id))
+  }
+
   const repeatSummary = useMemo(() => {
     if (!repeatEnabled || !repeatFreq) return ''
     return describeRRule(buildRRule({ freq: repeatFreq, interval: repeatInterval }))
   }, [repeatEnabled, repeatFreq, repeatInterval])
+
+  const projectNames = useMemo(
+    () => new Map(projects.map((project) => [project.id, project.name])),
+    [projects]
+  )
+  const topicProjectIds = useMemo(
+    () => new Map(projectTopics?.map((topic) => [topic.id, topic.projectId]) ?? []),
+    [projectTopics]
+  )
+  const availableRelatedTasks = useMemo(
+    () =>
+      allTasks.filter(
+        (task) =>
+          task.id !== existingTask?.id &&
+          !relatedTasks.some((relatedTask) => relatedTask.id === task.id)
+      ),
+    [allTasks, existingTask?.id, relatedTasks]
+  )
 
   if (!isTaskDrawerOpen) return null
   if (isNew && !isAuthenticated) return null
@@ -360,6 +455,96 @@ export function TaskDrawer() {
             </div>
 
             <TaskWorkList taskId={isNew ? null : selectedTaskId} canEdit={isAuthenticated} />
+
+            {!isNew && (
+              <section
+                className="space-y-3 rounded-md border border-border bg-background p-3"
+                aria-labelledby="related-tasks-heading"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5" />
+                  <h3 id="related-tasks-heading" className="text-sm font-semibold">
+                    関連タスク
+                  </h3>
+                </div>
+
+                {relatedTasks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">関連タスクはありません</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {relatedTasks.map((task) => (
+                      <li
+                        key={task.id}
+                        className="flex min-h-9 items-center gap-2 rounded-md border border-border px-2.5 py-1.5"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => void handleOpenRelatedTask(task)}
+                          className="min-w-0 flex-1 truncate text-left text-sm hover:underline focus:outline-none focus:underline"
+                          aria-label={`「${task.title}」を開く`}
+                        >
+                          {task.title}
+                        </button>
+                        {topicProjectIds.has(task.topicId) && (
+                          <span className="text-xs text-muted-foreground">このプロジェクト</span>
+                        )}
+                        {isAuthenticated && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            onClick={() => handleRemoveRelatedTask(task.id)}
+                            disabled={isSavingRelations}
+                            aria-label={`「${task.title}」との関連を解除`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {isAuthenticated && (
+                  <div className="flex gap-2">
+                    <select
+                      aria-label="関連タスクを追加"
+                      value={relatedTaskIdToAdd}
+                      onChange={(event) => setRelatedTaskIdToAdd(event.target.value)}
+                      className={FIELD_CLASS}
+                      disabled={isSavingRelations || availableRelatedTasks.length === 0}
+                    >
+                      <option value="">
+                        {availableRelatedTasks.length === 0
+                          ? '追加できるタスクはありません'
+                          : 'タスクを選択'}
+                      </option>
+                      {availableRelatedTasks.map((task) => {
+                        const projectName = projectNames.get(
+                          topicProjectIds.get(task.topicId) ?? ''
+                        )
+                        return (
+                          <option key={task.id} value={task.id}>
+                            {projectName ? `${task.title}（${projectName}）` : task.title}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleAddRelatedTask}
+                      disabled={!relatedTaskIdToAdd || isSavingRelations}
+                      aria-label="関連タスクを追加する"
+                    >
+                      <Plus className="mr-1 h-4 w-4" />
+                      追加
+                    </Button>
+                  </div>
+                )}
+              </section>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">

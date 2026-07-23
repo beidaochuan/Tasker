@@ -62,6 +62,11 @@ export interface TaskCompletion {
   completedAt: Date
 }
 
+export interface TaskRelation {
+  taskId: string
+  relatedTaskId: string
+}
+
 export type AppError =
   | { code: 'UNAUTHORIZED'; message: string }
   | { code: 'CSRF_INVALID'; message: string }

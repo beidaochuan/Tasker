@@ -107,6 +107,15 @@ export const ganttOrderSchema = z
   })
   .strict()
 
+export const taskRelationsSchema = z
+  .object({
+    relatedTaskIds: z
+      .array(idSchema)
+      .max(1_000)
+      .refine((ids) => new Set(ids).size === ids.length, { message: 'IDが重複しています' }),
+  })
+  .strict()
+
 export const subtaskCreateSchema = z
   .object({
     taskId: idSchema,
@@ -218,6 +227,17 @@ export const importSchema = z
         subtasks: z.array(importedSubtaskSchema).max(MAX_ROWS).default([]),
         tags: z.array(importedTagSchema).max(MAX_ROWS).default([]),
         task_completions: z.array(importedCompletionSchema).max(MAX_ROWS).default([]),
+        task_relations: z
+          .array(
+            z
+              .object({ taskId: idSchema, relatedTaskId: idSchema })
+              .strict()
+              .refine((relation) => relation.taskId < relation.relatedTaskId, {
+                message: '関連タスクの組み合わせが不正です',
+              })
+          )
+          .max(MAX_ROWS)
+          .default([]),
       })
       .strict(),
   })

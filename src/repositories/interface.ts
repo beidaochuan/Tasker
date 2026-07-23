@@ -1,4 +1,13 @@
-import type { Project, Topic, Task, Subtask, Tag, TaskCompletion, Result } from '@/types'
+import type {
+  Project,
+  Topic,
+  Task,
+  Subtask,
+  Tag,
+  TaskCompletion,
+  TaskRelation,
+  Result,
+} from '@/types'
 
 export type CreateProject = Omit<Project, 'id' | 'createdAt' | 'updatedAt'>
 export type UpdateProject = Partial<Omit<Project, 'id' | 'createdAt' | 'updatedAt'>>
@@ -44,6 +53,7 @@ export interface ITopicRepository {
 }
 
 export interface ITaskRepository {
+  getAll(): Promise<Result<Task[]>>
   getByTopicId(topicId: string): Promise<Result<Task[]>>
   getByProjectId(projectId: string): Promise<Result<Task[]>>
   getById(id: string): Promise<Result<Task>>
@@ -54,6 +64,9 @@ export interface ITaskRepository {
     id: string,
     nextTask: CreateTask | null
   ): Promise<Result<CompleteRecurringTaskResult>>
+  getRelatedTasks(id: string): Promise<Result<Task[]>>
+  replaceRelatedTasks(id: string, relatedTaskIds: string[]): Promise<Result<Task[]>>
+  getRelations(): Promise<Result<TaskRelation[]>>
   delete(id: string): Promise<Result<void>>
 }
 

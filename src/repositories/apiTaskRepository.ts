@@ -1,4 +1,4 @@
-import type { Task, Result } from '@/types'
+import type { Task, TaskRelation, Result } from '@/types'
 import type {
   ITaskRepository,
   CreateTask,
@@ -11,6 +11,7 @@ import { apiFetch, apiFetchNoContent } from './apiFetch'
 import {
   completeRecurringResponseSchema,
   taskResponseSchema,
+  taskRelationsResponseSchema,
   tasksResponseSchema,
 } from './apiResponseSchemas'
 
@@ -28,6 +29,10 @@ function serializeTask(data: CreateTask | UpdateTask): Record<string, unknown> {
 }
 
 export class ApiTaskRepository implements ITaskRepository {
+  async getAll(): Promise<Result<Task[]>> {
+    return apiFetch(BASE, { responseSchema: tasksResponseSchema })
+  }
+
   async getByTopicId(topicId: string): Promise<Result<Task[]>> {
     return apiFetch(`${BASE}?topicId=${encodeURIComponent(topicId)}`, {
       responseSchema: tasksResponseSchema,
@@ -88,6 +93,25 @@ export class ApiTaskRepository implements ITaskRepository {
         }),
       },
     })
+  }
+
+  async getRelatedTasks(id: string): Promise<Result<Task[]>> {
+    return apiFetch(`${BASE}/${id}/related-tasks`, { responseSchema: tasksResponseSchema })
+  }
+
+  async replaceRelatedTasks(id: string, relatedTaskIds: string[]): Promise<Result<Task[]>> {
+    return apiFetch(`${BASE}/${id}/related-tasks`, {
+      responseSchema: tasksResponseSchema,
+      init: {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relatedTaskIds }),
+      },
+    })
+  }
+
+  async getRelations(): Promise<Result<TaskRelation[]>> {
+    return apiFetch(`${BASE}/relations`, { responseSchema: taskRelationsResponseSchema })
   }
 
   async delete(id: string): Promise<Result<void>> {

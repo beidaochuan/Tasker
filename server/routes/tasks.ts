@@ -8,6 +8,7 @@ import {
   ganttOrderSchema,
   parseOrRespond,
   taskCreateSchema,
+  taskRelationsSchema,
   taskUpdateSchema,
 } from '../validation.js'
 
@@ -47,6 +48,81 @@ tasksRouter.get('/', (req, res) => {
   }
   const rows = db.prepare('SELECT * FROM tasks ORDER BY "order" ASC').all() as TaskRow[]
   res.json(rows.map(taskRowToApi))
+})
+
+tasksRouter.get('/relations', (_req, res) => {
+  const relations = db
+    .prepare(
+      'SELECT taskId, relatedTaskId FROM task_relations ORDER BY taskId ASC, relatedTaskId ASC'
+    )
+    .all()
+  res.json(relations)
+})
+
+tasksRouter.get('/:id/related-tasks', (req, res) => {
+  const exists = db.prepare('SELECT 1 FROM tasks WHERE id = ?').get(req.params.id)
+  if (!exists) return res.status(404).json({ error: 'NOT_FOUND' })
+
+  const rows = db
+    .prepare(
+      `SELECT t.*
+       FROM task_relations r
+       INNER JOIN tasks t ON t.id = CASE
+         WHEN r.taskId = @taskId THEN r.relatedTaskId
+         ELSE r.taskId
+       END
+       WHERE r.taskId = @taskId OR r.relatedTaskId = @taskId
+       ORDER BY t.title COLLATE NOCASE ASC, t.id ASC`
+    )
+    .all({ taskId: req.params.id }) as TaskRow[]
+  res.json(rows.map(taskRowToApi))
+})
+
+tasksRouter.put('/:id/related-tasks', (req, res) => {
+  const exists = db.prepare('SELECT 1 FROM tasks WHERE id = ?').get(req.params.id)
+  if (!exists) return res.status(404).json({ error: 'NOT_FOUND' })
+
+  const input = parseOrRespond(taskRelationsSchema, req.body, res)
+  if (!input) return
+  if (input.relatedTaskIds.includes(req.params.id)) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', field: 'relatedTaskIds' })
+  }
+
+  if (input.relatedTaskIds.length > 0) {
+    const placeholders = input.relatedTaskIds.map(() => '?').join(', ')
+    const found = db
+      .prepare(`SELECT id FROM tasks WHERE id IN (${placeholders})`)
+      .all(...input.relatedTaskIds) as Array<{ id: string }>
+    if (found.length !== input.relatedTaskIds.length) {
+      return res.status(404).json({ error: 'NOT_FOUND' })
+    }
+  }
+
+  const saveRelations = db.transaction(() => {
+    db.prepare('DELETE FROM task_relations WHERE taskId = ? OR relatedTaskId = ?').run(
+      req.params.id,
+      req.params.id
+    )
+    const insert = db.prepare('INSERT INTO task_relations (taskId, relatedTaskId) VALUES (?, ?)')
+    for (const relatedTaskId of input.relatedTaskIds) {
+      const [taskId, otherTaskId] = [req.params.id, relatedTaskId].sort()
+      insert.run(taskId, otherTaskId)
+    }
+    return db
+      .prepare(
+        `SELECT t.*
+         FROM task_relations r
+         INNER JOIN tasks t ON t.id = CASE
+           WHEN r.taskId = @taskId THEN r.relatedTaskId
+           ELSE r.taskId
+         END
+         WHERE r.taskId = @taskId OR r.relatedTaskId = @taskId
+         ORDER BY t.title COLLATE NOCASE ASC, t.id ASC`
+      )
+      .all({ taskId: req.params.id }) as TaskRow[]
+  })()
+
+  res.json(saveRelations.map(taskRowToApi))
 })
 
 tasksRouter.get('/:id', (req, res) => {

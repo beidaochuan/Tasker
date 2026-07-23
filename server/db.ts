@@ -77,10 +77,20 @@ db.exec(`
     FOREIGN KEY (taskId) REFERENCES tasks(id)
   );
 
+  CREATE TABLE IF NOT EXISTS task_relations (
+    taskId TEXT NOT NULL,
+    relatedTaskId TEXT NOT NULL,
+    PRIMARY KEY (taskId, relatedTaskId),
+    CHECK (taskId < relatedTaskId),
+    FOREIGN KEY (taskId) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (relatedTaskId) REFERENCES tasks(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_topics_projectId ON topics(projectId);
   CREATE INDEX IF NOT EXISTS idx_tasks_topicId ON tasks(topicId);
   CREATE INDEX IF NOT EXISTS idx_subtasks_taskId ON subtasks(taskId);
   CREATE INDEX IF NOT EXISTS idx_task_completions_taskId ON task_completions(taskId);
+  CREATE INDEX IF NOT EXISTS idx_task_relations_relatedTaskId ON task_relations(relatedTaskId);
 `)
 
 // Existing databases predate the Gantt-specific manual order.

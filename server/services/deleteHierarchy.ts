@@ -2,6 +2,9 @@ import type Database from 'better-sqlite3'
 
 export function deleteTaskHierarchy(database: Database.Database, taskId: string): void {
   database.transaction(() => {
+    database
+      .prepare('DELETE FROM task_relations WHERE taskId = ? OR relatedTaskId = ?')
+      .run(taskId, taskId)
     database.prepare('DELETE FROM subtasks WHERE taskId = ?').run(taskId)
     database.prepare('DELETE FROM task_completions WHERE taskId = ?').run(taskId)
     database.prepare('DELETE FROM tasks WHERE id = ?').run(taskId)
@@ -10,6 +13,13 @@ export function deleteTaskHierarchy(database: Database.Database, taskId: string)
 
 export function deleteTopicHierarchy(database: Database.Database, topicId: string): void {
   database.transaction(() => {
+    database
+      .prepare(
+        `DELETE FROM task_relations
+         WHERE taskId IN (SELECT id FROM tasks WHERE topicId = ?)
+            OR relatedTaskId IN (SELECT id FROM tasks WHERE topicId = ?)`
+      )
+      .run(topicId, topicId)
     database
       .prepare('DELETE FROM subtasks WHERE taskId IN (SELECT id FROM tasks WHERE topicId = ?)')
       .run(topicId)
@@ -25,6 +35,17 @@ export function deleteTopicHierarchy(database: Database.Database, topicId: strin
 
 export function deleteProjectHierarchy(database: Database.Database, projectId: string): void {
   database.transaction(() => {
+    database
+      .prepare(
+        `DELETE FROM task_relations
+         WHERE taskId IN (
+           SELECT tasks.id FROM tasks INNER JOIN topics ON tasks.topicId = topics.id WHERE topics.projectId = ?
+         )
+         OR relatedTaskId IN (
+           SELECT tasks.id FROM tasks INNER JOIN topics ON tasks.topicId = topics.id WHERE topics.projectId = ?
+         )`
+      )
+      .run(projectId, projectId)
     database
       .prepare(
         `DELETE FROM subtasks

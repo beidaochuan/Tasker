@@ -65,6 +65,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   db.transaction(() => {
+    db.prepare('DELETE FROM task_relations').run()
     db.prepare('DELETE FROM task_completions').run()
     db.prepare('DELETE FROM subtasks').run()
     db.prepare('DELETE FROM tasks').run()
@@ -93,6 +94,53 @@ afterAll(async () => {
 })
 
 describe('Tasker API', () => {
+  it('関連タスクを双方向に保存し、タスク削除時に関連も解除する', async () => {
+    const project = await post('/api/projects', { name: 'Project' })
+    const topic = await post('/api/topics', { projectId: project.body.id, name: 'Topic' })
+    const first = await post('/api/tasks', { topicId: topic.body.id, title: 'First' })
+    const second = await post('/api/tasks', { topicId: topic.body.id, title: 'Second' })
+
+    const saved = await request(`/api/tasks/${first.body.id}/related-tasks`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ relatedTaskIds: [second.body.id] }),
+    })
+
+    expect(saved.response.status).toBe(200)
+    expect(saved.body.map((task: { id: string }) => task.id)).toEqual([second.body.id])
+    expect(
+      (await request(`/api/tasks/${second.body.id}/related-tasks`)).body.map(
+        (task: { id: string }) => task.id
+      )
+    ).toEqual([first.body.id])
+
+    const deleted = await request(`/api/tasks/${second.body.id}`, { method: 'DELETE' })
+    expect(deleted.response.status).toBe(204)
+    expect((await request(`/api/tasks/${first.body.id}/related-tasks`)).body).toEqual([])
+    expect((await request('/api/tasks/relations')).body).toEqual([])
+  })
+
+  it('自分自身または存在しないタスクは関連付けできない', async () => {
+    const project = await post('/api/projects', { name: 'Project' })
+    const topic = await post('/api/topics', { projectId: project.body.id, name: 'Topic' })
+    const task = await post('/api/tasks', { topicId: topic.body.id, title: 'Task' })
+
+    const selfRelation = await request(`/api/tasks/${task.body.id}/related-tasks`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ relatedTaskIds: [task.body.id] }),
+    })
+    const missingRelation = await request(`/api/tasks/${task.body.id}/related-tasks`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ relatedTaskIds: ['missing-task'] }),
+    })
+
+    expect(selfRelation.response.status).toBe(400)
+    expect(missingRelation.response.status).toBe(404)
+    expect((await request(`/api/tasks/${task.body.id}/related-tasks`)).body).toEqual([])
+  })
+
   it('同じタスク内の作業リストをまとめて並び替える', async () => {
     const project = await post('/api/projects', { name: 'Project' })
     const topic = await post('/api/topics', { projectId: project.body.id, name: 'Topic' })
