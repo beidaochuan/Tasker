@@ -16,6 +16,7 @@ import {
   LogIn,
   LogOut,
   Eye,
+  RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,8 @@ import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { projectRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
 import { LicensesDialog } from './LicensesDialog'
+import { ReleaseDialog, type ReleaseCheckState } from './ReleaseDialog'
+import { fetchLatestGitHubRelease, isNewerVersion } from '@/utils/githubRelease'
 
 type DialogState =
   | { type: 'none' }
@@ -48,8 +51,11 @@ export function Sidebar() {
   const invalidateAll = useDataQueryStore((state) => state.invalidateAll)
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false)
   const [isLicensesOpen, setIsLicensesOpen] = useState(false)
+  const [releaseCheckState, setReleaseCheckState] = useState<ReleaseCheckState | null>(null)
   const [dialogState, setDialogState] = useState<DialogState>({ type: 'none' })
   const importInputRef = useRef<HTMLInputElement>(null)
+  const hasCheckedRelease = useRef(false)
+  const releaseRequestId = useRef(0)
 
   useEffect(() => {
     if (
@@ -59,6 +65,33 @@ export function Sidebar() {
       setSelectedProjectId(projects[0].id)
     }
   }, [projects, selectedProjectId, setSelectedProjectId])
+
+  async function checkForRelease(showResult: boolean, signal?: AbortSignal) {
+    const requestId = ++releaseRequestId.current
+    if (showResult) setReleaseCheckState({ type: 'checking' })
+    try {
+      const release = await fetchLatestGitHubRelease(signal)
+      if (requestId !== releaseRequestId.current) return
+      const isNewer = isNewerVersion(release.version, __APP_VERSION__)
+      if (showResult || isNewer) {
+        setReleaseCheckState({ type: isNewer ? 'available' : 'upToDate', release })
+      }
+    } catch (err) {
+      if (signal?.aborted || requestId !== releaseRequestId.current) return
+      if (showResult) {
+        const message = err instanceof Error ? err.message : 'GitHub Releases の取得に失敗しました'
+        setReleaseCheckState({ type: 'error', message })
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (hasCheckedRelease.current) return
+    hasCheckedRelease.current = true
+    const controller = new AbortController()
+    void checkForRelease(false, controller.signal)
+    return () => controller.abort()
+  }, [])
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -218,6 +251,18 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
+          onClick={() => void checkForRelease(true)}
+          title="GitHub の更新を確認"
+          aria-label="GitHub の更新を確認"
+          disabled={releaseCheckState?.type === 'checking'}
+        >
+          <RefreshCw
+            className={cn('h-4 w-4', releaseCheckState?.type === 'checking' && 'animate-spin')}
+          />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={handleOpenTagManager}
           title={isAuthenticated ? 'タグ管理' : 'ログインしてタグ管理'}
         >
@@ -268,6 +313,16 @@ export function Sidebar() {
 
       {isTagManagerOpen && <TagManager onClose={() => setIsTagManagerOpen(false)} />}
       {isLicensesOpen && <LicensesDialog onClose={() => setIsLicensesOpen(false)} />}
+      {releaseCheckState && (
+        <ReleaseDialog
+          state={releaseCheckState}
+          onClose={() => {
+            releaseRequestId.current += 1
+            setReleaseCheckState(null)
+          }}
+          onRetry={() => void checkForRelease(true)}
+        />
+      )}
 
       {/* インポート確認 / 結果ダイアログ */}
       <Dialog.Root

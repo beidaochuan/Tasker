@@ -9,6 +9,8 @@ const { useProjectsMock } = vi.hoisted(() => ({
   useProjectsMock: vi.fn(),
 }))
 
+const fetchMock = vi.fn()
+
 vi.mock('@/hooks/useProjects', () => ({
   useProjects: useProjectsMock,
 }))
@@ -38,6 +40,15 @@ const PROJECTS: Project[] = [
 
 describe('Sidebar', () => {
   beforeEach(() => {
+    fetchMock.mockReset().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        tag_name: 'v0.14.1',
+        html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.14.1',
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
     useProjectsMock.mockReset().mockReturnValue(PROJECTS)
     useUIStore.setState({
       selectedProjectId: null,
@@ -55,6 +66,7 @@ describe('Sidebar', () => {
 
   afterEach(() => {
     cleanup()
+    vi.unstubAllGlobals()
   })
 
   it('未選択の場合は一覧の先頭プロジェクトを選択する', async () => {
@@ -104,5 +116,24 @@ describe('Sidebar', () => {
     fireEvent.click(screen.getByRole('button', { name: '新規プロジェクト' }))
 
     expect(useUIStore.getState().isProjectFormOpen).toBe(true)
+  })
+
+  it('起動時に新しいGitHubリリースがあれば通知する', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        tag_name: 'v0.15.0',
+        html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.15.0',
+      }),
+    })
+
+    render(<Sidebar />)
+
+    expect(await screen.findByText('新しいバージョンがあります')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'GitHub Releases を開く' })).toHaveAttribute(
+      'href',
+      'https://github.com/beidaochuan/Tasker/releases/tag/v0.15.0'
+    )
   })
 })
