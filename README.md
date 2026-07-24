@@ -1,150 +1,217 @@
 # Tasker
 
-プロジェクト・トピック・タスクを複数ビューで管理するタスク管理アプリです。  
-フロントエンドは React/Vite、バックエンドは Express + SQLite で構成されています。
+プロジェクト、トピック、タスクをひとつのアプリで管理できる、セルフホスト型のタスク管理アプリです。カンバン、ガント、リスト、カレンダーを用途に合わせて切り替えられます。
 
----
+[リリースをダウンロード](https://github.com/beidaochuan/Tasker/releases) · [更新履歴](CHANGELOG.md) · [ライセンス](LICENSE)
 
-## 機能概要
+## 目次
 
-### ビュー
+- [できること](#できること)
+- [手動で起動する](#手動で起動する)
+- [Windows で常駐させる](#windows-で常駐させる)
+- [設定とセキュリティ](#設定とセキュリティ)
+- [開発](#開発)
+- [データのバックアップ](#データのバックアップ)
+- [API](#api)
+- [トラブルシュート](#トラブルシュート)
 
-| ビュー     | 概要                                                                                                                                 |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| リスト     | トピックごとにタスクを一覧表示。トピックの開閉・作成・名称変更・削除、タスクのドラッグ並び替えに対応                                 |
-| カンバン   | 未着手 / 進行中 / 完了の列でタスクを管理。ドラッグでステータス変更、進行中列は WIP 5 件制限                                          |
-| カレンダー | FullCalendar ベースの月・週・日表示。期日付きタスクと繰り返しタスクを表示し、ドラッグで期日変更可能                                  |
-| ガント     | 開始日〜期日をタイムライン表示。日・週・月スケール切替、タスクのドラッグ並び替え、バーの移動・リサイズ、空行ドラッグで日程作成に対応 |
+## できること
 
-### タスク管理
+### 4 つのビュー
 
-- タイトル、説明、ステータス（未着手 / 進行中 / 完了）、優先度（低 / 中 / 高 / 緊急）、開始日、期日を管理
-- タスクドロワーで作成・編集・削除。リスト上での完了切替・削除・ドラッグ並び替えにも対応
-- タスクごとにチェックボックス付きの作業リストを作成し、項目名の編集・完了切替・削除が可能
-- **繰り返しタスク**: 毎日 / 毎週 / 毎月 / 毎年と間隔指定に対応。完了時に履歴を記録し、次回分を自動作成
+| ビュー     | 主な用途         | できること                                                                                   |
+| ---------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| カンバン   | 日々の進捗管理   | 未着手 / 進行中 / 完了をドラッグで移動。進行中は WIP 5 件まで。                              |
+| ガント     | スケジュール管理 | 開始日から期日までをタイムライン表示。日・週・月表示、バーの移動・リサイズ、並び替えに対応。 |
+| リスト     | タスクの整理     | トピックごとに表示。トピックの開閉・編集とタスクの並び替えに対応。                           |
+| カレンダー | 日程確認         | 月・週・日表示。期日・繰り返しタスクを表示し、ドラッグで日付を変更。                         |
 
-### プロジェクト・トピック
+### タスクとプロジェクト
 
-- プロジェクトの作成・編集・削除（カラー設定あり）
-- トピックの作成・名称変更・削除
-- プロジェクト削除時は配下のトピック・タスク・関連データを一括削除
+- タイトル、説明、ステータス、優先度、開始日、期日、タグを管理
+- チェックボックス付き作業リスト、関連タスク、繰り返しタスクに対応
+- 毎日 / 毎週 / 毎月 / 毎年の繰り返しと間隔を指定可能。完了時には履歴を記録して次回タスクを作成
+- プロジェクト・トピックの作成、編集、削除。プロジェクトにはカラーを設定可能で、削除時には配下のデータも削除
+- タイトル・説明の検索、ステータス・優先度・タグによる絞り込み
 
-### 補助機能
+### そのほか
 
-- タスクタイトル・説明のテキスト検索
-- ステータス・優先度・タグ ID によるフィルタ
-- タグマスターの作成・削除
-- JSON エクスポート / インポート（最終エクスポートから 7 日超でバックアップ警告）
-- ダーク / ライトテーマ切替
-- アプリ・依存ライブラリのライセンス表示
-- PWA（manifest・service worker）対応
+- JSON による全データのエクスポート / インポート
+- ダーク / ライトテーマ、PWA、アプリ・依存ライブラリのライセンス表示
+- `n` で新規タスクを作成、`/` で検索ボックスへフォーカス
 
-### 編集モード
+## 手動で起動する
 
-未ログイン時は閲覧専用です。作成・編集・削除・ドラッグ更新・インポートにはログインが必要です。
+ここでは、ターミナルから Tasker を一時的に起動する手順を説明します。`npm start` を実行している間だけ動作し、終了するには `Ctrl+C` を押します。
 
-管理者のユーザー名とパスワードはサーバーの環境変数で設定します。認証は HttpOnly Cookie を使ったサーバー管理セッションで行い、資格情報やログイン状態をフロントエンドのソースコード、bundle、`localStorage` には保存しません。
+Windows で PC の起動後も常駐させる場合は、この手順ではなく [Windows で常駐させる](#windows-で常駐させる) を使用してください。推奨のセットアップスクリプトは、リリースの取得・依存関係のインストール・サービス登録を自動で行います。
 
-セッションはサーバーのメモリ内に保持されるため、Taskerサーバーを再起動するとログイン状態は失効します。
-
-### キーボードショートカット
-
-| キー | 動作                                               |
-| ---- | -------------------------------------------------- |
-| `n`  | 選択中プロジェクトの先頭トピックに新規タスクを作成 |
-| `/`  | 検索ボックスにフォーカス                           |
-
----
-
-## 技術スタック
-
-| 分類                 | 使用技術                  |
-| -------------------- | ------------------------- |
-| フロントエンド       | React 19, TypeScript      |
-| ビルド               | Vite 8                    |
-| スタイル             | Tailwind CSS v4           |
-| UI                   | Radix UI, lucide-react    |
-| 状態管理             | Zustand                   |
-| フォーム             | React Hook Form, Zod      |
-| D&D                  | dnd-kit                   |
-| カレンダー           | FullCalendar              |
-| ガント仮想スクロール | TanStack Virtual          |
-| 繰り返しルール       | rrule                     |
-| API                  | Express                   |
-| DB                   | SQLite (`better-sqlite3`) |
-| テスト               | Vitest, Testing Library   |
-| PWA                  | vite-plugin-pwa           |
-
----
-
-## インストール（リリース版）
+リリース版はビルド済みです。ソースコードから開発する場合は、[開発](#開発) を参照してください。
 
 ### 前提条件
 
 - [Node.js](https://nodejs.org/) v22 以上
-- Windows サービスとして登録する場合は、管理者権限を持つユーザー
+- Windows サービスとして登録する場合のみ、管理者権限を持つユーザー
 
-### 1. リリースZIPをダウンロードする
+### 1. リリースを展開する
 
-1. [GitHub Releases](https://github.com/beidaochuan/Tasker/releases) を開く
-2. 最新リリースの **Assets** から `tasker-vX.X.X.zip` をダウンロードする
-3. `D:\Tasker` など、継続して利用するフォルダへZIPを解凍する
+1. [GitHub Releases](https://github.com/beidaochuan/Tasker/releases) から最新リリースの `tasker-vX.X.X.zip` をダウンロードします。
+2. `D:\app\Tasker` など、継続して利用するフォルダへ ZIP を解凍します。
 
-> `Source code (zip)` ではなく、Assets に添付された `tasker-vX.X.X.zip` を使用してください。配布ZIPにはビルド済みの `dist/` と `dist-server/` が含まれています。サービス登録後は、解凍したフォルダを移動・削除しないでください。
+> `Source code (zip)` ではなく、Assets に添付された `tasker-vX.X.X.zip` を使用してください。配布 ZIP には `dist/` と `dist-server/` が含まれています。サービス登録後は解凍先を移動・削除しないでください。
 
-### 2. 依存関係をインストールする
+### 2. 実行時の依存関係を入れる
 
-解凍したフォルダ内でPowerShellまたはターミナルを開き、次のコマンドを実行します。
+解凍したフォルダで PowerShell またはターミナルを開き、実行します。
 
 ```bash
 npm ci --omit=dev
 ```
 
-### 3. 環境変数を設定する
+### 3. 管理者アカウントを設定する
 
-`TASKER_ADMIN_USERNAME` と `TASKER_ADMIN_PASSWORD` は必須です。ユーザー名は256文字以下、パスワードは12〜1024文字の推測されにくい値を設定してください。
+`TASKER_ADMIN_USERNAME` と `TASKER_ADMIN_PASSWORD` は必須です。パスワードは 12〜1024 文字、ユーザー名は 256 文字以下にしてください。
 
-macOS / Linux（bash、zsh）の例:
+macOS / Linux（bash、zsh）:
 
 ```bash
 export TASKER_ADMIN_USERNAME='your-admin-name'
 export TASKER_ADMIN_PASSWORD='replace-with-12-or-more-characters'
 ```
 
-Windows PowerShellの例:
+Windows PowerShell:
 
 ```powershell
 $env:TASKER_ADMIN_USERNAME = 'your-admin-name'
 $env:TASKER_ADMIN_PASSWORD = 'replace-with-12-or-more-characters'
 ```
 
-設定値は現在のターミナルにだけ反映されます。実際の資格情報をソースコード、README、共有スクリプトへ書き込まないでください。
+これらの値は現在のターミナルだけに設定されます。資格情報を README、ソースコード、共有スクリプトへ書き込まないでください。
 
-開発時または `npm run preview:full` によるプレビュー時は、`.env.example` を `.env` としてコピーし、同じ値を設定することもできます。`.env` はGitで除外されるため、実際の資格情報をコミットしないでください。`npm start` とWindowsサービスは `.env` を読み込まないため、上記のように環境変数を明示して起動します。
-
-| 環境変数                      | 必須 / 既定値 | 説明                                                                                          |
-| ----------------------------- | ------------- | --------------------------------------------------------------------------------------------- |
-| `TASKER_ADMIN_USERNAME`       | 必須          | 単一管理者のログイン名（256文字以下）                                                         |
-| `TASKER_ADMIN_PASSWORD`       | 必須          | 単一管理者のパスワード（12〜1024文字）                                                        |
-| `PORT`                        | `3208`        | Expressサーバーのポート                                                                       |
-| `TASKER_HOST`                 | `127.0.0.1`   | 待受アドレス。LAN公開時だけ `0.0.0.0` を明示                                                  |
-| `TASKER_COOKIE_SECURE`        | `false`       | HTTPS経由で利用するときだけ `true`。HTTPのまま `true` にするとCookieを送信できません          |
-| `TASKER_SESSION_TTL_MINUTES`  | `480`         | ログインセッションの有効時間（1〜10080分）                                                    |
-| `TASKER_LOGIN_MAX_ATTEMPTS`   | `5`           | 試行制限時間内に許可するログイン失敗回数（1〜100回）                                          |
-| `TASKER_LOGIN_WINDOW_MINUTES` | `15`          | ログイン試行を数える時間枠（1〜1440分）                                                       |
-| `CORS_ORIGIN`                 | 未設定        | 追加で許可するOriginをカンマ区切りで指定。完全なOriginを指定し、ワイルドカード `*` は使用不可 |
-
-### 4. 手動起動して動作を確認する
+### 4. 手動で起動する
 
 ```bash
 npm start
 ```
 
-ブラウザで `http://localhost:3208/` を開き、Taskerが表示されることを確認します。確認後はターミナルで `Ctrl+C` を押して終了します。
+ブラウザで [http://localhost:3208/](http://localhost:3208/) を開きます。既定ではこの PC からだけ接続できます。終了するには `Ctrl+C` を押します。
 
-既定では `127.0.0.1` のみで待ち受けるため、同じPCからだけ接続できます。
+> 配布 ZIP はビルド済みのため、`npm run build` は不要です。
 
-LANへ公開するときは、信頼できるネットワークであることを確認したうえで `TASKER_HOST=0.0.0.0` を明示します。
+## Windows で常駐させる
+
+Windows を主に使う場合は、セットアップスクリプトがもっとも簡単です。Windows サービスとして登録すると、ターミナルを開いたままにしなくても Windows の起動時に Tasker が自動で起動します。いずれの場合も、PowerShell または Windows Terminal を**管理者として実行**してください。
+
+### セットアップスクリプトを使う（推奨）
+
+手動起動の 1〜4 は不要です。任意のフォルダで次を実行します。
+
+```powershell
+.\setup-windows.ps1
+```
+
+#### 既定値について
+
+特に指定しなければ、セットアップは次の値を使用します。通常は変更する必要がありません。
+
+| 項目           | 既定値          | 意味                                                                                                                          |
+| -------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| インストール先 | `D:\app\Tasker` | Tasker 本体とデータベース（`tasker.db`）を保存するフォルダです。インストール先の確認で Enter を押すと、この場所が使われます。 |
+| ポート         | `3208`          | Tasker に接続するための番号です。ブラウザでは [http://localhost:3208/](http://localhost:3208/) を開きます。                   |
+
+ポートを変更した場合は、URL と LAN 用ファイアウォール規則でも同じ番号を使用してください。たとえば `8080` を指定した場合の接続先は `http://localhost:8080/` です。
+
+対話形式でインストール先、LAN 利用の有無、管理者アカウントを設定します。このスクリプトは次を自動で行います。
+
+- Node.js v22 以上がなければ Node.js LTS をインストール
+- 管理者アカウントを画面に表示せず入力・ログイン確認
+- Tasker を Windows サービスとして登録
+- LAN 利用時のみ、ローカルサブネットからの受信を許可するファイアウォール規則を追加
+
+主なオプション:
+
+```powershell
+# インストール先とポートを変更
+.\setup-windows.ps1 -InstallPath 'D:\Apps\Tasker' -Port 8080
+
+# 同じバージョンでも再インストール
+.\setup-windows.ps1 -Force
+```
+
+### 手動でサービス登録する
+
+すでにリリースを展開し、依存関係をインストール済みで、環境変数を自分で管理したい場合はこちらを使います。手動起動の **1〜3** を行ってから実行してください（**4 の `npm start` は不要**です）。
+
+```powershell
+$env:TASKER_ADMIN_USERNAME = 'your-admin-name'
+$env:TASKER_ADMIN_PASSWORD = 'replace-with-12-or-more-characters'
+npm run service:install
+```
+
+登録後は `Tasker` サービスが自動起動します。`services.msc` または [http://localhost:3208/](http://localhost:3208/) で動作を確認してください。登録時点の認証・ネットワーク・セッション・CORS 設定がサービスに保存されます。設定を変えるときは、サービスを削除してから再登録してください。
+
+### 更新と削除
+
+既存のサービスを更新する場合も、セットアップスクリプトを使います。インストール先がすでに存在すると、既存のサービス設定を維持した更新処理に自動で切り替わります。データベースをバックアップし、ダウンロードした Release の SHA-256 を検証してから更新します。失敗時はアプリ本体と依存関係を自動復旧します。
+
+インストール済みの Tasker フォルダにある `scripts\` で、PowerShell または Windows Terminal を**管理者として実行**して次を実行します。
+
+```powershell
+.\setup-windows.ps1
+```
+
+特定のリリースや、既定以外のポートを使っている場合の例:
+
+```powershell
+.\setup-windows.ps1 -InstallPath 'D:\Apps\Tasker' -ReleaseTag 'v0.14.0' -Port 8080
+```
+
+サービスだけを削除するには次を実行します。`tasker.db` は削除されません。
+
+```powershell
+npm run service:uninstall
+```
+
+セットアップ時に LAN 用ファイアウォール規則を作成した場合は、使っていたポートに合わせて削除してください。
+
+```powershell
+Remove-NetFirewallRule -DisplayName 'Tasker (LAN TCP 3208)'
+```
+
+## 設定とセキュリティ
+
+### 環境変数
+
+| 変数                          | 既定値      | 説明                                                              |
+| ----------------------------- | ----------- | ----------------------------------------------------------------- |
+| `TASKER_ADMIN_USERNAME`       | 必須        | 単一管理者のログイン名（256 文字以下）                            |
+| `TASKER_ADMIN_PASSWORD`       | 必須        | 単一管理者のパスワード（12〜1024 文字）                           |
+| `PORT`                        | `3208`      | 未指定時に使う接続ポート。通常の接続先は `http://localhost:3208/` |
+| `TASKER_HOST`                 | `127.0.0.1` | 待受アドレス。LAN 公開時だけ `0.0.0.0` を指定                     |
+| `TASKER_COOKIE_SECURE`        | `false`     | HTTPS 経由で利用するときだけ `true`                               |
+| `TASKER_SESSION_TTL_MINUTES`  | `480`       | ログインセッションの有効時間（1〜10080 分）                       |
+| `TASKER_LOGIN_MAX_ATTEMPTS`   | `5`         | 時間枠内に許可するログイン失敗回数（1〜100 回）                   |
+| `TASKER_LOGIN_WINDOW_MINUTES` | `15`        | ログイン試行を数える時間枠（1〜1440 分）                          |
+| `CORS_ORIGIN`                 | 未設定      | 追加で許可する Origin。完全な Origin をカンマ区切りで指定         |
+
+開発時と `npm run preview:full` では、`.env.example` を `.env` にコピーして設定できます。
+
+```bash
+cp .env.example .env
+```
+
+`.env` は Git の管理対象外です。`npm start` と Windows サービスは `.env` を読み込まないため、上記のように環境変数を明示するか、サービスを再登録してください。
+
+### 認証と公開範囲
+
+- 未ログイン時は閲覧専用です。作成・編集・削除・並び替え・インポートにはログインが必要です。
+- 認証は HttpOnly Cookie とサーバー側セッションで管理します。資格情報やログイン状態はフロントエンドの bundle・`localStorage` に保存しません。
+- セッションはサーバーのメモリ内に保存されるため、Tasker を再起動すると失効します。
+- 更新系 API は認証済みセッションに加え、CSRF token を必要とします。
+
+### LAN に公開する場合
+
+`TASKER_HOST=0.0.0.0` を指定すると LAN から接続できます。
 
 ```bash
 export TASKER_HOST='0.0.0.0'
@@ -152,300 +219,135 @@ npm start
 ```
 
 ```powershell
-$env:TASKER_HOST = "0.0.0.0"
+$env:TASKER_HOST = '0.0.0.0'
 npm start
 ```
 
-LAN公開時は `http://<このPCのIPアドレス>:3208/` で接続します。必要に応じてファイアウォールで使用するポートへの受信接続を許可してください。同じExpressサーバーから画面とAPIを配信する通常構成では、`CORS_ORIGIN` の追加は不要です。
+その場合は `http://<この PC の IP アドレス>:3208/` でアクセスします。必要に応じてファイアウォールで受信ポートを許可してください。同一 Express サーバーから画面と API を配信する通常構成では、`CORS_ORIGIN` は不要です。
 
-> **LAN公開時の注意:** 閲覧用GET APIは認証なしで利用できるため、Taskerへ到達できる端末からタスクを含む読み取りデータ全体を閲覧・エクスポートできます。また、HTTP通信ではログイン情報とセッションCookieが暗号化されません。信頼済みLANに限定し、可能な限りHTTPSリバースプロキシを使用して `TASKER_COOKIE_SECURE=true` を設定してください。インターネットへ直接公開しないでください。
+> **重要:** 読み取り用の GET API は認証なしで利用できます。Tasker へ到達できる端末はタスクを含む読み取りデータ全体を閲覧・エクスポートできます。また HTTP ではログイン情報と Cookie が暗号化されません。信頼できる LAN に限定し、可能なら HTTPS リバースプロキシと `TASKER_COOKIE_SECURE=true` を使ってください。インターネットへ直接公開しないでください。
 
-> **リバースプロキシ利用時:** Taskerは偽装可能な `X-Forwarded-For` を既定では信用しません。そのため、ログイン試行制限はプロキシ配下の全クライアントで同じIP枠を共有し、合計5回失敗すると既定で15分間ログインできません。プロキシ側でも接続元を制限し、この挙動を考慮して試行回数と時間枠を設定してください。
-
-### 5. Windowsサービスとして登録する
-
-PCの起動時にTaskerを自動起動する場合は、PowerShellまたはWindows Terminalを**管理者として実行**し、解凍したフォルダ内で次のコマンドを実行します。
-
-```powershell
-$env:TASKER_ADMIN_USERNAME = 'your-admin-name'
-$env:TASKER_ADMIN_PASSWORD = 'replace-with-12-or-more-characters'
-npm run service:install
-```
-
-登録時に、上記の資格情報と現在設定されている `PORT`、`TASKER_HOST`、Cookie、セッション、試行制限、CORSの環境変数がWindowsサービスへ保存されます。パスワードはインストール処理のログには出力されません。登録後にターミナル側の環境変数を変更してもサービス設定は変わらないため、設定変更時はサービスを削除してから再登録してください。
-
-LAN公開やHTTPSリバースプロキシを使用する場合は、`npm run service:install` より前に必要な値も設定します。
-
-```powershell
-$env:TASKER_HOST = "0.0.0.0"
-$env:TASKER_COOKIE_SECURE = "true" # ブラウザからHTTPSで接続する場合だけ
-```
-
-登録が完了すると `Tasker` サービスが自動起動します。ブラウザで `http://localhost:3208/` を開き、利用できることを確認してください。`services.msc` からサービスの状態も確認できます。サービス設定は管理者権限を持つユーザーから参照できるため、PC自体も適切に保護してください。
-
-ポートを変更して登録する場合は、PowerShellで環境変数を設定してから登録します。
-
-```powershell
-$env:PORT = "8080"
-npm run service:install
-```
-
-この場合は `http://localhost:8080/` へアクセスします。
-
-> リリースZIPはビルド済みのため、`npm run build` は不要です。
-
-### セットアップスクリプトで自動インストールする
-
-`scripts/setup-windows.ps1` は以下を自動で行います。
-
-- Node.js v22以上がなければwingetでNode.js LTSをインストール
-- Tasker管理者のユーザー名・パスワードを画面に表示せず入力し、実際のログインを確認
-- Taskerをインストール先にWindowsサービスとして登録
-- LANで使用する場合はWindowsファイアウォールでローカルサブネットのみTCPポートを許可
-
-インストール先（既定: `D:\app\Tasker`）が既に存在する場合は自動的に更新モードになります。
-
-#### ZIPを解凍済みの場合（推奨）
-
-リリースZIPを解凍したフォルダ内の `scripts\` で、PowerShellまたはWindows Terminalを**管理者として実行**し、次のコマンドを実行します。
-
-```powershell
-.\setup-windows.ps1
-```
-
-ZIPに含まれるファイルをそのままインストールするため、GitHubへの追加ダウンロードは発生しません。
-
-#### スクリプトのみで完結させる場合
-
-ZIPをダウンロードせず、スクリプトだけでGitHub Releasesから最新版を取得してインストールします。管理者としてPowerShellまたはWindows Terminalを開き、実行前に内容を確認できるよう、ダウンロードと実行は分けています。
-
-```powershell
-$setup = Join-Path $env:TEMP 'tasker-setup-windows.ps1'
-Invoke-WebRequest `
-  -UseBasicParsing `
-  -Uri 'https://raw.githubusercontent.com/beidaochuan/Tasker/main/scripts/setup-windows.ps1' `
-  -OutFile $setup
-Get-Content $setup
-Unblock-File $setup
-& $setup
-```
-
-#### セットアップの流れ
-
-1. インストール先を確認（Enterで既定 `D:\app\Tasker` を使用）
-2. このPCだけで使う場合はIPアドレス入力をEnterでスキップ（localhost専用）、社内LANで使う場合はIPアドレスを入力
-3. 管理者ユーザー名・パスワードを入力
-4. インストールと動作確認が自動で完了
-
-#### オプション
-
-```powershell
-# インストール先とポートを変更
-.\setup-windows.ps1 -InstallPath 'D:\Apps\Tasker' -Port 8080
-
-# 同バージョンでも強制的に再インストール
-.\setup-windows.ps1 -Force
-
-# 特定バージョンを指定（スクリプトのみの場合）
-& $setup -ReleaseTag 'v0.13.0'
-```
-
-> **LAN利用時の制約:** HTTP通信なのでログイン情報とCookieは暗号化されません。信頼できるLANだけで使用し、可能ならWindowsのネットワークプロファイルはDomainまたはPrivateにしてください。未ログインでも閲覧用GET APIは利用できるため、同じローカルサブネットから到達できる利用者はTaskerの閲覧データを参照できます。作成・編集・削除にはTasker管理者ログインが必要です。ルーターでこのポートをインターネットへ転送しないでください。
-
----
+> **リバースプロキシ利用時:** Tasker は偽装可能な `X-Forwarded-For` を既定では信用しません。そのためログイン試行制限は、プロキシ配下の全クライアントで同じ IP 枠を共有します。プロキシ側でも接続元を制限し、試行回数と時間枠を適切に設定してください。
 
 ## 開発
 
 ### 起動
 
-フロントエンドと API サーバーを同時に起動します。
-
-最初に `.env.example` を `.env` としてコピーし、`TASKER_ADMIN_USERNAME` と `TASKER_ADMIN_PASSWORD` を設定してください。`.env` を使わない場合は、インストール手順の「環境変数を設定する」と同様に現在のターミナルへ設定します。
+依存関係をインストールし、`.env` を作成してからフロントエンドと API サーバーを同時に起動します。
 
 ```bash
+npm install
 cp .env.example .env
-```
-
-```bash
 npm run dev:full
 ```
 
-| プロセス           | URL                      | 内容              |
-| ------------------ | ------------------------ | ----------------- |
-| Vite dev server    | `http://localhost:3208/` | React アプリ      |
-| Express API server | `http://127.0.0.1:3209/` | `/api/*` + SQLite |
+| プロセス           | URL                                              | 内容               |
+| ------------------ | ------------------------------------------------ | ------------------ |
+| Vite dev server    | [http://localhost:3208/](http://localhost:3208/) | React アプリ       |
+| Express API server | [http://127.0.0.1:3209/](http://127.0.0.1:3209/) | `/api/*` と SQLite |
 
-Vite は `/api` を `http://127.0.0.1:3209` にプロキシし、backendへ送るHostとOriginをbackend自身のOriginに揃えます。そのため、通常の `npm run dev:full` では開発用Originを `CORS_ORIGIN` へ追加する必要はありません。`npm run dev` 単体では API サーバーが起動しないため Bad Gateway になります。
+Vite は `/api` を API サーバーへプロキシします。通常の `npm run dev:full` で `CORS_ORIGIN` を追加する必要はありません。`npm run dev` 単体では API サーバーが起動しないため、API リクエストは `Bad Gateway` になります。
 
-### 本番相当の起動
+### 本番相当で確認する
 
 ```bash
 npm run build
 npm start
 ```
 
-`dist/` の静的ファイルと `/api/*` を同一 Express サーバーで配信します。
-
-`npm start` は `.env` を読み込まないため、管理者資格情報は現在のターミナルまたはサービス設定の環境変数として明示してください。一方、`npm run preview:full` は開発用 `.env` を利用できます。
+`dist/` の静的ファイルと `/api/*` を同じ Express サーバーから配信します。`npm start` は `.env` を読み込まないため、管理者資格情報を環境変数に設定してください。`npm run preview:full` は開発用の `.env` を使えます。
 
 ### コマンド一覧
 
-```bash
-npm run dev:full          # API server + Vite dev server を同時起動
-npm run dev               # Vite dev server のみ起動
-npm run server            # Express API server を tsx watch で起動
-npm run build             # 型チェック + API server + フロントエンドをビルド
-npm run build:server      # API server を dist-server/ にビルド
-npm start                 # ビルド済み Express API server を起動
-npm run preview:full      # API server + Vite preview を同時起動
-npm run preview           # Vite preview
-npm run typecheck         # 型チェック
-npm run test              # Vitest を一度実行
-npm run test:watch        # Vitest watch
-npm run test:ui           # Vitest UI
-npm run test:coverage     # coverage 付きテスト
-npm run lint              # ESLint
-npm run lint:fix          # ESLint 自動修正
-npm run format            # Prettier
-npm run licenses:generate # public/third-party-licenses.json を生成
-```
+| コマンド                                                  | 内容                                      |
+| --------------------------------------------------------- | ----------------------------------------- |
+| `npm run dev:full`                                        | API サーバーと Vite dev server を同時起動 |
+| `npm run dev` / `npm run server`                          | Vite のみ / Express API のみを起動        |
+| `npm run build`                                           | 型チェック、API、フロントエンドをビルド   |
+| `npm run build:server`                                    | Express API サーバーのみをビルド          |
+| `npm start`                                               | ビルド済み Express サーバーを起動         |
+| `npm run preview:full`                                    | API サーバーと Vite preview を同時起動    |
+| `npm run preview`                                         | Vite preview を起動                       |
+| `npm run typecheck`                                       | 型チェック                                |
+| `npm run test` / `npm run test:watch` / `npm run test:ui` | Vitest を実行 / watch / UI で起動         |
+| `npm run test:coverage`                                   | カバレッジ付きでテスト                    |
+| `npm run lint` / `npm run lint:fix`                       | ESLint の検査 / 自動修正                  |
+| `npm run format` / `npm run format:check`                 | Prettier の整形 / 検査                    |
+| `npm run licenses:generate`                               | `public/third-party-licenses.json` を生成 |
+| `npm run service:install` / `npm run service:uninstall`   | Windows サービスの登録 / 削除             |
 
----
+### 技術スタック
 
-## データ
+| 分類              | 使用技術                                              |
+| ----------------- | ----------------------------------------------------- |
+| フロントエンド    | React 19, TypeScript, Vite 8, Tailwind CSS v4         |
+| UI / 状態         | Radix UI, lucide-react, Zustand, React Hook Form, Zod |
+| 表示 / 操作       | dnd-kit, FullCalendar, TanStack Virtual, rrule        |
+| バックエンド / DB | Express, SQLite (`better-sqlite3`)                    |
+| テスト / PWA      | Vitest, Testing Library, vite-plugin-pwa              |
 
-### 保存先
+## データのバックアップ
 
-SQLite データベースはリポジトリ直下の `tasker.db` に作成されます。
+SQLite データベースはアプリケーション直下の `tasker.db` に保存されます。主なテーブルは `projects`、`topics`、`tasks`、`subtasks`、`tags`、`task_completions`、`task_relations` です。
 
-主なテーブル: `projects` / `topics` / `tasks` / `subtasks` / `tags` / `task_completions`
+画面の JSON エクスポートには全テーブルのデータが含まれます。最終エクスポートから 7 日を超えると、アプリがバックアップを促します。インポートでは既存データを削除してからバックアップを復元します。インポート可能なファイルは `version` と `data` キーを持つバックアップ形式で、上限は 50 MB です。
 
-### エクスポート / インポート
-
-JSON エクスポートには全テーブルのデータが含まれます。  
-インポート時は既存データを削除してからバックアップ内容を投入します。  
-インポート可能な JSON は `version` と `data` キーを持つバックアップ形式で、ファイルサイズ上限は 50 MB です。
-
----
+> 更新前には JSON エクスポートを追加のバックアップとして取ることをおすすめします。
 
 ## API
 
-| エンドポイント                      | 概要                                                |
-| ----------------------------------- | --------------------------------------------------- |
-| `POST /api/auth/login`              | ログインしてサーバーセッションを開始                |
-| `POST /api/auth/logout`             | 現在のセッションを失効してログアウト                |
-| `GET /api/auth/session`             | 現在の認証状態・セッション有効期限を取得            |
-| `/api/projects`                     | プロジェクト CRUD                                   |
-| `/api/topics`                       | トピック CRUD（`projectId` 絞り込み対応）           |
-| `/api/tasks`                        | タスク CRUD（`topicId` / `projectId` 絞り込み対応） |
-| `/api/tasks/gantt-order`            | 同一トピック内のガント表示順を一括更新              |
-| `/api/tasks/:id/complete-recurring` | 繰り返しタスクの完了履歴記録と次回タスク作成        |
-| `/api/subtasks`                     | サブタスク CRUD（`taskId` 絞り込み対応）            |
-| `/api/tags`                         | タグ一覧・作成・削除                                |
-| `/api/completions`                  | タスク完了履歴の一覧・作成                          |
-| `/api/import`                       | JSON バックアップのインポート                       |
+| エンドポイント                      | 概要                                                      |
+| ----------------------------------- | --------------------------------------------------------- |
+| `POST /api/auth/login`              | ログインしてサーバーセッションを開始                      |
+| `POST /api/auth/logout`             | 現在のセッションを失効してログアウト                      |
+| `GET /api/auth/session`             | 現在の認証状態・セッション有効期限・CSRF token を取得     |
+| `/api/projects`                     | プロジェクト CRUD                                         |
+| `/api/topics`                       | トピック CRUD（`projectId` による絞り込み対応）           |
+| `/api/tasks`                        | タスク CRUD（`topicId` / `projectId` による絞り込み対応） |
+| `/api/tasks/gantt-order`            | 同一トピック内のガント表示順を一括更新                    |
+| `/api/tasks/:id/complete-recurring` | 繰り返しタスクの完了履歴記録と次回タスク作成              |
+| `/api/subtasks`                     | 作業リスト CRUD（`taskId` による絞り込み対応）            |
+| `/api/tags`                         | タグの一覧・作成・削除                                    |
+| `/api/completions`                  | タスク完了履歴の一覧・作成                                |
+| `/api/import`                       | JSON バックアップをインポート                             |
 
-データ取得用のGET APIは未認証でも利用できます。POST、PUT、PATCH、DELETEによる作成・更新・削除、インポート、タグ管理、繰り返し完了は、認証済みセッションと有効なCSRF tokenが必要です。通常の画面操作では、クライアントが認証状態APIから受け取ったCSRF tokenを自動的に送信します。
+GET API は未認証でも利用できます。POST、PUT、PATCH、DELETE、インポート、タグ管理、繰り返し完了は、認証済みセッションと有効な CSRF token が必要です。
 
-認証状態はHttpOnly Cookie内のセッションIDとサーバー側セッションで管理されます。JavaScriptからCookieを読み取ることはできません。ログイン・ログアウト・認証状態レスポンスはキャッシュされません。サーバーを再起動した場合や有効期限を過ぎた場合は、再ログインが必要です。
-
-認証関連の主なHTTP statusは次のとおりです。
+主な認証関連のステータスコード:
 
 | status | 意味                                             |
 | ------ | ------------------------------------------------ |
-| `401`  | 未認証、Cookieなし、またはセッション失効         |
-| `403`  | CSRF tokenまたはOriginが不正                     |
+| `401`  | 未認証、Cookie なし、またはセッション失効        |
+| `403`  | CSRF token または Origin が不正                  |
 | `429`  | ログイン試行回数が上限を超過。時間を置いて再試行 |
 
-既定で許可されるのは同一Originからの通常利用だけです。Vite開発サーバーはproxy時にbackend向けのOriginを同一化するため、開発用Originの追加設定は不要です。ブラウザ上の別OriginからAPIへ直接アクセスさせる場合だけ、十分に信頼できるOriginを `CORS_ORIGIN` に完全一致・カンマ区切りで指定します。許可したOriginはcredential付き認証APIへ到達できるため、安易に追加しないでください。配布版フロントエンドは相対 `/api` を使う同一Origin構成を前提としています。ワイルドカード `*` は利用できません。CORSはブラウザの通信制御であり、公開GET APIのアクセス制限にはなりません。
-
----
+別 Origin のブラウザアプリから API を直接利用する場合のみ、信頼できる Origin を `CORS_ORIGIN` に完全一致で指定してください。ワイルドカード `*` は使えません。CORS は公開 GET API のアクセス制限にはなりません。
 
 ## ディレクトリ構成
 
 ```text
-server/
-├── app.ts                # Express middleware・CORS・API mount・dist 配信
+server/                   # Express、認証、SQLite、API ルート
 ├── auth.ts               # セッション・Cookie・CSRF・ログイン試行制限
-├── config.ts             # 認証・待受・CORSの環境変数検証
+├── config.ts             # 認証・待受・CORS の環境変数検証
 ├── db.ts                 # SQLite 接続・テーブル作成
-├── index.ts              # 設定読込とHTTPサーバー起動
 └── routes/               # projects / topics / tasks / subtasks / tags / completions / import
 
 src/
-├── auth/                 # 認証APIクライアント
-├── components/
-│   ├── auth/             # ログインダイアログ
-│   ├── filter/           # 検索・フィルタパネル
-│   ├── layout/           # AppShell, Sidebar, ViewTabs, ExportWarning
-│   ├── project/          # プロジェクト作成・編集フォーム
-│   ├── task/             # タスク行・タスクドロワー・タグ管理
-│   ├── ui/               # Button, Badge, Skeleton
-│   └── views/            # List, Kanban, Calendar, Gantt
-├── hooks/                # データ取得・更新通知・繰り返し・各ビュー用 hook
+├── components/           # レイアウト、フォーム、ビュー、UI 部品
+├── hooks/                # データ取得・更新・各ビュー用 hook
 ├── repositories/         # API repository と Result 型ラッパー
 ├── store/                # Zustand stores
-├── test/                 # Vitest setup
 ├── types/                # Project / Topic / Task などの型定義
 └── utils/                # 日付・フィルタ・並び替え・エクスポート・繰り返し処理
+
+scripts/                  # Windows サービス、セットアップ、更新用スクリプト
 ```
-
----
-
-## Windowsサービスの更新・削除
-
-サービスの更新や削除は、PowerShellまたはWindows Terminalを**管理者として実行**し、Taskerを解凍したフォルダ内で行います。
-
-### 新しいバージョンへ更新する
-
-既存のWindowsサービスを再登録せず、管理者資格情報・ポート・LAN設定を保持したまま更新できます。PowerShellまたはWindows Terminalを**管理者として実行**し、更新スクリプトを取得して実行します。
-
-```powershell
-$update = Join-Path $env:TEMP 'tasker-update-windows.ps1'
-Invoke-WebRequest `
-  -UseBasicParsing `
-  -Uri 'https://raw.githubusercontent.com/beidaochuan/Tasker/main/scripts/update-windows.ps1' `
-  -OutFile $update
-Get-Content $update
-Unblock-File $update
-& $update
-```
-
-スクリプトはTaskerサービスを停止し、`tasker.db` を `D:\Tasker-backup-<日時>` へバックアップした後、最新の正式ReleaseをSHA-256検証付きでダウンロードします。アプリ本体と実行時依存関係だけを更新してサービスを再起動するため、`TASKER_ADMIN_USERNAME`、`TASKER_ADMIN_PASSWORD`、`PORT`、`TASKER_HOST`、Cookie、セッション、CORSの設定を再入力する必要はありません。
-
-特定バージョンを導入する場合、または既定以外のポートでHTTP起動確認する場合は、次のように指定します。
-
-```powershell
-& $update `
-  -ReleaseTag 'v0.12.0' `
-  -HealthCheckUrl 'http://127.0.0.1:8080/api/auth/session'
-```
-
-更新に失敗した場合は、アプリ本体と依存関係を更新前の状態へ自動復旧します。JSONエクスポートも、更新前の追加バックアップとして推奨します。旧フォルダへ移すなど、インストール先自体を変更する場合は、サービスを削除して新しいフォルダで再登録してください。
-
-更新後にTaskerを開き、データとバージョンを確認してください。サービスの再起動により以前のログインセッションは失効します。
-
-### サービスを削除する
-
-```powershell
-npm run service:uninstall
-```
-
-サービスを削除しても、Taskerフォルダ内の `tasker.db` は削除されません。再登録やポート変更を行う場合も、先にサービスを削除してから `service:install` を実行してください。
-
-`setup-windows.ps1`でLAN用ファイアウォール規則も登録した場合は、使用していたポート番号に合わせて規則を削除します。
-
-```powershell
-Remove-NetFirewallRule -DisplayName 'Tasker (LAN TCP 3208)'
-```
-
----
 
 ## トラブルシュート
 
 ### `Bad Gateway` が出る
 
-`npm run dev` だけでは API サーバーが起動しません。
+`npm run dev` だけでは API サーバーが起動していません。次を使用してください。
 
 ```bash
 npm run dev:full
@@ -453,8 +355,16 @@ npm run dev:full
 
 ### `concurrently: command not found` が出る
 
-依存関係が未インストールです。
+開発用の依存関係が未インストールです。
 
 ```bash
 npm install
 ```
+
+### ログイン後も編集できない、または再起動後にログアウトされた
+
+セッションは Tasker サーバーのメモリに保存されます。サーバー再起動後は再ログインしてください。ログイン後も編集できない場合は、ブラウザを再読み込みして認証状態を更新してください。
+
+## ライセンス
+
+[MIT License](LICENSE)

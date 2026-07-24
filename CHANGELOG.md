@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-07-25
+
+### Changed
+
+- README を再構成し、機能、起動方法、Windows サービス運用、設定とセキュリティ、バックアップ、トラブルシュートの案内を改善
+
 ## [0.14.0] - 2026-07-24
 
 ### Changed
