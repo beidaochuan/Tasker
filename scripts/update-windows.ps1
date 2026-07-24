@@ -10,8 +10,11 @@ param(
 
   [string]$BackupPath,
 
+  [ValidateRange(1, 65535)]
+  [int]$Port = 3208,
+
   [ValidatePattern('^https?://')]
-  [string]$HealthCheckUrl = 'http://127.0.0.1:3208/api/auth/session',
+  [string]$HealthCheckUrl,
 
   [switch]$KeepDownloadedFiles,
 
@@ -244,6 +247,10 @@ $resolvedBackupPath = $null
 try {
   Assert-WindowsAdministrator
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+  if (-not $HealthCheckUrl) {
+    $HealthCheckUrl = "http://127.0.0.1:$Port/api/auth/session"
+  }
 
   $service = Get-TaskerService
   $resolvedInstallPath = [IO.Path]::GetFullPath($InstallPath)

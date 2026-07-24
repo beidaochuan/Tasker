@@ -458,7 +458,7 @@ function Invoke-ExistingTaskerUpdate {
 
   $updateArguments = @{
     InstallPath = $ResolvedInstallPath
-    HealthCheckUrl = "http://127.0.0.1:$Port/api/auth/session"
+    Port = $Port
   }
   if ($ReleaseTag) {
     $updateArguments.ReleaseTag = $ReleaseTag
