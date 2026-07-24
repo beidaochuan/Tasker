@@ -196,7 +196,7 @@ npm run service:install
 
 ### GitHub取得からLAN公開まで一括セットアップする
 
-Windows環境では、`scripts/setup-windows.ps1` が最初に `InstallPath` を確認します。既定の `D:\Tasker` が存在する場合は既存サービスを更新し、存在しない場合は新規セットアップを実行します。
+Windows環境では、`scripts/setup-windows.ps1` が最初に `InstallPath` を確認します。既定の `D:\app\Tasker` が存在する場合は既存サービスを更新し、存在しない場合は新規セットアップを実行します。
 
 - GitHub Releasesから最新のTasker配布ZIPを取得し、Release記載のSHA-256を検証
 - Node.js v22以上がなければwingetでNode.js LTSをインストール
@@ -221,7 +221,7 @@ Unblock-File $setup
 
 新規セットアップ時は、このWindows PCに設定されているIPv4アドレスの候補が表示され、社内の他PCから接続するときに使うIPアドレスを質問します。WindowsのDomain、Private、Publicの判定とファイアウォール規則の選択もスクリプトが自動で行います。いずれの場合も接続元は同じローカルサブネットだけに限定します。既存環境の更新時は、保存済みのサービス設定を利用するため、管理者資格情報やLAN設定を入力し直しません。
 
-既定のインストール先は `D:\Tasker`、Taskerのポートは `3208` です。変更する場合は次のように指定します。
+既定のインストール先は `D:\app\Tasker`、Taskerのポートは `3208` です。変更する場合は次のように指定します。
 
 ```powershell
 & $setup `

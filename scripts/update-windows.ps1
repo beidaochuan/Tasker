@@ -1,9 +1,9 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 #Requires -RunAsAdministrator
 
 [CmdletBinding()]
 param(
-  [string]$InstallPath = 'D:\Tasker',
+  [string]$InstallPath = 'D:\app\Tasker',
 
   [ValidatePattern('^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$')]
   [string]$ReleaseTag,
@@ -13,7 +13,9 @@ param(
   [ValidatePattern('^https?://')]
   [string]$HealthCheckUrl = 'http://127.0.0.1:3208/api/auth/session',
 
-  [switch]$KeepDownloadedFiles
+  [switch]$KeepDownloadedFiles,
+
+  [switch]$Force
 )
 
 Set-StrictMode -Version Latest
@@ -270,8 +272,8 @@ try {
   Test-ReleaseFiles -Path $expandedPath
 
   $installedVersion = (Get-Content -LiteralPath (Join-Path $resolvedInstallPath 'package.json') -Raw | ConvertFrom-Json).version
-  if ($releaseTag -eq "v$installedVersion") {
-    Write-Host "Tasker $installedVersion はすでにインストールされています。"
+  if ($releaseTag -eq "v$installedVersion" -and -not $Force) {
+    Write-Host "Tasker $installedVersion はすでにインストールされています。強制更新するには -Force を指定してください。"
     $succeeded = $true
     return
   }
@@ -290,7 +292,17 @@ try {
   Copy-ApplicationFiles -Source $resolvedInstallPath -Destination $rollbackPath
 
   Write-Step "$releaseTag をインストール"
+  $daemonPath = Join-Path $resolvedInstallPath 'dist-server\daemon'
+  $daemonBackupPath = Join-Path $temporaryRoot 'daemon'
+  if (Test-Path -LiteralPath $daemonPath -PathType Container) {
+    Copy-Item -LiteralPath $daemonPath -Destination $daemonBackupPath -Recurse -Force
+  }
   Copy-ApplicationFiles -Source $expandedPath -Destination $resolvedInstallPath
+  if (Test-Path -LiteralPath $daemonBackupPath -PathType Container) {
+    $daemonRestorePath = Join-Path $resolvedInstallPath 'dist-server\daemon'
+    New-Item -ItemType Directory -Path $daemonRestorePath -Force | Out-Null
+    Copy-Item -Path (Join-Path $daemonBackupPath '*') -Destination $daemonRestorePath -Recurse -Force
+  }
   Invoke-ProductionInstall -Destination $resolvedInstallPath
 
   Write-Step 'Taskerサービスを起動'
@@ -301,12 +313,12 @@ try {
   }
 
   $succeeded = $true
-  Write-Host "`nTaskerを$releaseTagへ更新しました。" -ForegroundColor Green
-  Write-Host "データベースのバックアップ: $resolvedBackupPath"
+  Write-Host "`nTaskerを${releaseTag}へ更新しました。" -ForegroundColor Green
   Write-Host '既存のWindowsサービス設定（管理者資格情報、ポート、LAN設定）は保持されています。'
 }
 catch {
   $updateError = $_
+  Write-Warning "更新エラー: $($updateError.Exception.Message)"
   if ($service -and $resolvedInstallPath -and (Test-Path -LiteralPath (Join-Path $temporaryRoot 'rollback'))) {
     Write-Warning '更新に失敗したため、アプリケーションファイルを更新前の状態へ戻します。'
     try {
@@ -327,10 +339,18 @@ catch {
   throw $updateError
 }
 finally {
-  if ($succeeded -and -not $KeepDownloadedFiles -and (Test-Path -LiteralPath $temporaryRoot)) {
-    Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
+  if ($succeeded -and -not $KeepDownloadedFiles) {
+    if (Test-Path -LiteralPath $temporaryRoot) {
+      Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
+    }
+    if ($resolvedBackupPath -and (Test-Path -LiteralPath $resolvedBackupPath)) {
+      Remove-Item -LiteralPath $resolvedBackupPath -Recurse -Force
+    }
   }
   elseif (Test-Path -LiteralPath $temporaryRoot) {
     Write-Host "一時ファイルを保持しました: $temporaryRoot"
+    if ($resolvedBackupPath -and (Test-Path -LiteralPath $resolvedBackupPath)) {
+      Write-Host "データベースバックアップ: $resolvedBackupPath"
+    }
   }
 }

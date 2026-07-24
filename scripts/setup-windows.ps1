@@ -1,11 +1,11 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 #Requires -RunAsAdministrator
 
 [CmdletBinding()]
 param(
   [string]$LanAddress,
 
-  [string]$InstallPath = 'D:\Tasker',
+  [string]$InstallPath = 'D:\app\Tasker',
 
   [ValidateRange(1, 65535)]
   [int]$Port = 3208,
@@ -17,7 +17,9 @@ param(
 
   [switch]$SkipNodeInstall,
 
-  [switch]$KeepDownloadedFiles
+  [switch]$KeepDownloadedFiles,
+
+  [switch]$Force
 )
 
 Set-StrictMode -Version Latest
@@ -128,9 +130,10 @@ function Read-LanAddress {
 
   Write-Host 'このWindows PCに設定されているIPアドレス:'
   $candidates | Format-Table -AutoSize | Out-Host
+  Write-Host '（このPCだけで使う場合はそのままEnterを押してください）'
   $value = (Read-Host '社内の他のPCから接続するIPアドレスを入力').Trim()
   if ([string]::IsNullOrWhiteSpace($value)) {
-    throw 'IPアドレスが入力されていません。'
+    return '127.0.0.1'
   }
   return $value
 }
@@ -317,7 +320,8 @@ function Invoke-WithTaskerEnvironment {
   param(
     [string]$Destination,
     [string]$Username,
-    [string]$Password
+    [string]$Password,
+    [bool]$LocalhostOnly = $false
   )
 
   $names = @(
@@ -334,7 +338,7 @@ function Invoke-WithTaskerEnvironment {
 
   try {
     $env:PORT = [string]$Port
-    $env:TASKER_HOST = '0.0.0.0'
+    $env:TASKER_HOST = if ($LocalhostOnly) { '127.0.0.1' } else { '0.0.0.0' }
     $env:TASKER_ADMIN_USERNAME = $Username
     $env:TASKER_ADMIN_PASSWORD = $Password
     $env:TASKER_COOKIE_SECURE = 'false'
@@ -465,6 +469,9 @@ function Invoke-ExistingTaskerUpdate {
   if ($KeepDownloadedFiles) {
     $updateArguments.KeepDownloadedFiles = $true
   }
+  if ($Force) {
+    $updateArguments.Force = $true
+  }
 
   Write-Step '既存のTaskerを更新'
   & $updateScript @updateArguments
@@ -490,15 +497,27 @@ try {
   if ([string]::IsNullOrWhiteSpace($LanAddress)) {
     $LanAddress = Read-LanAddress
   }
-  $lanConnection = Assert-LanAddress $LanAddress
-  $resolvedLanAddress = $lanConnection.Address
-  $firewallProfiles = @($lanConnection.FirewallProfile)
-  if (Get-ServiceByNameOrDisplayName 'Tasker') {
-    throw 'Taskerサービスはすでに登録されています。既存環境の更新にはREADMEの更新手順を使用してください。'
+  $localhostOnly = ($LanAddress -eq '127.0.0.1')
+
+  $resolvedLanAddress = $null
+  $firewallProfiles = $null
+  if (-not $localhostOnly) {
+    $lanConnection = Assert-LanAddress $LanAddress
+    $resolvedLanAddress = $lanConnection.Address
+    $firewallProfiles = @($lanConnection.FirewallProfile)
+    $firewallRuleName = "Tasker (LAN TCP $Port)"
+    if (Get-NetFirewallRule -DisplayName $firewallRuleName -ErrorAction SilentlyContinue) {
+      throw "同名のWindowsファイアウォール規則がすでにあります: $firewallRuleName"
+    }
   }
-  $firewallRuleName = "Tasker (LAN TCP $Port)"
-  if (Get-NetFirewallRule -DisplayName $firewallRuleName -ErrorAction SilentlyContinue) {
-    throw "同名のWindowsファイアウォール規則がすでにあります: $firewallRuleName"
+  $existingService = Get-ServiceByNameOrDisplayName 'Tasker'
+  if ($existingService) {
+    Write-Host 'Taskerサービスが残っています。削除してから再インストールします。' -ForegroundColor Yellow
+    if ($existingService.Status -ne 'Stopped') {
+      Stop-Service -InputObject $existingService -Force
+    }
+    & sc.exe delete $existingService.Name | Out-Null
+    Start-Sleep -Seconds 1
   }
   Assert-PortAvailable -TargetPort $Port
 
@@ -524,16 +543,25 @@ try {
   Invoke-WithTaskerEnvironment `
     -Destination $resolvedInstallPath `
     -Username $adminUsername `
-    -Password $adminPassword
+    -Password $adminPassword `
+    -LocalhostOnly $localhostOnly
   Wait-TaskerReady -TargetPort $Port
   Test-TaskerLogin -TargetPort $Port -Username $adminUsername -Password $adminPassword
-  Install-LanFirewallRule -TargetPort $Port -Profiles $firewallProfiles
+  if (-not $localhostOnly) {
+    Install-LanFirewallRule -TargetPort $Port -Profiles $firewallProfiles
+  }
 
   Write-Host "`nセットアップが完了しました。" -ForegroundColor Green
   Write-Host "Tasker: $installedTag"
   Write-Host "インストール先: $resolvedInstallPath"
-  Write-Host "LAN URL: http://${resolvedLanAddress}:$Port"
-  Write-Host '接続元は同じローカルサブネットに限定されています。ルーターでポート転送しないでください。'
+  if ($localhostOnly) {
+    Write-Host "URL: http://127.0.0.1:$Port"
+    Write-Host 'このPCからのみアクセスできます。'
+  }
+  else {
+    Write-Host "LAN URL: http://${resolvedLanAddress}:$Port"
+    Write-Host '接続元は同じローカルサブネットに限定されています。ルーターでポート転送しないでください。'
+  }
 }
 finally {
   $adminPassword = $null
