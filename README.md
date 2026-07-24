@@ -194,19 +194,30 @@ npm run service:install
 
 > リリースZIPはビルド済みのため、`npm run build` は不要です。
 
-### GitHub取得からLAN公開まで一括セットアップする
+### セットアップスクリプトで自動インストールする
 
-Windows環境では、`scripts/setup-windows.ps1` が最初に `InstallPath` を確認します。既定の `D:\app\Tasker` が存在する場合は既存サービスを更新し、存在しない場合は新規セットアップを実行します。
+`scripts/setup-windows.ps1` は以下を自動で行います。
 
-- GitHub Releasesから最新のTasker配布ZIPを取得し、Release記載のSHA-256を検証
 - Node.js v22以上がなければwingetでNode.js LTSをインストール
 - Tasker管理者のユーザー名・パスワードを画面に表示せず入力し、実際のログインを確認
-- Taskerを `0.0.0.0` 待受でWindowsサービスへ登録
-- Windowsファイアウォールで現在のネットワークプロファイルのローカルサブネットだけにTCPポートを許可
+- Taskerをインストール先にWindowsサービスとして登録
+- LANで使用する場合はWindowsファイアウォールでローカルサブネットのみTCPポートを許可
 
-この方法は、同じ社内・家庭内LANにある別PCから利用するためのものです。インターネット公開、Cloudflare、ルーターのポート転送は使用しません。
+インストール先（既定: `D:\app\Tasker`）が既に存在する場合は自動的に更新モードになります。
 
-管理者としてPowerShellまたはWindows Terminalを開きます。実行前に内容を確認できるよう、ダウンロードと実行は分けています。
+#### ZIPを解凍済みの場合（推奨）
+
+リリースZIPを解凍したフォルダ内の `scripts\` で、PowerShellまたはWindows Terminalを**管理者として実行**し、次のコマンドを実行します。
+
+```powershell
+.\setup-windows.ps1
+```
+
+ZIPに含まれるファイルをそのままインストールするため、GitHubへの追加ダウンロードは発生しません。
+
+#### スクリプトのみで完結させる場合
+
+ZIPをダウンロードせず、スクリプトだけでGitHub Releasesから最新版を取得してインストールします。管理者としてPowerShellまたはWindows Terminalを開き、実行前に内容を確認できるよう、ダウンロードと実行は分けています。
 
 ```powershell
 $setup = Join-Path $env:TEMP 'tasker-setup-windows.ps1'
@@ -219,22 +230,24 @@ Unblock-File $setup
 & $setup
 ```
 
-新規セットアップ時は、このWindows PCに設定されているIPv4アドレスの候補が表示され、社内の他PCから接続するときに使うIPアドレスを質問します。WindowsのDomain、Private、Publicの判定とファイアウォール規則の選択もスクリプトが自動で行います。いずれの場合も接続元は同じローカルサブネットだけに限定します。既存環境の更新時は、保存済みのサービス設定を利用するため、管理者資格情報やLAN設定を入力し直しません。
+#### セットアップの流れ
 
-既定のインストール先は `D:\app\Tasker`、Taskerのポートは `3208` です。変更する場合は次のように指定します。
+1. インストール先を確認（Enterで既定 `D:\app\Tasker` を使用）
+2. このPCだけで使う場合はIPアドレス入力をEnterでスキップ（localhost専用）、社内LANで使う場合はIPアドレスを入力
+3. 管理者ユーザー名・パスワードを入力
+4. インストールと動作確認が自動で完了
 
-```powershell
-& $setup `
-  -InstallPath 'D:\Apps\Tasker' `
-  -Port 8080
-```
-
-新規セットアップ完了時に、別PCから開くURLを画面へ表示します。既定ポートでは `http://<入力したIPアドレス>:3208` という形式です。特定バージョンを導入する場合は `-ReleaseTag 'v0.12.0'` を追加します。既存環境では、同じコマンドが更新処理へ自動的に切り替わります。既定以外のポートを使う既存環境では、HTTP起動確認のため同じ `-Port` を指定してください。
-
-以前の既定値である `C:\Tasker` にTaskerをインストール済みの場合は、既存環境を判定できるよう明示します。
+#### オプション
 
 ```powershell
-& $setup -InstallPath 'C:\Tasker'
+# インストール先とポートを変更
+.\setup-windows.ps1 -InstallPath 'D:\Apps\Tasker' -Port 8080
+
+# 同バージョンでも強制的に再インストール
+.\setup-windows.ps1 -Force
+
+# 特定バージョンを指定（スクリプトのみの場合）
+& $setup -ReleaseTag 'v0.13.0'
 ```
 
 > **LAN利用時の制約:** HTTP通信なのでログイン情報とCookieは暗号化されません。信頼できるLANだけで使用し、可能ならWindowsのネットワークプロファイルはDomainまたはPrivateにしてください。未ログインでも閲覧用GET APIは利用できるため、同じローカルサブネットから到達できる利用者はTaskerの閲覧データを参照できます。作成・編集・削除にはTasker管理者ログインが必要です。ルーターでこのポートをインターネットへ転送しないでください。

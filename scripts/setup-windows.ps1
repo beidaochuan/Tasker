@@ -543,9 +543,27 @@ try {
   New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
   Install-NodeIfNeeded
 
-  $archivePath = Join-Path $temporaryRoot 'tasker-release.zip'
-  $installedTag = Download-TaskerRelease -Destination $archivePath
-  Install-TaskerFiles -ArchivePath $archivePath -Destination $resolvedInstallPath -StagingRoot $temporaryRoot
+  $localSource = Split-Path -Parent $PSScriptRoot
+  $requiredLocalFiles = @(
+    'package.json',
+    'package-lock.json',
+    'dist\index.html',
+    'dist-server\index.js',
+    'scripts\service-install.cjs'
+  )
+  $missingLocalFiles = $requiredLocalFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $localSource $_) -PathType Leaf) }
+  if (-not $missingLocalFiles -and -not $Force) {
+    Write-Step 'ZIPを解凍済みのファイルをそのまま使用'
+    $installedTag = (Get-Content -LiteralPath (Join-Path $localSource 'package.json') -Raw | ConvertFrom-Json).version
+    $installedTag = "v$installedTag"
+    New-Item -ItemType Directory -Path $resolvedInstallPath -Force | Out-Null
+    Copy-Item -Path (Join-Path $localSource '*') -Destination $resolvedInstallPath -Recurse -Exclude 'tasker.db', 'tasker.db-wal', 'tasker.db-shm'
+  }
+  else {
+    $archivePath = Join-Path $temporaryRoot 'tasker-release.zip'
+    $installedTag = Download-TaskerRelease -Destination $archivePath
+    Install-TaskerFiles -ArchivePath $archivePath -Destination $resolvedInstallPath -StagingRoot $temporaryRoot
+  }
   Install-TaskerDependencies -Destination $resolvedInstallPath
   Invoke-WithTaskerEnvironment `
     -Destination $resolvedInstallPath `

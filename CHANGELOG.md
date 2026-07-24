@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-24
+
+### Changed
+
+- `setup-windows.ps1` のデフォルトインストール先を `D:\app\Tasker` に変更
+- `setup-windows.ps1` でIPアドレス入力をEnterでスキップするとlocalhost専用モードでインストール（LAN設定・ファイアウォール規則をスキップ）
+- `setup-windows.ps1` でインストール先を対話的に確認するよう変更
+- `setup-windows.ps1` がZIPを解凍済みのフォルダから実行された場合、GitHubへの追加ダウンロードをスキップしてローカルファイルをそのまま使用
+- `setup-windows.ps1` と `update-windows.ps1` に `-Force` オプションを追加し、同バージョンでも強制更新できるよう対応
+- `update-windows.ps1` に `-Port` パラメータを追加
+- 更新成功時にDBバックアップと一時ファイルを自動削除
+- インストール先不在の残存サービスを自動削除して続行
+- UTF-8 BOMを追加しPowerShell 5.xでのダウンロード時の文字化けを修正
+
 ## [0.13.0] - 2026-07-24
 
 ### Added
