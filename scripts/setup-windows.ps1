@@ -484,11 +484,18 @@ try {
   Assert-WindowsAdministrator
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+  Write-Step 'インストール先を確認'
+  Write-Host "インストール先 (既定: $InstallPath):"
+  $inputPath = (Read-Host "  そのままEnterで既定を使用").Trim()
+  if (-not [string]::IsNullOrWhiteSpace($inputPath)) {
+    $InstallPath = $inputPath
+  }
   $resolvedInstallPath = [IO.Path]::GetFullPath($InstallPath)
   $installRoot = [IO.Path]::GetPathRoot($resolvedInstallPath)
   if ($resolvedInstallPath.TrimEnd('\') -eq $installRoot.TrimEnd('\')) {
-    throw 'ドライブ直下はInstallPathに指定できません。例: D:\Tasker'
+    throw 'ドライブ直下はInstallPathに指定できません。例: D:\app\Tasker'
   }
+  Write-Host "インストール先: $resolvedInstallPath"
   if (Test-Path -LiteralPath $resolvedInstallPath) {
     Invoke-ExistingTaskerUpdate -ResolvedInstallPath $resolvedInstallPath
     return
