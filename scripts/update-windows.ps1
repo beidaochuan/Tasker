@@ -53,6 +53,15 @@ function Get-TaskerService {
   return $service
 }
 
+function Set-TaskerServiceLocalSystem {
+  param([System.ServiceProcess.ServiceController]$Service)
+
+  & sc.exe config $Service.Name obj= LocalSystem | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    throw 'TaskerサービスをLocalSystemアカウントに設定できませんでした。'
+  }
+}
+
 function Wait-ServiceStatus {
   param(
     [System.ServiceProcess.ServiceController]$Service,
@@ -253,6 +262,7 @@ try {
   }
 
   $service = Get-TaskerService
+  Set-TaskerServiceLocalSystem -Service $service
   $resolvedInstallPath = [IO.Path]::GetFullPath($InstallPath)
   if (-not (Test-Path -LiteralPath $resolvedInstallPath -PathType Container)) {
     throw "InstallPathが見つかりません: $resolvedInstallPath"

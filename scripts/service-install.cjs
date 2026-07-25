@@ -61,6 +61,14 @@ function isAdmin() {
   }
 }
 
+function configureLocalSystemAccount() {
+  try {
+    execSync('sc.exe config Tasker obj= LocalSystem', { stdio: 'ignore' })
+  } catch {
+    fail('TaskerサービスをLocalSystemアカウントに設定できませんでした。')
+  }
+}
+
 if (!isAdmin()) {
   console.error('エラー: このスクリプトは管理者権限で実行する必要があります。')
   console.error('管理者としてターミナルを開き直して再実行してください。')
@@ -92,11 +100,7 @@ const TASKER_SESSION_TTL_MINUTES = positiveIntegerEnvironment(
   '480',
   10080
 )
-const TASKER_LOGIN_MAX_ATTEMPTS = positiveIntegerEnvironment(
-  'TASKER_LOGIN_MAX_ATTEMPTS',
-  '5',
-  100
-)
+const TASKER_LOGIN_MAX_ATTEMPTS = positiveIntegerEnvironment('TASKER_LOGIN_MAX_ATTEMPTS', '5', 100)
 const TASKER_LOGIN_WINDOW_MINUTES = positiveIntegerEnvironment(
   'TASKER_LOGIN_WINDOW_MINUTES',
   '15',
@@ -149,6 +153,7 @@ svc.on('invalidinstallation', () => {
 })
 
 svc.on('install', () => {
+  configureLocalSystemAccount()
   console.log('Tasker サービスをインストールしました。起動中...')
   svc.start()
 })

@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { CheckCircle, ExternalLink, RefreshCw, X } from 'lucide-react'
+import { CheckCircle, Download, ExternalLink, RefreshCw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { GitHubRelease } from '@/utils/githubRelease'
 
@@ -7,15 +7,24 @@ export type ReleaseCheckState =
   | { type: 'checking' }
   | { type: 'available'; release: GitHubRelease }
   | { type: 'upToDate'; release: GitHubRelease }
+  | { type: 'installing' }
   | { type: 'error'; message: string }
 
 interface ReleaseDialogProps {
   state: ReleaseCheckState
   onClose: () => void
   onRetry: () => void
+  canSelfUpdate: boolean
+  onStartUpdate: () => void
 }
 
-export function ReleaseDialog({ state, onClose, onRetry }: ReleaseDialogProps) {
+export function ReleaseDialog({
+  state,
+  onClose,
+  onRetry,
+  canSelfUpdate,
+  onStartUpdate,
+}: ReleaseDialogProps) {
   const isAvailable = state.type === 'available'
 
   return (
@@ -24,7 +33,7 @@ export function ReleaseDialog({ state, onClose, onRetry }: ReleaseDialogProps) {
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-6 shadow-lg focus:outline-none">
           <div className="mb-4 flex items-start gap-3">
-            {state.type === 'checking' ? (
+            {state.type === 'checking' || state.type === 'installing' ? (
               <RefreshCw className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary" />
             ) : state.type === 'error' ? (
               <X className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
@@ -35,14 +44,18 @@ export function ReleaseDialog({ state, onClose, onRetry }: ReleaseDialogProps) {
               <Dialog.Title className="text-sm font-semibold">
                 {state.type === 'checking'
                   ? '更新を確認中'
-                  : isAvailable
-                    ? '新しいバージョンがあります'
-                    : state.type === 'upToDate'
-                      ? '最新バージョンです'
-                      : '更新の確認に失敗しました'}
+                  : state.type === 'installing'
+                    ? '更新を実行中'
+                    : isAvailable
+                      ? '新しいバージョンがあります'
+                      : state.type === 'upToDate'
+                        ? '最新バージョンです'
+                        : '更新の確認に失敗しました'}
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-xs text-muted-foreground">
                 {state.type === 'checking' && 'GitHub Releases を確認しています...'}
+                {state.type === 'installing' &&
+                  'サーバーを再起動して更新します。完了後、ページを再読み込みしてください。'}
                 {isAvailable && `Tasker ${state.release.version} を利用できます。`}
                 {state.type === 'upToDate' && `現在のバージョン（v${__APP_VERSION__}）は最新です。`}
                 {state.type === 'error' && state.message}
@@ -65,6 +78,12 @@ export function ReleaseDialog({ state, onClose, onRetry }: ReleaseDialogProps) {
                 GitHub Releases を開く
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
+            )}
+            {isAvailable && canSelfUpdate && (
+              <Button size="sm" onClick={onStartUpdate}>
+                この端末を更新
+                <Download className="h-3.5 w-3.5" />
+              </Button>
             )}
             <Button variant={isAvailable ? 'outline' : 'default'} size="sm" onClick={onClose}>
               閉じる

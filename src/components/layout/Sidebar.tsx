@@ -32,6 +32,7 @@ import { unwrapResult } from '@/utils/resultUtils'
 import { LicensesDialog } from './LicensesDialog'
 import { ReleaseDialog, type ReleaseCheckState } from './ReleaseDialog'
 import { fetchLatestGitHubRelease, isNewerVersion } from '@/utils/githubRelease'
+import { getUpdateCapability, startSelfUpdate } from '@/repositories/updateApi'
 
 type DialogState =
   | { type: 'none' }
@@ -52,6 +53,7 @@ export function Sidebar() {
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false)
   const [isLicensesOpen, setIsLicensesOpen] = useState(false)
   const [releaseCheckState, setReleaseCheckState] = useState<ReleaseCheckState | null>(null)
+  const [canSelfUpdate, setCanSelfUpdate] = useState(false)
   const [dialogState, setDialogState] = useState<DialogState>({ type: 'none' })
   const importInputRef = useRef<HTMLInputElement>(null)
   const hasCheckedRelease = useRef(false)
@@ -92,6 +94,25 @@ export function Sidebar() {
     void checkForRelease(false, controller.signal)
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    void getUpdateCapability().then((result) => {
+      if (result.ok) setCanSelfUpdate(result.data.canSelfUpdate)
+    })
+  }, [])
+
+  async function handleStartUpdate() {
+    releaseRequestId.current += 1
+    setReleaseCheckState({ type: 'installing' })
+    const result = await startSelfUpdate()
+    if (!result.ok) {
+      setReleaseCheckState({
+        type: 'error',
+        message:
+          '更新を開始できませんでした。Windows サービスの状態を確認して、再試行してください。',
+      })
+    }
+  }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -321,6 +342,8 @@ export function Sidebar() {
             setReleaseCheckState(null)
           }}
           onRetry={() => void checkForRelease(true)}
+          canSelfUpdate={canSelfUpdate && isAuthenticated}
+          onStartUpdate={() => void handleStartUpdate()}
         />
       )}
 

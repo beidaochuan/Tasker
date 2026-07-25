@@ -136,4 +136,42 @@ describe('Sidebar', () => {
       'https://github.com/beidaochuan/Tasker/releases/tag/v0.15.0'
     )
   })
+
+  it('Windowsサービス版では通知からこの端末を更新できる', async () => {
+    useAuthStore.setState({ isAuthenticated: true, csrfToken: 'csrf-token' })
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/update/status') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ canSelfUpdate: true }),
+        })
+      }
+      if (url === '/api/update') {
+        return Promise.resolve({
+          ok: true,
+          status: 202,
+          json: async () => ({ started: true }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tag_name: 'v0.15.0',
+          html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.15.0',
+        }),
+      })
+    })
+
+    render(<Sidebar />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'この端末を更新' }))
+
+    expect(await screen.findByText('更新を実行中')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/update',
+      expect.objectContaining({ method: 'POST', credentials: 'same-origin' })
+    )
+  })
 })

@@ -6,6 +6,7 @@ import { createAuthFeature } from './auth.js'
 import { loadServerConfig, type ServerConfig } from './config.js'
 import { completionsRouter } from './routes/completions.js'
 import { importRouter } from './routes/importExport.js'
+import { createUpdateRouter } from './routes/update.js'
 import { projectsRouter } from './routes/projects.js'
 import { subtasksRouter } from './routes/subtasks.js'
 import { tagsRouter } from './routes/tags.js'
@@ -71,6 +72,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/tags', tagsRouter)
   app.use('/api/completions', completionsRouter)
   app.use('/api/import', importRouter)
+  app.use('/api/update', createUpdateRouter(config.port))
 
   const distPath = path.join(__dirname, '..', 'dist')
   app.use(express.static(distPath))
