@@ -123,8 +123,8 @@ describe('Sidebar', () => {
       ok: true,
       status: 200,
       json: async () => ({
-        tag_name: 'v0.15.0',
-        html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.15.0',
+        tag_name: 'v0.16.0',
+        html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.16.0',
       }),
     })
 
@@ -133,7 +133,7 @@ describe('Sidebar', () => {
     expect(await screen.findByText('新しいバージョンがあります')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'GitHub Releases を開く' })).toHaveAttribute(
       'href',
-      'https://github.com/beidaochuan/Tasker/releases/tag/v0.15.0'
+      'https://github.com/beidaochuan/Tasker/releases/tag/v0.16.0'
     )
   })
 
@@ -158,8 +158,8 @@ describe('Sidebar', () => {
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: 'v0.15.0',
-          html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.15.0',
+          tag_name: 'v0.16.0',
+          html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.16.0',
         }),
       })
     })

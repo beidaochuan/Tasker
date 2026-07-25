@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-07-25
+
+### Added
+
+- GitHub Releases の最新バージョンを自動・手動で確認し、更新がある場合に案内を表示
+- 公式セットアップで登録した Windows サービス版で、画面から最新バージョンへ更新できる操作を追加
+
 ## [0.14.1] - 2026-07-25
 
 ### Changed
