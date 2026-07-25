@@ -31,7 +31,7 @@ import { projectRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
 import { LicensesDialog } from './LicensesDialog'
 import { ReleaseDialog, type ReleaseCheckState } from './ReleaseDialog'
-import { fetchLatestGitHubRelease, isNewerVersion } from '@/utils/githubRelease'
+import { fetchLatestGitHubRelease, isNewerVersion, type GitHubRelease } from '@/utils/githubRelease'
 import { getUpdateCapability, startSelfUpdate } from '@/repositories/updateApi'
 
 type DialogState =
@@ -40,6 +40,8 @@ type DialogState =
   | { type: 'success' }
   | { type: 'error'; message: string }
   | { type: 'deleteConfirm'; projectId: string; projectName: string }
+
+const RELEASE_CHECK_INTERVAL_MS = 60 * 60 * 1000
 
 export function Sidebar() {
   const projects = useProjects()
@@ -53,6 +55,7 @@ export function Sidebar() {
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false)
   const [isLicensesOpen, setIsLicensesOpen] = useState(false)
   const [releaseCheckState, setReleaseCheckState] = useState<ReleaseCheckState | null>(null)
+  const [availableRelease, setAvailableRelease] = useState<GitHubRelease | null>(null)
   const [canSelfUpdate, setCanSelfUpdate] = useState(false)
   const [dialogState, setDialogState] = useState<DialogState>({ type: 'none' })
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -75,6 +78,7 @@ export function Sidebar() {
       const release = await fetchLatestGitHubRelease(signal)
       if (requestId !== releaseRequestId.current) return
       const isNewer = isNewerVersion(release.version, __APP_VERSION__)
+      setAvailableRelease(isNewer ? release : null)
       if (showResult || isNewer) {
         setReleaseCheckState({ type: isNewer ? 'available' : 'upToDate', release })
       }
@@ -92,7 +96,15 @@ export function Sidebar() {
     hasCheckedRelease.current = true
     const controller = new AbortController()
     void checkForRelease(false, controller.signal)
-    return () => controller.abort()
+    const intervalId = window.setInterval(
+      () => void checkForRelease(false),
+      RELEASE_CHECK_INTERVAL_MS
+    )
+    return () => {
+      controller.abort()
+      window.clearInterval(intervalId)
+      releaseRequestId.current += 1
+    }
   }, [])
 
   useEffect(() => {
@@ -112,6 +124,14 @@ export function Sidebar() {
           '更新を開始できませんでした。Windows サービスの状態を確認して、再試行してください。',
       })
     }
+  }
+
+  function handleReleaseButtonClick() {
+    if (availableRelease) {
+      setReleaseCheckState({ type: 'available', release: availableRelease })
+      return
+    }
+    void checkForRelease(true)
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -272,14 +292,28 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => void checkForRelease(true)}
-          title="GitHub の更新を確認"
-          aria-label="GitHub の更新を確認"
+          onClick={handleReleaseButtonClick}
+          title={availableRelease ? '新しいバージョンがあります' : 'GitHub の更新を確認'}
+          aria-label={
+            availableRelease
+              ? `新しいバージョンがあります: ${availableRelease.version}`
+              : 'GitHub の更新を確認'
+          }
           disabled={releaseCheckState?.type === 'checking'}
         >
-          <RefreshCw
-            className={cn('h-4 w-4', releaseCheckState?.type === 'checking' && 'animate-spin')}
-          />
+          {availableRelease ? (
+            <span className="relative flex">
+              <Download className="h-4 w-4 text-primary" />
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-danger ring-2 ring-panel"
+              />
+            </span>
+          ) : (
+            <RefreshCw
+              className={cn('h-4 w-4', releaseCheckState?.type === 'checking' && 'animate-spin')}
+            />
+          )}
         </Button>
         <Button
           variant="ghost"

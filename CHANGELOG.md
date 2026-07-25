@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-07-25
+
+### Changed
+
+- 新しいバージョンを検出すると、サイドバーの更新確認アイコンを通知バッジ付きのダウンロードアイコンへ切り替え
+- 起動中も1時間ごとに新しいバージョンを確認し、更新アイコンへ自動反映
+
 ## [0.15.0] - 2026-07-25
 
 ### Added

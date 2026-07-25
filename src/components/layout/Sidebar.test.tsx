@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project } from '@/types'
 import { useAuthStore } from '@/store/authStore'
@@ -66,6 +66,7 @@ describe('Sidebar', () => {
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -135,6 +136,45 @@ describe('Sidebar', () => {
       'href',
       'https://github.com/beidaochuan/Tasker/releases/tag/v0.16.0'
     )
+    expect(
+      screen.getByRole('button', {
+        name: '新しいバージョンがあります: v0.16.0',
+        hidden: true,
+      })
+    ).toHaveAttribute('title', '新しいバージョンがあります')
+  })
+
+  it('新しいバージョンのアイコンから更新案内を再表示できる', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        tag_name: 'v0.16.0',
+        html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.16.0',
+      }),
+    })
+    render(<Sidebar />)
+
+    await screen.findByText('新しいバージョンがあります')
+    fireEvent.click(screen.getByRole('button', { name: '閉じる' }))
+    fireEvent.click(screen.getByRole('button', { name: '新しいバージョンがあります: v0.16.0' }))
+
+    expect(await screen.findByText('新しいバージョンがあります')).toBeInTheDocument()
+  })
+
+  it('1時間ごとにGitHubリリースを確認する', async () => {
+    vi.useFakeTimers()
+    render(<Sidebar />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+    })
+
+    expect(
+      fetchMock.mock.calls.filter(
+        ([url]) => url === 'https://api.github.com/repos/beidaochuan/Tasker/releases/latest'
+      )
+    ).toHaveLength(2)
   })
 
   it('Windowsサービス版では通知からこの端末を更新できる', async () => {
