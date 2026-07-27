@@ -18,7 +18,9 @@ param(
 
   [switch]$KeepDownloadedFiles,
 
-  [switch]$Force
+  [switch]$Force,
+
+  [string]$Token
 )
 
 Set-StrictMode -Version Latest
@@ -82,11 +84,17 @@ function Wait-ServiceStatus {
 function Invoke-GitHubApi {
   param([string]$Uri)
 
-  return Invoke-RestMethod -Uri $Uri -Headers @{
+  $headers = @{
     Accept = 'application/vnd.github+json'
     'X-GitHub-Api-Version' = '2026-03-10'
     'User-Agent' = 'Tasker-Windows-Updater'
   }
+  $resolvedToken = if ($Token) { $Token } elseif ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } else { $null }
+  if ($resolvedToken) {
+    $headers['Authorization'] = "Bearer $resolvedToken"
+    $resolvedToken = $null
+  }
+  return Invoke-RestMethod -Uri $Uri -Headers $headers
 }
 
 function Assert-DownloadedDigest {

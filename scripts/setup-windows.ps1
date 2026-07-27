@@ -19,7 +19,9 @@ param(
 
   [switch]$KeepDownloadedFiles,
 
-  [switch]$Force
+  [switch]$Force,
+
+  [string]$Token
 )
 
 Set-StrictMode -Version Latest
@@ -213,11 +215,17 @@ function Install-NodeIfNeeded {
 function Invoke-GitHubApi {
   param([string]$Uri)
 
-  return Invoke-RestMethod -Uri $Uri -Headers @{
+  $headers = @{
     Accept = 'application/vnd.github+json'
     'X-GitHub-Api-Version' = '2026-03-10'
     'User-Agent' = 'Tasker-Windows-Setup'
   }
+  $resolvedToken = if ($Token) { $Token } elseif ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } else { $null }
+  if ($resolvedToken) {
+    $headers['Authorization'] = "Bearer $resolvedToken"
+    $resolvedToken = $null
+  }
+  return Invoke-RestMethod -Uri $Uri -Headers $headers
 }
 
 function Assert-DownloadedDigest {
@@ -471,6 +479,9 @@ function Invoke-ExistingTaskerUpdate {
   }
   if ($Force) {
     $updateArguments.Force = $true
+  }
+  if ($Token) {
+    $updateArguments.Token = $Token
   }
 
   Write-Step '既存のTaskerを更新'
