@@ -22,7 +22,6 @@ import { useGanttData } from '@/hooks/useGanttData'
 import { GanttHeader } from './GanttHeader'
 import { GanttDayBackground } from './GanttDayBackground'
 import { GanttRow } from './GanttRow'
-import { GanttTodayLine } from './GanttTodayLine'
 import { useGanttDrag, calcGanttRange } from './useGanttDrag'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY, ROW_HEIGHT, HEADER_HEIGHT, LEFT_PANE_WIDTH } from './ganttConstants'
@@ -564,7 +563,6 @@ export function GanttView() {
               style={{ width: totalWidth, height: rowVirtualizer.getTotalSize() }}
             >
               <GanttDayBackground startDate={startDate} totalDays={totalDays} scale={scale} />
-              <GanttTodayLine ganttStart={startDate} totalDays={totalDays} scale={scale} />
 
               {rowVirtualizer.getVirtualItems().map((vi) => {
                 const row = displayedFlatRows[vi.index]

@@ -110,7 +110,6 @@ vi.mock('./useGanttDrag', () => ({
 
 vi.mock('./GanttHeader', () => ({ GanttHeader: () => null }))
 vi.mock('./GanttRow', () => ({ GanttRow: () => <div data-testid="gantt-row" /> }))
-vi.mock('./GanttTodayLine', () => ({ GanttTodayLine: () => null }))
 
 function makeTask(
   id: string,

@@ -162,8 +162,9 @@ export function useGanttDrag(
 
 // ガントの表示範囲を計算するユーティリティ（GanttView で使用）
 export function calcGanttRange(rows: { tasks: Task[] }[]): { startDate: Date; totalDays: number } {
-  // #10: today を先頭に入れることで「今日を必ず含める」と「reduce が空配列でクラッシュしない」の両方を保証
-  const allDates: Date[] = [startOfDay(new Date())]
+  // Issue #1: 過去のタスクに左右されず、ガントの左端は常に今日から始める
+  const start = startOfDay(new Date())
+  const allDates: Date[] = [start]
   for (const row of rows) {
     for (const task of row.tasks) {
       if (task.startDate) allDates.push(startOfDay(task.startDate))
@@ -171,10 +172,8 @@ export function calcGanttRange(rows: { tasks: Task[] }[]): { startDate: Date; to
     }
   }
 
-  const minDate = allDates.reduce((min, d) => (d < min ? d : min))
   const maxDate = allDates.reduce((max, d) => (d > max ? d : max))
 
-  const start = addDays(minDate, -7)
   const end = addDays(maxDate, 14)
   const totalDays = differenceInDays(end, start) + 1
 

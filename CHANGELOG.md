@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-07-30
+
+### Changed
+
+- ガント画面の日付表示を常に今日から開始
+- 今日の列をタスク枠と同系色の薄い背景で強調し、縦の赤ラインを削除
+
 ## [0.15.1] - 2026-07-25
 
 ### Changed

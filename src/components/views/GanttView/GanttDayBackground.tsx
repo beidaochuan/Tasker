@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react'
-import { addDays, startOfDay } from 'date-fns'
+import { addDays, differenceInDays, startOfDay } from 'date-fns'
 import { getJapaneseHolidayName } from '@/utils/japaneseHolidays'
 import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY } from './ganttConstants'
@@ -20,6 +20,8 @@ export const GanttDayBackground = memo(function GanttDayBackground({
   const startTime = startDate.getTime()
   const start = startOfDay(new Date(startTime))
   const mondayBasedStartDay = (start.getDay() + 6) % 7
+  const todayOffset = differenceInDays(startOfDay(new Date()), start)
+  const showsToday = todayOffset >= 0 && todayOffset < totalDays
 
   const holidayColumns = useMemo(() => {
     const columns: Array<{ key: string; left: number }> = []
@@ -60,6 +62,13 @@ export const GanttDayBackground = memo(function GanttDayBackground({
           style={{ left: column.left, width: ppd }}
         />
       ))}
+      {showsToday && (
+        <span
+          data-today="true"
+          className="absolute inset-y-0 bg-border/30 dark:bg-border/40"
+          style={{ left: todayOffset * ppd, width: ppd }}
+        />
+      )}
     </div>
   )
 })
