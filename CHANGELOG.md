@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.3] - 2026-07-31
+
+### Added
+
+- setup-windows.ps1 と update-windows.ps1 に -Token パラメータを追加し、GitHub API のレートリミット回避のため Personal Access Token を指定可能に（$env:GITHUB_TOKEN によるフォールバックも対応）
+
 ## [0.15.2] - 2026-07-30
 
 ### Changed
