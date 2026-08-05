@@ -15,6 +15,9 @@ vi.mock('@/hooks/useProjects', () => ({
   useProjects: useProjectsMock,
 }))
 
+// 現在のアプリバージョンより常に新しいことが保証されるダミーの最新版タグ
+const NEWER_TAG = `v${Number(__APP_VERSION__.split('.')[0]) + 1}.0.0`
+
 const PROJECTS: Project[] = [
   {
     id: 'project-1',
@@ -124,8 +127,8 @@ describe('Sidebar', () => {
       ok: true,
       status: 200,
       json: async () => ({
-        tag_name: 'v0.16.0',
-        html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.16.0',
+        tag_name: NEWER_TAG,
+        html_url: `https://github.com/beidaochuan/Tasker/releases/tag/${NEWER_TAG}`,
       }),
     })
 
@@ -134,11 +137,11 @@ describe('Sidebar', () => {
     expect(await screen.findByText('新しいバージョンがあります')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'GitHub Releases を開く' })).toHaveAttribute(
       'href',
-      'https://github.com/beidaochuan/Tasker/releases/tag/v0.16.0'
+      `https://github.com/beidaochuan/Tasker/releases/tag/${NEWER_TAG}`
     )
     expect(
       screen.getByRole('button', {
-        name: '新しいバージョンがあります: v0.16.0',
+        name: `新しいバージョンがあります: ${NEWER_TAG}`,
         hidden: true,
       })
     ).toHaveAttribute('title', '新しいバージョンがあります')
@@ -149,15 +152,17 @@ describe('Sidebar', () => {
       ok: true,
       status: 200,
       json: async () => ({
-        tag_name: 'v0.16.0',
-        html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.16.0',
+        tag_name: NEWER_TAG,
+        html_url: `https://github.com/beidaochuan/Tasker/releases/tag/${NEWER_TAG}`,
       }),
     })
     render(<Sidebar />)
 
     await screen.findByText('新しいバージョンがあります')
     fireEvent.click(screen.getByRole('button', { name: '閉じる' }))
-    fireEvent.click(screen.getByRole('button', { name: '新しいバージョンがあります: v0.16.0' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: `新しいバージョンがあります: ${NEWER_TAG}` })
+    )
 
     expect(await screen.findByText('新しいバージョンがあります')).toBeInTheDocument()
   })
@@ -198,8 +203,8 @@ describe('Sidebar', () => {
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: 'v0.16.0',
-          html_url: 'https://github.com/beidaochuan/Tasker/releases/tag/v0.16.0',
+          tag_name: NEWER_TAG,
+          html_url: `https://github.com/beidaochuan/Tasker/releases/tag/${NEWER_TAG}`,
         }),
       })
     })
