@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { createAuthFeature } from './auth.js'
 import { loadServerConfig, type ServerConfig } from './config.js'
+import { commentsRouter } from './routes/comments.js'
 import { completionsRouter } from './routes/completions.js'
 import { importRouter } from './routes/importExport.js'
 import { createUpdateRouter } from './routes/update.js'
@@ -71,6 +72,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/subtasks', subtasksRouter)
   app.use('/api/tags', tagsRouter)
   app.use('/api/completions', completionsRouter)
+  app.use('/api/comments', commentsRouter)
   app.use('/api/import', importRouter)
   app.use('/api/update', createUpdateRouter(config.port))
 

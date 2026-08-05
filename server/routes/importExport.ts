@@ -12,6 +12,7 @@ importRouter.post('/', (req, res) => {
   db.transaction(() => {
     db.prepare('DELETE FROM task_relations').run()
     db.prepare('DELETE FROM task_completions').run()
+    db.prepare('DELETE FROM task_comments').run()
     db.prepare('DELETE FROM subtasks').run()
     db.prepare('DELETE FROM tasks').run()
     db.prepare('DELETE FROM topics').run()
@@ -53,6 +54,11 @@ importRouter.post('/', (req, res) => {
     for (const row of data.task_completions) {
       db.prepare(
         'INSERT OR REPLACE INTO task_completions (id, taskId, completedAt) VALUES (@id, @taskId, @completedAt)'
+      ).run(row)
+    }
+    for (const row of data.task_comments) {
+      db.prepare(
+        'INSERT OR REPLACE INTO task_comments (id, taskId, body, createdAt, updatedAt) VALUES (@id, @taskId, @body, @createdAt, @updatedAt)'
       ).run(row)
     }
     for (const row of data.task_relations) {

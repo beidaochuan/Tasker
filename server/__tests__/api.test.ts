@@ -67,6 +67,7 @@ beforeEach(async () => {
   db.transaction(() => {
     db.prepare('DELETE FROM task_relations').run()
     db.prepare('DELETE FROM task_completions').run()
+    db.prepare('DELETE FROM task_comments').run()
     db.prepare('DELETE FROM subtasks').run()
     db.prepare('DELETE FROM tasks').run()
     db.prepare('DELETE FROM topics').run()
@@ -490,6 +491,7 @@ describe('Tasker API', () => {
     })
     await post('/api/subtasks', { taskId: task.body.id, title: 'Subtask' })
     await post('/api/completions', { taskId: task.body.id })
+    await post('/api/comments', { taskId: task.body.id, body: 'Comment' })
 
     const deleted = await request(`/api/projects/${project.body.id}`, { method: 'DELETE' })
 
@@ -499,6 +501,7 @@ describe('Tasker API', () => {
     expect((await request('/api/tasks')).body).toEqual([])
     expect((await request('/api/subtasks')).body).toEqual([])
     expect((await request('/api/completions')).body).toEqual([])
+    expect((await request('/api/comments')).body).toEqual([])
   })
 
   it('トピック削除を対象トピックのタスク・サブタスク・完了履歴へ反映する', async () => {
@@ -526,6 +529,11 @@ describe('Tasker API', () => {
     })
     await post('/api/completions', { taskId: targetTask.body.id })
     const siblingCompletion = await post('/api/completions', { taskId: siblingTask.body.id })
+    await post('/api/comments', { taskId: targetTask.body.id, body: 'Target comment' })
+    const siblingComment = await post('/api/comments', {
+      taskId: siblingTask.body.id,
+      body: 'Sibling comment',
+    })
 
     const deleted = await request(`/api/topics/${targetTopic.body.id}`, { method: 'DELETE' })
     const deletedAgain = await request(`/api/topics/${targetTopic.body.id}`, {
@@ -545,6 +553,9 @@ describe('Tasker API', () => {
     expect((await request('/api/completions')).body.map((item: { id: string }) => item.id)).toEqual(
       [siblingCompletion.body.id]
     )
+    expect((await request('/api/comments')).body.map((item: { id: string }) => item.id)).toEqual([
+      siblingComment.body.id,
+    ])
   })
 
   it('タスク削除を対象タスクのサブタスク・完了履歴へ反映する', async () => {
@@ -585,5 +596,67 @@ describe('Tasker API', () => {
     expect((await request('/api/completions')).body.map((item: { id: string }) => item.id)).toEqual(
       [siblingCompletion.body.id]
     )
+  })
+
+  it('コメントを作成・一覧・編集・削除できる', async () => {
+    const project = await post('/api/projects', { name: 'Project' })
+    const topic = await post('/api/topics', { projectId: project.body.id, name: 'Topic' })
+    const task = await post('/api/tasks', { topicId: topic.body.id, title: 'Task' })
+
+    const first = await post('/api/comments', { taskId: task.body.id, body: '最初のコメント' })
+    const second = await post('/api/comments', { taskId: task.body.id, body: '2番目のコメント' })
+
+    expect(first.response.status).toBe(201)
+    expect(
+      (await request(`/api/comments?taskId=${task.body.id}`)).body.map(
+        (item: { id: string }) => item.id
+      )
+    ).toEqual([second.body.id, first.body.id])
+
+    const updated = await request(`/api/comments/${first.body.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: '修正後のコメント' }),
+    })
+    expect(updated.response.status).toBe(200)
+    expect(updated.body.body).toBe('修正後のコメント')
+
+    const deleted = await request(`/api/comments/${second.body.id}`, { method: 'DELETE' })
+    expect(deleted.response.status).toBe(204)
+    expect(
+      (await request(`/api/comments?taskId=${task.body.id}`)).body.map(
+        (item: { id: string }) => item.id
+      )
+    ).toEqual([first.body.id])
+  })
+
+  it('空のコメントを400で拒否する', async () => {
+    const project = await post('/api/projects', { name: 'Project' })
+    const topic = await post('/api/topics', { projectId: project.body.id, name: 'Topic' })
+    const task = await post('/api/tasks', { topicId: topic.body.id, title: 'Task' })
+
+    const invalid = await post('/api/comments', { taskId: task.body.id, body: '   ' })
+
+    expect(invalid.response.status).toBe(400)
+    expect(invalid.body.error).toBe('VALIDATION_ERROR')
+  })
+
+  it('タスク削除を対象タスクのコメントへ反映する', async () => {
+    const project = await post('/api/projects', { name: 'Project' })
+    const topic = await post('/api/topics', { projectId: project.body.id, name: 'Topic' })
+    const targetTask = await post('/api/tasks', { topicId: topic.body.id, title: 'Target task' })
+    const siblingTask = await post('/api/tasks', { topicId: topic.body.id, title: 'Sibling task' })
+    await post('/api/comments', { taskId: targetTask.body.id, body: 'Target comment' })
+    const siblingComment = await post('/api/comments', {
+      taskId: siblingTask.body.id,
+      body: 'Sibling comment',
+    })
+
+    const deleted = await request(`/api/tasks/${targetTask.body.id}`, { method: 'DELETE' })
+
+    expect(deleted.response.status).toBe(204)
+    expect((await request('/api/comments')).body.map((item: { id: string }) => item.id)).toEqual([
+      siblingComment.body.id,
+    ])
   })
 })

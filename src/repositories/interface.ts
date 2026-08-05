@@ -5,6 +5,7 @@ import type {
   Subtask,
   Tag,
   TaskCompletion,
+  TaskComment,
   TaskRelation,
   Result,
 } from '@/types'
@@ -33,6 +34,11 @@ export interface SubtaskOrderUpdate {
   id: string
   order: number
 }
+
+export type CreateTaskComment = Omit<TaskComment, 'id' | 'createdAt' | 'updatedAt'>
+export type UpdateTaskComment = Partial<
+  Omit<TaskComment, 'id' | 'taskId' | 'createdAt' | 'updatedAt'>
+>
 
 export type CreateTag = Omit<Tag, 'id'>
 
@@ -87,4 +93,11 @@ export interface ITagRepository {
 export interface ITaskCompletionRepository {
   getByTaskId(taskId: string): Promise<Result<TaskCompletion[]>>
   create(taskId: string): Promise<Result<TaskCompletion>>
+}
+
+export interface ITaskCommentRepository {
+  getByTaskId(taskId: string): Promise<Result<TaskComment[]>>
+  create(data: CreateTaskComment): Promise<Result<TaskComment>>
+  update(id: string, data: UpdateTaskComment): Promise<Result<TaskComment>>
+  delete(id: string): Promise<Result<void>>
 }

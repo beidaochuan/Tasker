@@ -7,38 +7,46 @@ import { useUIStore } from '@/store/uiStore'
 import { resetDataQueries, useDataQueryStore } from '@/hooks/useDataQueries'
 import { TaskDrawer } from './TaskDrawer'
 
-const { projectRepoMock, taskRepoMock, topicRepoMock, subtaskRepoMock } = vi.hoisted(() => ({
-  projectRepoMock: {
-    getAll: vi.fn(),
-  },
-  taskRepoMock: {
-    getAll: vi.fn(),
-    getByProjectId: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    getByTopicId: vi.fn(),
-    completeRecurring: vi.fn(),
-    getRelatedTasks: vi.fn(),
-    replaceRelatedTasks: vi.fn(),
-  },
-  topicRepoMock: {
-    getByProjectId: vi.fn(),
-    getById: vi.fn(),
-  },
-  subtaskRepoMock: {
-    getByTaskId: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-  },
-}))
+const { projectRepoMock, taskRepoMock, topicRepoMock, subtaskRepoMock, taskCommentRepoMock } =
+  vi.hoisted(() => ({
+    projectRepoMock: {
+      getAll: vi.fn(),
+    },
+    taskRepoMock: {
+      getAll: vi.fn(),
+      getByProjectId: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      getByTopicId: vi.fn(),
+      completeRecurring: vi.fn(),
+      getRelatedTasks: vi.fn(),
+      replaceRelatedTasks: vi.fn(),
+    },
+    topicRepoMock: {
+      getByProjectId: vi.fn(),
+      getById: vi.fn(),
+    },
+    subtaskRepoMock: {
+      getByTaskId: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    taskCommentRepoMock: {
+      getByTaskId: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+  }))
 
 vi.mock('@/repositories', () => ({
   projectRepo: projectRepoMock,
   taskRepo: taskRepoMock,
   topicRepo: topicRepoMock,
   subtaskRepo: subtaskRepoMock,
+  taskCommentRepo: taskCommentRepoMock,
 }))
 
 const PROJECTS: Project[] = [
@@ -152,6 +160,10 @@ describe('TaskDrawer', () => {
     subtaskRepoMock.create.mockReset()
     subtaskRepoMock.update.mockReset()
     subtaskRepoMock.delete.mockReset()
+    taskCommentRepoMock.getByTaskId.mockReset().mockResolvedValue({ ok: true, data: [] })
+    taskCommentRepoMock.create.mockReset()
+    taskCommentRepoMock.update.mockReset()
+    taskCommentRepoMock.delete.mockReset()
     useAuthStore.setState({ isAuthenticated: true, isLoginDialogOpen: false })
     useUIStore.setState({
       selectedProjectId: 'project-1',

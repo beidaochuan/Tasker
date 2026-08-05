@@ -3,6 +3,7 @@ import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { X, Trash2, RefreshCw, Link2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { TaskComments } from '@/components/task/TaskComments'
 import { TaskWorkList } from '@/components/task/TaskWorkList'
 import {
   createEmptyTaskFormValues,
@@ -552,6 +553,8 @@ export function TaskDrawer() {
             </div>
 
             <TaskWorkList taskId={isNew ? null : selectedTaskId} canEdit={isAuthenticated} />
+
+            <TaskComments taskId={isNew ? null : selectedTaskId} canEdit={isAuthenticated} />
 
             {!isNew && (
               <section

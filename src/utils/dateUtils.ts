@@ -45,6 +45,10 @@ export function formatDate(date: Date | null): string {
   return format(date, 'yyyy/MM/dd')
 }
 
+export function formatDateTime(date: Date): string {
+  return format(date, 'yyyy/MM/dd HH:mm')
+}
+
 export function formatDateInput(date: Date | null): string {
   if (date === null) return ''
   const year = date.getFullYear()

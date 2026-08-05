@@ -67,6 +67,15 @@ const COMPLETION = {
   futureCompletionField: 'preserved',
 }
 
+const COMMENT = {
+  id: 'comment-1',
+  taskId: TASK.id,
+  body: 'コメント',
+  createdAt: 5_500,
+  updatedAt: 5_500,
+  futureCommentField: 'preserved',
+}
+
 const TASK_RELATION = {
   taskId: 'task-1',
   relatedTaskId: 'task-2',
@@ -79,6 +88,7 @@ const EXPORT_RESPONSES: Record<string, unknown> = {
   '/api/subtasks': [SUBTASK],
   '/api/tags': [TAG],
   '/api/completions': [COMPLETION],
+  '/api/comments': [COMMENT],
   '/api/tasks/relations': [TASK_RELATION],
 }
 
@@ -92,6 +102,7 @@ const IMPORT_PAYLOAD = {
     subtasks: [SUBTASK],
     tags: [TAG],
     task_completions: [COMPLETION],
+    task_comments: [COMMENT],
   },
 }
 
@@ -184,7 +195,7 @@ describe('exportUtils', () => {
   })
 
   describe('exportAllData', () => {
-    it('7 APIを検証し、wire表現と未知フィールドを保ったバックアップを保存する', async () => {
+    it('8 APIを検証し、wire表現と未知フィールドを保ったバックアップを保存する', async () => {
       const fetchMock = mockExportFetch()
 
       await exportAllData()
@@ -196,6 +207,7 @@ describe('exportUtils', () => {
         '/api/subtasks',
         '/api/tags',
         '/api/completions',
+        '/api/comments',
         '/api/tasks/relations',
       ])
       expect(createObjectURLMock).toHaveBeenCalledTimes(1)
@@ -216,6 +228,7 @@ describe('exportUtils', () => {
       expect(payload.data.subtasks[0]).toEqual(SUBTASK)
       expect(payload.data.tags[0]).toEqual(TAG)
       expect(payload.data.task_completions[0]).toEqual(COMPLETION)
+      expect(payload.data.task_comments[0]).toEqual(COMMENT)
       expect(payload.data.task_relations[0]).toEqual(TASK_RELATION)
       expect(payload.data.projects[0].createdAt).toBe(1_000)
       expect(payload.data.projects[0].isArchived).toBe(1)

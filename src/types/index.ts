@@ -64,6 +64,14 @@ export interface TaskCompletion {
   completedAt: Date
 }
 
+export interface TaskComment {
+  id: string
+  taskId: string
+  body: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface TaskRelation {
   taskId: string
   relatedTaskId: string

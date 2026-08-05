@@ -7,6 +7,7 @@ import {
   isDueToday,
   isDueSoon,
   formatDate,
+  formatDateTime,
   formatDateInput,
   parseDateInput,
 } from '../dateUtils'
@@ -94,6 +95,13 @@ describe('formatDate', () => {
 
   it('null なら空文字を返す', () => {
     expect(formatDate(null)).toBe('')
+  })
+})
+
+describe('formatDateTime', () => {
+  it('yyyy/MM/dd HH:mm 形式で返す', () => {
+    const d = new Date(2024, 0, 5, 9, 30)
+    expect(formatDateTime(d)).toBe('2024/01/05 09:30')
   })
 })
 

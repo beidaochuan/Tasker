@@ -146,6 +146,17 @@ export const subtaskOrderSchema = z
   })
   .strict()
 
+export const commentCreateSchema = z
+  .object({
+    taskId: idSchema,
+    body: z.string().trim().min(1).max(100_000),
+  })
+  .strict()
+
+export const commentUpdateSchema = nonEmptyPatch({
+  body: z.string().trim().min(1).max(100_000).optional(),
+})
+
 export const tagCreateSchema = z
   .object({ name: nameSchema, color: colorSchema.default('#6366f1') })
   .strict()
@@ -217,6 +228,16 @@ const importedCompletionSchema = z
   .object({ id: idSchema, taskId: idSchema, completedAt: timestampSchema })
   .strip()
 
+const importedCommentSchema = z
+  .object({
+    id: idSchema,
+    taskId: idSchema,
+    body: z.string().trim().min(1).max(100_000),
+    createdAt: timestampSchema,
+    updatedAt: timestampSchema,
+  })
+  .strip()
+
 const MAX_ROWS = 100_000
 
 export const importSchema = z
@@ -231,6 +252,7 @@ export const importSchema = z
         subtasks: z.array(importedSubtaskSchema).max(MAX_ROWS).default([]),
         tags: z.array(importedTagSchema).max(MAX_ROWS).default([]),
         task_completions: z.array(importedCompletionSchema).max(MAX_ROWS).default([]),
+        task_comments: z.array(importedCommentSchema).max(MAX_ROWS).default([]),
         task_relations: z
           .array(
             z

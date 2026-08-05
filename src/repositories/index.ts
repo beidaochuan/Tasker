@@ -4,6 +4,7 @@ import { ApiTaskRepository } from './apiTaskRepository'
 import { ApiSubtaskRepository } from './apiSubtaskRepository'
 import { ApiTagRepository } from './apiTagRepository'
 import { ApiTaskCompletionRepository } from './apiTaskCompletionRepository'
+import { ApiTaskCommentRepository } from './apiTaskCommentRepository'
 
 export const projectRepo = new ApiProjectRepository()
 export const topicRepo = new ApiTopicRepository()
@@ -11,3 +12,4 @@ export const taskRepo = new ApiTaskRepository()
 export const subtaskRepo = new ApiSubtaskRepository()
 export const tagRepo = new ApiTagRepository()
 export const taskCompletionRepo = new ApiTaskCompletionRepository()
+export const taskCommentRepo = new ApiTaskCommentRepository()

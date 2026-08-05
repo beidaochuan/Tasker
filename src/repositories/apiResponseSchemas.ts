@@ -1,5 +1,14 @@
 import { z } from 'zod'
-import type { Project, Subtask, Tag, Task, TaskCompletion, TaskRelation, Topic } from '@/types'
+import type {
+  Project,
+  Subtask,
+  Tag,
+  Task,
+  TaskComment,
+  TaskCompletion,
+  TaskRelation,
+  Topic,
+} from '@/types'
 import { fromUnixMs } from '@/utils/dateUtils'
 
 const idSchema = z.string().min(1).max(128)
@@ -165,6 +174,29 @@ export function mapCompletionDto(raw: CompletionWireDto): TaskCompletion {
 export const completionResponseSchema = completionWireSchema.transform(mapCompletionDto)
 export const completionsResponseSchema = z.array(completionResponseSchema)
 
+export const commentWireSchema = z
+  .object({
+    id: idSchema,
+    taskId: idSchema,
+    body: z.string(),
+    createdAt: unixMsSchema,
+    updatedAt: unixMsSchema,
+  })
+  .strip()
+
+export type CommentWireDto = z.infer<typeof commentWireSchema>
+
+export function mapCommentDto(raw: CommentWireDto): TaskComment {
+  return {
+    ...raw,
+    createdAt: fromUnixMs(raw.createdAt),
+    updatedAt: fromUnixMs(raw.updatedAt),
+  }
+}
+
+export const commentResponseSchema = commentWireSchema.transform(mapCommentDto)
+export const commentsResponseSchema = z.array(commentResponseSchema)
+
 export const taskRelationWireSchema = z
   .object({ taskId: idSchema, relatedTaskId: idSchema })
   .strip()
@@ -197,4 +229,5 @@ export const tasksWireResponseSchema = z.array(
 export const subtasksWireResponseSchema = z.array(subtaskWireSchema.passthrough())
 export const tagsWireResponseSchema = z.array(tagWireSchema.passthrough())
 export const completionsWireResponseSchema = z.array(completionWireSchema.passthrough())
+export const commentsWireResponseSchema = z.array(commentWireSchema.passthrough())
 export const taskRelationsWireResponseSchema = z.array(taskRelationWireSchema.passthrough())
