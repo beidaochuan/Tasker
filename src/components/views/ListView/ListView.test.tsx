@@ -2,6 +2,7 @@ import { StrictMode, type ReactNode } from 'react'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project, Task, Topic } from '@/types'
+import { testTaskId } from '@/test/taskId'
 import { resetDataQueries } from '@/hooks/useDataQueries'
 import { useAuthStore } from '@/store/authStore'
 import { useFilterStore } from '@/store/filterStore'
@@ -99,7 +100,7 @@ function makeTask(
   status: Task['status'] = 'todo'
 ): Task {
   return {
-    id,
+    id: testTaskId(id),
     topicId,
     title,
     description: '',

@@ -29,6 +29,12 @@ export const KanbanCardContent = memo(function KanbanCardContent({
         className
       )}
     >
+      <p
+        className="mb-1.5 truncate font-mono text-[10px] text-muted-foreground"
+        title={String(task.id)}
+      >
+        ID: {task.id}
+      </p>
       <div className="flex items-start gap-2">
         <span
           className={cn(

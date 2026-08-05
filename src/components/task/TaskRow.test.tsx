@@ -5,7 +5,7 @@ import { CATEGORY_LABELS } from '@/utils/taskPresentation'
 import { TaskRow } from './TaskRow'
 
 const task: Task = {
-  id: 'task-1',
+  id: 1,
   topicId: 'topic-1',
   title: '本日が期限のタスク',
   description: '',

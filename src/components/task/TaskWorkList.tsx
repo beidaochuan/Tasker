@@ -23,7 +23,7 @@ import { sortByOrder } from '@/utils/sortUtils'
 import { SortableSubtaskRow } from './SortableSubtaskRow'
 
 interface TaskWorkListProps {
-  taskId: string | null
+  taskId: number | null
   canEdit: boolean
 }
 
@@ -39,7 +39,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set())
-  const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null)
+  const [loadedTaskId, setLoadedTaskId] = useState<number | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [reloadCounter, setReloadCounter] = useState(0)

@@ -24,7 +24,7 @@ const topic: Topic = {
 }
 
 const task: Task = {
-  id: 'task-1',
+  id: 1,
   topicId: topic.id,
   title: 'Task',
   description: '',

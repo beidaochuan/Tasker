@@ -101,7 +101,7 @@ const TOPICS: Record<string, Topic[]> = {
 }
 
 const TASK: Task = {
-  id: 'task-1',
+  id: 1,
   topicId: 'topic-1',
   title: '既存タスク',
   description: '',
@@ -167,7 +167,7 @@ describe('TaskDrawer', () => {
     useAuthStore.setState({ isAuthenticated: true, isLoginDialogOpen: false })
     useUIStore.setState({
       selectedProjectId: 'project-1',
-      selectedTaskId: 'task-1',
+      selectedTaskId: 1,
       newTaskTopicId: null,
       isTaskDrawerOpen: true,
     })
@@ -190,32 +190,48 @@ describe('TaskDrawer', () => {
       'border',
       'overflow-hidden'
     )
+    expect(screen.getByTestId('task-id')).toHaveTextContent('ID: 1')
     expect(screen.getByLabelText('説明')).toHaveAttribute('rows', '6')
+  })
+
+  it('新規タスクはIDが未採番であることを表示する', async () => {
+    useUIStore.setState({
+      selectedTaskId: null,
+      newTaskTopicId: 'topic-1',
+      isTaskDrawerOpen: true,
+    })
+
+    render(<TaskDrawer />)
+
+    expect(await screen.findByRole('dialog', { name: 'タスクを作成' })).toBeInTheDocument()
+    expect(screen.getByTestId('task-id')).toHaveTextContent('ID: 未採番')
   })
 
   it('既存タスクの作業リストを読み込む', async () => {
     render(<TaskDrawer />)
 
     await waitFor(() => {
-      expect(subtaskRepoMock.getByTaskId).toHaveBeenCalledWith('task-1')
+      expect(subtaskRepoMock.getByTaskId).toHaveBeenCalledWith(1)
     })
     expect(screen.getByRole('heading', { name: '作業リスト' })).toBeInTheDocument()
   })
 
   it('関連タスクを追加・解除できる', async () => {
     const user = userEvent.setup()
-    const relatedTask: Task = { ...TASK, id: 'task-2', title: '関連するタスク' }
+    const relatedTask: Task = { ...TASK, id: 2, title: '関連するタスク' }
     taskRepoMock.getAll.mockResolvedValue({ ok: true, data: [TASK, relatedTask] })
     taskRepoMock.replaceRelatedTasks.mockResolvedValueOnce({ ok: true, data: [relatedTask] })
 
     render(<TaskDrawer />)
 
-    const relatedTaskSelect = await screen.findByLabelText('関連タスクを追加')
-    await user.selectOptions(relatedTaskSelect, relatedTask.id)
-    await user.click(screen.getByRole('button', { name: '関連タスクを追加する' }))
+    await user.type(
+      await screen.findByLabelText('タスクIDで関連タスクを追加'),
+      String(relatedTask.id)
+    )
+    await user.click(screen.getByRole('button', { name: '入力したタスクIDを追加する' }))
 
     await waitFor(() => {
-      expect(taskRepoMock.replaceRelatedTasks).toHaveBeenCalledWith('task-1', ['task-2'])
+      expect(taskRepoMock.replaceRelatedTasks).toHaveBeenCalledWith(1, [2])
     })
     expect(await screen.findByText('関連するタスク')).toBeInTheDocument()
 
@@ -223,13 +239,24 @@ describe('TaskDrawer', () => {
     await user.click(screen.getByRole('button', { name: '「関連するタスク」との関連を解除' }))
 
     await waitFor(() => {
-      expect(taskRepoMock.replaceRelatedTasks).toHaveBeenLastCalledWith('task-1', [])
+      expect(taskRepoMock.replaceRelatedTasks).toHaveBeenLastCalledWith(1, [])
     })
+  })
+
+  it('存在しないタスクIDは関連付けずエラーを表示する', async () => {
+    const user = userEvent.setup()
+    render(<TaskDrawer />)
+
+    await user.type(await screen.findByLabelText('タスクIDで関連タスクを追加'), '999')
+    await user.click(screen.getByRole('button', { name: '入力したタスクIDを追加する' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('入力したタスクIDが見つかりません')
+    expect(taskRepoMock.replaceRelatedTasks).not.toHaveBeenCalled()
   })
 
   it('関連タスクをクリックして詳細を開ける', async () => {
     const user = userEvent.setup()
-    const relatedTask: Task = { ...TASK, id: 'task-2', title: '関連するタスク' }
+    const relatedTask: Task = { ...TASK, id: 2, title: '関連するタスク' }
     taskRepoMock.getRelatedTasks.mockResolvedValue({ ok: true, data: [relatedTask] })
     taskRepoMock.getAll.mockResolvedValue({ ok: true, data: [TASK, relatedTask] })
 
@@ -239,7 +266,7 @@ describe('TaskDrawer', () => {
 
     expect(useUIStore.getState()).toMatchObject({
       selectedProjectId: 'project-1',
-      selectedTaskId: 'task-2',
+      selectedTaskId: 2,
       isTaskDrawerOpen: true,
     })
   })
@@ -322,7 +349,7 @@ describe('TaskDrawer', () => {
 
     await waitFor(() => {
       expect(taskRepoMock.update).toHaveBeenCalledWith(
-        'task-1',
+        1,
         expect.objectContaining({ topicId: 'topic-2' })
       )
     })
@@ -342,7 +369,7 @@ describe('TaskDrawer', () => {
 
     await waitFor(() => {
       expect(taskRepoMock.update).toHaveBeenCalledWith(
-        'task-1',
+        1,
         expect.objectContaining({ category: 'electric' })
       )
     })
@@ -368,7 +395,7 @@ describe('TaskDrawer', () => {
 
     await waitFor(() => {
       expect(taskRepoMock.update).toHaveBeenCalledWith(
-        'task-1',
+        1,
         expect.objectContaining({ topicId: 'topic-1-second' })
       )
     })
@@ -422,7 +449,7 @@ describe('TaskDrawer', () => {
           taskId: TASK.id,
           completedAt: new Date(2026, 0, 2),
         },
-        nextTask: { ...TASK, id: 'task-2', topicId: 'topic-2' },
+        nextTask: { ...TASK, id: 2, topicId: 'topic-2' },
       },
     })
 
@@ -442,7 +469,7 @@ describe('TaskDrawer', () => {
 
     await waitFor(() => {
       expect(taskRepoMock.completeRecurring).toHaveBeenCalledWith(
-        'task-1',
+        1,
         expect.objectContaining({ topicId: 'topic-2' })
       )
     })

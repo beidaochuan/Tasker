@@ -6,7 +6,7 @@ const repo = new ApiTaskCommentRepository()
 
 const RAW_COMMENT = {
   id: 'comment-1',
-  taskId: 'task-1',
+  taskId: 1,
   body: 'コメント1',
   createdAt: 1_000_000,
   updatedAt: 1_000_000,
@@ -33,14 +33,14 @@ describe('ApiTaskCommentRepository', () => {
         { ...RAW_COMMENT, id: 'comment-2', body: 'コメント2', createdAt: 2_000_000 },
       ])
 
-      const result = await repo.getByTaskId('task/1 ?')
+      const result = await repo.getByTaskId(42)
 
       expect(result.ok).toBe(true)
       if (!result.ok) return
       expect(result.data.map((comment) => comment.id)).toEqual(['comment-1', 'comment-2'])
       expect(result.data[0].createdAt).toBeInstanceOf(Date)
       expect(result.data[0].createdAt.getTime()).toBe(1_000_000)
-      expect(global.fetch).toHaveBeenCalledWith('/api/comments?taskId=task%2F1%20%3F', {
+      expect(global.fetch).toHaveBeenCalledWith('/api/comments?taskId=42', {
         credentials: 'same-origin',
       })
     })
@@ -50,17 +50,17 @@ describe('ApiTaskCommentRepository', () => {
     it('コメントを作成して返す', async () => {
       mockFetch(RAW_COMMENT, 201)
 
-      const result = await repo.create({ taskId: 'task-1', body: 'コメント1' })
+      const result = await repo.create({ taskId: 1, body: 'コメント1' })
 
       expect(result.ok).toBe(true)
       if (!result.ok) return
       expect(result.data).toEqual(
-        expect.objectContaining({ id: 'comment-1', taskId: 'task-1', body: 'コメント1' })
+        expect.objectContaining({ id: 'comment-1', taskId: 1, body: 'コメント1' })
       )
       expect(global.fetch).toHaveBeenCalledWith('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId: 'task-1', body: 'コメント1' }),
+        body: JSON.stringify({ taskId: 1, body: 'コメント1' }),
         credentials: 'same-origin',
       })
     })

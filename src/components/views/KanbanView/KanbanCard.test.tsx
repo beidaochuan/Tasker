@@ -15,7 +15,7 @@ vi.mock('@dnd-kit/sortable', () => ({
 }))
 
 const TASK: Task = {
-  id: 'task-1',
+  id: 1,
   topicId: 'topic-1',
   title: 'テストタスク',
   description: '',

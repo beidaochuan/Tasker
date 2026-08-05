@@ -3,7 +3,7 @@ import { subtaskRepo } from '@/repositories'
 import { calcProgress, calcProjectProgress } from '@/utils/progressUtils'
 import { useProjectTasks } from './useTasks'
 
-export function useTaskProgress(taskId: string): number {
+export function useTaskProgress(taskId: number): number {
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {

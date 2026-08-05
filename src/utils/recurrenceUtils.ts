@@ -107,19 +107,23 @@ export function expandOccurrences(
  * 仮想インスタンス ID（"taskId_timestamp" 形式）から実タスク ID を取得する。
  * 通常の ID はそのまま返す。
  */
-export function resolveTaskId(id: string): string {
+export function resolveTaskId(id: string | number): number {
+  if (typeof id === 'number') return id
   const sep = id.lastIndexOf('_')
-  if (sep === -1) return id
-  const suffix = id.slice(sep + 1)
-  return /^\d+$/.test(suffix) ? id.slice(0, sep) : id
+  const base = sep === -1 ? id : id.slice(0, sep)
+  const taskId = Number(base)
+  if (!Number.isSafeInteger(taskId) || taskId <= 0) {
+    throw new Error(`不正なタスクIDです: ${id}`)
+  }
+  return taskId
 }
 
 export function hasRepeatRule(rruleStr: string | null | undefined): rruleStr is string {
   return typeof rruleStr === 'string' && rruleStr.length > 0
 }
 
-export function isVirtualTask(id: string): boolean {
-  return id !== resolveTaskId(id)
+export function isVirtualTask(id: string | number): boolean {
+  return typeof id === 'string' && id.includes('_')
 }
 
 // #11: Record マップで網羅性チェックを TypeScript に委ねる

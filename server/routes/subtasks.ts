@@ -50,7 +50,7 @@ subtasksRouter.patch('/order', (req, res) => {
   const placeholders = input.items.map(() => '?').join(', ')
   const subtasks = db
     .prepare(`SELECT id, taskId FROM subtasks WHERE id IN (${placeholders})`)
-    .all(...input.items.map((item) => item.id)) as Array<{ id: string; taskId: string }>
+    .all(...input.items.map((item) => item.id)) as Array<{ id: string; taskId: number }>
   if (subtasks.length !== input.items.length) {
     return res.status(404).json({ error: 'NOT_FOUND' })
   }

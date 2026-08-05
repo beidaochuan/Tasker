@@ -9,7 +9,6 @@ import {
   RESIZE_HANDLE_WIDTH,
   BAR_VERTICAL_INSET,
 } from './ganttConstants'
-import { resolveTaskId, isVirtualTask } from '@/utils/recurrenceUtils'
 import { getOverdueDays } from '@/utils/dateUtils'
 import {
   CATEGORY_LABELS,
@@ -28,7 +27,7 @@ interface Props {
     handle: 'move' | 'left' | 'right',
     element: HTMLElement
   ) => void
-  onClick?: (taskId: string) => void
+  onClick?: (taskId: number) => void
 }
 
 export const GanttBar = memo(function GanttBar({
@@ -40,7 +39,7 @@ export const GanttBar = memo(function GanttBar({
 }: Props) {
   const didDragRef = useRef(false)
 
-  const isVirtual = isVirtualTask(task.id)
+  const isVirtual = task.isVirtualOccurrence === true
 
   const ppd = PIXELS_PER_DAY[scale]
   const hasDate = !!(task.startDate || task.dueDate)
@@ -120,7 +119,7 @@ export const GanttBar = memo(function GanttBar({
             }}
             onPointerDown={handlePointerDown}
             onClick={() => {
-              if (!didDragRef.current) onClick?.(resolveTaskId(task.id))
+              if (!didDragRef.current) onClick?.(task.id)
             }}
             aria-label={tooltipText}
           />

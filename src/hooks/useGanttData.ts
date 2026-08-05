@@ -34,7 +34,7 @@ export function useGanttData(projectId: string | null): GanttRow[] {
           const duration = task.startDate ? task.dueDate.getTime() - task.startDate.getTime() : null
           expandedTasks.push({
             ...task,
-            id: `${task.id}_${nextDate.getTime()}`,
+            isVirtualOccurrence: true,
             dueDate: nextDate,
             startDate: duration !== null ? new Date(nextDate.getTime() - duration) : null,
           })

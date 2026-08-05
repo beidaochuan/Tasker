@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetDataQueries } from './useDataQueries'
 import { useKanbanData, useProjectData, useTopics } from './useTasks'
 import type { Task, Topic } from '@/types'
+import { testTaskId } from '@/test/taskId'
 
 const { taskRepoMock, topicRepoMock } = vi.hoisted(() => ({
   taskRepoMock: {
@@ -25,7 +26,7 @@ function makeTask(
   statusChangedAt: string
 ): Task {
   return {
-    id,
+    id: testTaskId(id),
     topicId: 'topic-1',
     title: id,
     description: '',
@@ -105,7 +106,7 @@ describe('useProjectData', () => {
     const { result, rerender } = renderHook(({ projectId }) => useProjectData(projectId), {
       initialProps: { projectId: 'project-1' },
     })
-    await waitFor(() => expect(result.current.tasks?.[0]?.id).toBe('old'))
+    await waitFor(() => expect(result.current.tasks?.[0]?.id).toBe(testTaskId('old')))
 
     rerender({ projectId: 'project-2' })
 
@@ -129,7 +130,7 @@ describe('useProjectData', () => {
         },
       ],
     })
-    await waitFor(() => expect(result.current.tasks?.[0]?.id).toBe('new'))
+    await waitFor(() => expect(result.current.tasks?.[0]?.id).toBe(testTaskId('new')))
   })
 })
 
@@ -162,16 +163,16 @@ describe('useKanbanData', () => {
     })
 
     expect(result.current.tasksByStatus.todo.map((task) => task.id)).toEqual([
-      'todo-urgent',
-      'todo-low',
+      testTaskId('todo-urgent'),
+      testTaskId('todo-low'),
     ])
     expect(result.current.tasksByStatus.in_progress.map((task) => task.id)).toEqual([
-      'progress-high',
-      'progress-medium',
+      testTaskId('progress-high'),
+      testTaskId('progress-medium'),
     ])
     expect(result.current.tasksByStatus.done.map((task) => task.id)).toEqual([
-      'done-new',
-      'done-old',
+      testTaskId('done-new'),
+      testTaskId('done-old'),
     ])
   })
 })

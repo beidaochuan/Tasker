@@ -6,7 +6,7 @@ const repo = new ApiSubtaskRepository()
 
 const RAW_SUBTASK = {
   id: 'subtask-1',
-  taskId: 'task-1',
+  taskId: 1,
   title: '作業1',
   isDone: 0,
   order: 0,
@@ -41,7 +41,7 @@ describe('ApiSubtaskRepository', () => {
         },
       ])
 
-      const result = await repo.getByTaskId('task/1 ?')
+      const result = await repo.getByTaskId(42)
 
       expect(result.ok).toBe(true)
       if (!result.ok) return
@@ -50,7 +50,7 @@ describe('ApiSubtaskRepository', () => {
       expect(result.data[1].isDone).toBe(true)
       expect(result.data[0].createdAt).toBeInstanceOf(Date)
       expect(result.data[0].createdAt.getTime()).toBe(1_000_000)
-      expect(global.fetch).toHaveBeenCalledWith('/api/subtasks?taskId=task%2F1%20%3F', {
+      expect(global.fetch).toHaveBeenCalledWith('/api/subtasks?taskId=42', {
         credentials: 'same-origin',
       })
     })
@@ -61,7 +61,7 @@ describe('ApiSubtaskRepository', () => {
       mockFetch(RAW_SUBTASK, 201)
 
       const result = await repo.create({
-        taskId: 'task-1',
+        taskId: 1,
         title: '作業1',
         isDone: false,
         order: 0,
@@ -72,7 +72,7 @@ describe('ApiSubtaskRepository', () => {
       expect(result.data).toEqual(
         expect.objectContaining({
           id: 'subtask-1',
-          taskId: 'task-1',
+          taskId: 1,
           title: '作業1',
           isDone: false,
           order: 0,
@@ -82,7 +82,7 @@ describe('ApiSubtaskRepository', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          taskId: 'task-1',
+          taskId: 1,
           title: '作業1',
           isDone: false,
           order: 0,

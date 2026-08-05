@@ -57,7 +57,7 @@ vi.mock('@dnd-kit/sortable', () => ({
 const SUBTASKS: Subtask[] = [
   {
     id: 'subtask-1',
-    taskId: 'task-1',
+    taskId: 1,
     title: '仕様を確認',
     isDone: false,
     order: 0,
@@ -65,7 +65,7 @@ const SUBTASKS: Subtask[] = [
   },
   {
     id: 'subtask-2',
-    taskId: 'task-1',
+    taskId: 1,
     title: 'レビューを依頼',
     isDone: true,
     order: 1,
@@ -88,11 +88,11 @@ describe('TaskWorkList', () => {
   })
 
   it('既存タスクの作業一覧と進捗を表示する', async () => {
-    render(<TaskWorkList taskId="task-1" canEdit />)
+    render(<TaskWorkList taskId={1} canEdit />)
 
     expect(await screen.findByText('仕様を確認')).toBeInTheDocument()
     expect(screen.getByText('レビューを依頼')).toBeInTheDocument()
-    expect(subtaskRepoMock.getByTaskId).toHaveBeenCalledWith('task-1')
+    expect(subtaskRepoMock.getByTaskId).toHaveBeenCalledWith(1)
     expect(screen.getByText('1 / 2 完了')).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: '作業リストの進捗' })).toHaveAttribute(
       'aria-valuenow',
@@ -107,7 +107,7 @@ describe('TaskWorkList', () => {
     const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault())
     const created: Subtask = {
       id: 'subtask-3',
-      taskId: 'task-1',
+      taskId: 1,
       title: 'テストを書く',
       isDone: false,
       order: 2,
@@ -117,7 +117,7 @@ describe('TaskWorkList', () => {
 
     render(
       <form onSubmit={onSubmit}>
-        <TaskWorkList taskId="task-1" canEdit />
+        <TaskWorkList taskId={1} canEdit />
       </form>
     )
 
@@ -126,7 +126,7 @@ describe('TaskWorkList', () => {
 
     await waitFor(() => {
       expect(subtaskRepoMock.create).toHaveBeenCalledWith({
-        taskId: 'task-1',
+        taskId: 1,
         title: 'テストを書く',
         isDone: false,
         order: 2,
@@ -138,7 +138,7 @@ describe('TaskWorkList', () => {
   })
 
   it('日本語IMEの変換確定Enterでは作業を追加しない', async () => {
-    render(<TaskWorkList taskId="task-1" canEdit />)
+    render(<TaskWorkList taskId={1} canEdit />)
 
     const input = await screen.findByLabelText('新しい作業')
     fireEvent.change(input, { target: { value: '仕様を確認' } })
@@ -154,7 +154,7 @@ describe('TaskWorkList', () => {
       ok: true,
       data: { ...SUBTASKS[0], isDone: true },
     })
-    render(<TaskWorkList taskId="task-1" canEdit />)
+    render(<TaskWorkList taskId={1} canEdit />)
 
     const checkbox = await screen.findByRole('checkbox', {
       name: '「仕様を確認」を完了にする',
@@ -176,7 +176,7 @@ describe('TaskWorkList', () => {
       ok: true,
       data: { ...SUBTASKS[0], title: '仕様を再確認' },
     })
-    render(<TaskWorkList taskId="task-1" canEdit />)
+    render(<TaskWorkList taskId={1} canEdit />)
 
     await user.click(await screen.findByRole('button', { name: '「仕様を確認」を編集' }))
     const input = screen.getByLabelText('作業内容')
@@ -193,7 +193,7 @@ describe('TaskWorkList', () => {
 
   it('日本語IMEの変換確定Enterでは作業タイトルを保存しない', async () => {
     const user = userEvent.setup()
-    render(<TaskWorkList taskId="task-1" canEdit />)
+    render(<TaskWorkList taskId={1} canEdit />)
 
     await user.click(await screen.findByRole('button', { name: '「仕様を確認」を編集' }))
     const input = screen.getByLabelText('作業内容')
@@ -206,7 +206,7 @@ describe('TaskWorkList', () => {
 
   it('作業を削除する', async () => {
     const user = userEvent.setup()
-    render(<TaskWorkList taskId="task-1" canEdit />)
+    render(<TaskWorkList taskId={1} canEdit />)
 
     await user.click(await screen.findByRole('button', { name: '「仕様を確認」を削除' }))
 
@@ -218,7 +218,7 @@ describe('TaskWorkList', () => {
   })
 
   it('ドラッグで作業の順序を入れ替え、まとめて保存する', async () => {
-    render(<TaskWorkList taskId="task-1" canEdit />)
+    render(<TaskWorkList taskId={1} canEdit />)
 
     await screen.findByText('仕様を確認')
     await act(async () => {
@@ -238,7 +238,7 @@ describe('TaskWorkList', () => {
   })
 
   it('未認証では作業リストを閲覧のみできる', async () => {
-    render(<TaskWorkList taskId="task-1" canEdit={false} />)
+    render(<TaskWorkList taskId={1} canEdit={false} />)
 
     expect(await screen.findByText('仕様を確認')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: '「仕様を確認」を完了にする' })).toBeDisabled()
@@ -266,7 +266,7 @@ describe('TaskWorkList', () => {
         error: { code: 'DB_ERROR', message: '読み込みに失敗しました' },
       })
       .mockResolvedValueOnce({ ok: true, data: SUBTASKS })
-    render(<TaskWorkList taskId="task-1" canEdit />)
+    render(<TaskWorkList taskId={1} canEdit />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('読み込みに失敗しました')
     await user.click(screen.getByRole('button', { name: '再読み込み' }))

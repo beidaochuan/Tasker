@@ -20,14 +20,14 @@ vi.mock('@/repositories', () => ({
 const COMMENTS: TaskComment[] = [
   {
     id: 'comment-2',
-    taskId: 'task-1',
+    taskId: 1,
     body: '2番目のコメント',
     createdAt: new Date(2026, 6, 11),
     updatedAt: new Date(2026, 6, 11),
   },
   {
     id: 'comment-1',
-    taskId: 'task-1',
+    taskId: 1,
     body: '最初のコメント',
     createdAt: new Date(2026, 6, 10),
     updatedAt: new Date(2026, 6, 10),
@@ -47,10 +47,10 @@ describe('TaskComments', () => {
   })
 
   it('既存タスクのコメント一覧をAPIが返した順序（新しい順）のまま表示する', async () => {
-    render(<TaskComments taskId="task-1" canEdit />)
+    render(<TaskComments taskId={1} canEdit />)
 
     expect(await screen.findByText('2番目のコメント')).toBeInTheDocument()
-    expect(taskCommentRepoMock.getByTaskId).toHaveBeenCalledWith('task-1')
+    expect(taskCommentRepoMock.getByTaskId).toHaveBeenCalledWith(1)
     const items = screen.getAllByRole('listitem')
     expect(items[0]).toHaveTextContent('2番目のコメント')
     expect(items[1]).toHaveTextContent('最初のコメント')
@@ -60,13 +60,13 @@ describe('TaskComments', () => {
     const user = userEvent.setup()
     const created: TaskComment = {
       id: 'comment-3',
-      taskId: 'task-1',
+      taskId: 1,
       body: '新しいコメント',
       createdAt: new Date(2026, 6, 12),
       updatedAt: new Date(2026, 6, 12),
     }
     taskCommentRepoMock.create.mockResolvedValue({ ok: true, data: created })
-    render(<TaskComments taskId="task-1" canEdit />)
+    render(<TaskComments taskId={1} canEdit />)
 
     const textarea = await screen.findByPlaceholderText('コメントを追加')
     await user.type(textarea, '新しいコメント')
@@ -74,7 +74,7 @@ describe('TaskComments', () => {
 
     await waitFor(() => {
       expect(taskCommentRepoMock.create).toHaveBeenCalledWith({
-        taskId: 'task-1',
+        taskId: 1,
         body: '新しいコメント',
       })
     })
@@ -88,7 +88,7 @@ describe('TaskComments', () => {
       ok: true,
       data: { ...COMMENTS[0], body: '編集後のコメント' },
     })
-    render(<TaskComments taskId="task-1" canEdit />)
+    render(<TaskComments taskId={1} canEdit />)
 
     await user.click((await screen.findAllByRole('button', { name: 'コメントを編集' }))[0])
     const editArea = screen.getByLabelText('コメント本文')
@@ -106,7 +106,7 @@ describe('TaskComments', () => {
 
   it('コメントを削除する', async () => {
     const user = userEvent.setup()
-    render(<TaskComments taskId="task-1" canEdit />)
+    render(<TaskComments taskId={1} canEdit />)
 
     await user.click((await screen.findAllByRole('button', { name: 'コメントを削除' }))[0])
 
@@ -117,7 +117,7 @@ describe('TaskComments', () => {
   })
 
   it('未認証ではコメントを閲覧のみできる', async () => {
-    render(<TaskComments taskId="task-1" canEdit={false} />)
+    render(<TaskComments taskId={1} canEdit={false} />)
 
     expect(await screen.findByText('2番目のコメント')).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('コメントを追加')).not.toBeInTheDocument()
@@ -140,7 +140,7 @@ describe('TaskComments', () => {
         error: { code: 'DB_ERROR', message: '読み込みに失敗しました' },
       })
       .mockResolvedValueOnce({ ok: true, data: COMMENTS })
-    render(<TaskComments taskId="task-1" canEdit />)
+    render(<TaskComments taskId={1} canEdit />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('読み込みに失敗しました')
     await user.click(screen.getByRole('button', { name: '再読み込み' }))

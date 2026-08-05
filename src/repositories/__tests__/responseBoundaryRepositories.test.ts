@@ -27,7 +27,7 @@ const RAW_TOPIC = {
 }
 
 const RAW_TASK = {
-  id: 'task-1',
+  id: 1,
   topicId: 'topic-1',
   title: 'Task',
   description: '',
@@ -79,7 +79,7 @@ describe('API repository response boundaries', () => {
   })
 
   it('一覧内の不正なTaskステータスを拒否する', async () => {
-    mockFetch([RAW_TASK, { ...RAW_TASK, id: 'task-2', status: 'cancelled' }])
+    mockFetch([RAW_TASK, { ...RAW_TASK, id: 2, status: 'cancelled' }])
 
     expectInvalidResponse(await new ApiTaskRepository().getByProjectId('project-1'))
   })
@@ -88,20 +88,20 @@ describe('API repository response boundaries', () => {
     mockFetch(
       {
         task: RAW_TASK,
-        completion: { id: 'completion-1', taskId: 'task-1', completedAt: 'now' },
+        completion: { id: 'completion-1', taskId: 1, completedAt: 'now' },
         nextTask: null,
       },
       201
     )
 
-    expectInvalidResponse(await new ApiTaskRepository().completeRecurring('task-1', null))
+    expectInvalidResponse(await new ApiTaskRepository().completeRecurring(1, null))
   })
 
   it('SQLite booleanではないSubtask.isDoneを拒否する', async () => {
     mockFetch([
       {
         id: 'subtask-1',
-        taskId: 'task-1',
+        taskId: 1,
         title: 'Subtask',
         isDone: 2,
         order: 0,
@@ -109,7 +109,7 @@ describe('API repository response boundaries', () => {
       },
     ])
 
-    expectInvalidResponse(await new ApiSubtaskRepository().getByTaskId('task-1'))
+    expectInvalidResponse(await new ApiSubtaskRepository().getByTaskId(1))
   })
 
   it('壊れたTagとCompletionをそれぞれ拒否する', async () => {
@@ -117,7 +117,7 @@ describe('API repository response boundaries', () => {
     expectInvalidResponse(await new ApiTagRepository().getAll())
 
     vi.restoreAllMocks()
-    mockFetch([{ id: 'completion-1', taskId: 'task-1', completedAt: null }])
-    expectInvalidResponse(await new ApiTaskCompletionRepository().getByTaskId('task-1'))
+    mockFetch([{ id: 'completion-1', taskId: 1, completedAt: null }])
+    expectInvalidResponse(await new ApiTaskCompletionRepository().getByTaskId(1))
   })
 })

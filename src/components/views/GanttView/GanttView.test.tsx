@@ -2,13 +2,14 @@ import type { ReactNode } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Task, Topic } from '@/types'
+import { testTaskId } from '@/test/taskId'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { GanttView } from './GanttView'
 
 interface DragEventLike {
-  active: { id: string }
-  over: { id: string } | null
+  active: { id: number }
+  over: { id: number } | null
 }
 
 const { dndMock, ganttDataMock, taskRepoMock, calcGanttRangeMock, emptyPreview } = vi.hoisted(
@@ -118,7 +119,7 @@ function makeTask(
   status: Task['status'] = 'todo'
 ): Task {
   return {
-    id,
+    id: testTaskId(id),
     topicId: 'topic-1',
     title,
     description: '',
@@ -291,7 +292,7 @@ describe('GanttView task reordering', () => {
 
     expect(useUIStore.getState()).toMatchObject({
       isTaskDrawerOpen: true,
-      selectedTaskId: 'task-a',
+      selectedTaskId: testTaskId('task-a'),
       newTaskTopicId: null,
     })
   })
@@ -332,8 +333,11 @@ describe('GanttView task reordering', () => {
     ])
 
     act(() => {
-      dndMock.onDragStart?.({ active: { id: 'task-a' } })
-      dndMock.onDragOver?.({ active: { id: 'task-a' }, over: { id: 'task-c' } })
+      dndMock.onDragStart?.({ active: { id: testTaskId('task-a') } })
+      dndMock.onDragOver?.({
+        active: { id: testTaskId('task-a') },
+        over: { id: testTaskId('task-c') },
+      })
     })
 
     expect(displayedTaskLabels()).toEqual([
@@ -354,7 +358,10 @@ describe('GanttView task reordering', () => {
     expect(taskRepoMock.updateGanttOrder).not.toHaveBeenCalled()
 
     act(() => {
-      dndMock.onDragOver?.({ active: { id: 'task-a' }, over: { id: 'task-c' } })
+      dndMock.onDragOver?.({
+        active: { id: testTaskId('task-a') },
+        over: { id: testTaskId('task-c') },
+      })
     })
     expect(displayedTaskLabels()).toEqual([
       'タスクBをドラッグして並べ替え',
@@ -365,8 +372,8 @@ describe('GanttView task reordering', () => {
     let savePromise: Promise<void> | undefined
     act(() => {
       const result = dndMock.onDragEnd?.({
-        active: { id: 'task-a' },
-        over: { id: 'task-a' },
+        active: { id: testTaskId('task-a') },
+        over: { id: testTaskId('task-a') },
       })
       savePromise = Promise.resolve(result).then(() => undefined)
     })
@@ -377,9 +384,9 @@ describe('GanttView task reordering', () => {
       'タスクAをドラッグして並べ替え',
     ])
     expect(taskRepoMock.updateGanttOrder).toHaveBeenCalledWith([
-      { id: 'task-b', ganttOrder: 0 },
-      { id: 'task-c', ganttOrder: 1 },
-      { id: 'task-a', ganttOrder: 2 },
+      { id: testTaskId('task-b'), ganttOrder: 0 },
+      { id: testTaskId('task-c'), ganttOrder: 1 },
+      { id: testTaskId('task-a'), ganttOrder: 2 },
     ])
 
     await act(async () => {
@@ -464,8 +471,11 @@ describe('GanttView task reordering', () => {
     ])
 
     act(() => {
-      dndMock.onDragStart?.({ active: { id: 'task-a' } })
-      dndMock.onDragOver?.({ active: { id: 'task-a' }, over: { id: 'task-b' } })
+      dndMock.onDragStart?.({ active: { id: testTaskId('task-a') } })
+      dndMock.onDragOver?.({
+        active: { id: testTaskId('task-a') },
+        over: { id: testTaskId('task-b') },
+      })
     })
 
     expect(displayedTaskLabels()).toEqual([
@@ -476,16 +486,16 @@ describe('GanttView task reordering', () => {
     let savePromise: Promise<void> | undefined
     act(() => {
       const result = dndMock.onDragEnd?.({
-        active: { id: 'task-a' },
-        over: { id: 'task-a' },
+        active: { id: testTaskId('task-a') },
+        over: { id: testTaskId('task-a') },
       })
       savePromise = Promise.resolve(result).then(() => undefined)
     })
 
     expect(taskRepoMock.updateGanttOrder).toHaveBeenCalledWith([
-      { id: 'task-b', ganttOrder: 0 },
-      { id: 'task-a', ganttOrder: 1 },
-      { id: 'task-done', ganttOrder: 2 },
+      { id: testTaskId('task-b'), ganttOrder: 0 },
+      { id: testTaskId('task-a'), ganttOrder: 1 },
+      { id: testTaskId('task-done'), ganttOrder: 2 },
     ])
 
     await act(async () => {
@@ -511,23 +521,26 @@ describe('GanttView task reordering', () => {
     fireEvent.click(screen.getByRole('button', { name: '完了タスク（1）' }))
 
     act(() => {
-      dndMock.onDragStart?.({ active: { id: 'task-a' } })
-      dndMock.onDragOver?.({ active: { id: 'task-a' }, over: { id: 'task-b' } })
+      dndMock.onDragStart?.({ active: { id: testTaskId('task-a') } })
+      dndMock.onDragOver?.({
+        active: { id: testTaskId('task-a') },
+        over: { id: testTaskId('task-b') },
+      })
     })
 
     let savePromise: Promise<void> | undefined
     act(() => {
       const result = dndMock.onDragEnd?.({
-        active: { id: 'task-a' },
-        over: { id: 'task-a' },
+        active: { id: testTaskId('task-a') },
+        over: { id: testTaskId('task-a') },
       })
       savePromise = Promise.resolve(result).then(() => undefined)
     })
 
     expect(taskRepoMock.updateGanttOrder).toHaveBeenCalledWith([
-      { id: 'task-b', ganttOrder: 0 },
-      { id: 'task-a', ganttOrder: 1 },
-      { id: 'task-done', ganttOrder: 2 },
+      { id: testTaskId('task-b'), ganttOrder: 0 },
+      { id: testTaskId('task-a'), ganttOrder: 1 },
+      { id: testTaskId('task-done'), ganttOrder: 2 },
     ])
 
     await act(async () => {
@@ -551,8 +564,11 @@ describe('GanttView task reordering', () => {
     fireEvent.click(screen.getByRole('button', { name: '完了タスク（1）' }))
 
     act(() => {
-      dndMock.onDragStart?.({ active: { id: 'task-active-a' } })
-      dndMock.onDragOver?.({ active: { id: 'task-active-a' }, over: { id: 'task-active-b' } })
+      dndMock.onDragStart?.({ active: { id: testTaskId('task-active-a') } })
+      dndMock.onDragOver?.({
+        active: { id: testTaskId('task-active-a') },
+        over: { id: testTaskId('task-active-b') },
+      })
     })
 
     expect(displayedTaskLabels()).toEqual([
@@ -562,8 +578,14 @@ describe('GanttView task reordering', () => {
     ])
 
     act(() => {
-      dndMock.onDragOver?.({ active: { id: 'task-active-a' }, over: { id: 'task-done' } })
-      dndMock.onDragEnd?.({ active: { id: 'task-active-a' }, over: { id: 'task-done' } })
+      dndMock.onDragOver?.({
+        active: { id: testTaskId('task-active-a') },
+        over: { id: testTaskId('task-done') },
+      })
+      dndMock.onDragEnd?.({
+        active: { id: testTaskId('task-active-a') },
+        over: { id: testTaskId('task-done') },
+      })
     })
 
     expect(displayedTaskLabels()).toEqual([
@@ -590,18 +612,21 @@ describe('GanttView task reordering', () => {
     fireEvent.click(screen.getByRole('button', { name: '完了タスク（2）' }))
 
     await act(async () => {
-      dndMock.onDragStart?.({ active: { id: 'task-done-a' } })
-      dndMock.onDragOver?.({ active: { id: 'task-done-a' }, over: { id: 'task-done-b' } })
+      dndMock.onDragStart?.({ active: { id: testTaskId('task-done-a') } })
+      dndMock.onDragOver?.({
+        active: { id: testTaskId('task-done-a') },
+        over: { id: testTaskId('task-done-b') },
+      })
       await dndMock.onDragEnd?.({
-        active: { id: 'task-done-a' },
-        over: { id: 'task-done-a' },
+        active: { id: testTaskId('task-done-a') },
+        over: { id: testTaskId('task-done-a') },
       })
     })
 
     expect(taskRepoMock.updateGanttOrder).toHaveBeenCalledWith([
-      { id: 'task-active', ganttOrder: 0 },
-      { id: 'task-done-b', ganttOrder: 1 },
-      { id: 'task-done-a', ganttOrder: 2 },
+      { id: testTaskId('task-active'), ganttOrder: 0 },
+      { id: testTaskId('task-done-b'), ganttOrder: 1 },
+      { id: testTaskId('task-done-a'), ganttOrder: 2 },
     ])
   })
 })

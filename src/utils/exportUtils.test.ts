@@ -24,7 +24,7 @@ const TOPIC = {
 }
 
 const TASK = {
-  id: 'task-1',
+  id: 1,
   topicId: TOPIC.id,
   title: 'Task',
   description: '',
@@ -77,8 +77,8 @@ const COMMENT = {
 }
 
 const TASK_RELATION = {
-  taskId: 'task-1',
-  relatedTaskId: 'task-2',
+  taskId: 1,
+  relatedTaskId: 2,
 }
 
 const EXPORT_RESPONSES: Record<string, unknown> = {

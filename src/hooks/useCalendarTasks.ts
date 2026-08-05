@@ -53,7 +53,7 @@ export function useCalendarTasks(
         const start = task.startDate ?? task.dueDate
         const end = addDays(task.dueDate, 1)
         events.push({
-          id: task.id,
+          id: String(task.id),
           title: task.title,
           start,
           end,

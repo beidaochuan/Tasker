@@ -43,7 +43,7 @@ export function useProjectData(projectId: string | null): ProjectDataWithLoading
   }
 }
 
-export function useTask(id: string | null, projectId: string | null): Task | undefined {
+export function useTask(id: number | null, projectId: string | null): Task | undefined {
   const tasks = useProjectTasks(id ? projectId : null)
   return useMemo(() => tasks?.find((task) => task.id === id), [id, tasks])
 }

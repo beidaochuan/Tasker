@@ -225,9 +225,14 @@ export function TaskDrawer() {
         className="relative z-10 flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl"
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 id="task-dialog-title" className="text-base font-semibold">
-            {!isAuthenticated ? 'タスク詳細' : isNew ? 'タスクを作成' : 'タスクを編集'}
-          </h2>
+          <div className="flex items-baseline gap-2">
+            <h2 id="task-dialog-title" className="text-base font-semibold">
+              {!isAuthenticated ? 'タスク詳細' : isNew ? 'タスクを作成' : 'タスクを編集'}
+            </h2>
+            <span className="text-xs text-muted-foreground" data-testid="task-id">
+              ID: {isNew ? '未採番' : selectedTaskId}
+            </span>
+          </div>
           <div className="flex gap-1">
             {isAuthenticated && !isNew && (
               <Button variant="ghost" size="icon" onClick={handleDelete} title="削除">
@@ -265,7 +270,6 @@ export function TaskDrawer() {
                 taskId={selectedTaskId}
                 canEdit={isAuthenticated}
                 projectTopics={projectTopics}
-                projects={projects}
                 onError={setSubmitError}
               />
             )}

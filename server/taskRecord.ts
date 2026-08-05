@@ -1,5 +1,5 @@
 export interface TaskRow {
-  id: string
+  id: number
   topicId: string
   title: string
   description: string

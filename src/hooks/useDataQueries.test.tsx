@@ -2,6 +2,7 @@ import { StrictMode, type ReactNode } from 'react'
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Project, Tag, Task, Topic } from '@/types'
+import { testTaskId } from '@/test/taskId'
 import {
   resetDataQueries,
   useDataQueryStore,
@@ -49,7 +50,7 @@ function makeTopic(projectId: string, suffix = 'topic'): Topic {
 
 function makeTask(projectId: string, suffix = 'task'): Task {
   return {
-    id: `${projectId}-${suffix}`,
+    id: testTaskId(`${projectId}-${suffix}`),
     topicId: `${projectId}-topic`,
     title: suffix,
     description: '',
@@ -151,7 +152,7 @@ describe('useDataQueries', () => {
       expect(useDataQueryStore.getState().projectsById['project-a']?.tasks.status).toBe('success')
     })
     expect(useDataQueryStore.getState().projectsById['project-a']?.tasks.data?.[0]?.id).toBe(
-      'project-a-task'
+      testTaskId('project-a-task')
     )
   })
 
@@ -247,7 +248,7 @@ describe('useDataQueries', () => {
 
     await waitFor(() => {
       expect(result.current?.data?.topics[0]?.id).toBe('project-a-new-topic')
-      expect(result.current?.data?.tasks[0]?.id).toBe('project-a-new-task')
+      expect(result.current?.data?.tasks[0]?.id).toBe(testTaskId('project-a-new-task'))
     })
 
     await act(async () => {
@@ -257,7 +258,7 @@ describe('useDataQueries', () => {
     })
 
     expect(result.current?.data?.topics[0]?.id).toBe('project-a-new-topic')
-    expect(result.current?.data?.tasks[0]?.id).toBe('project-a-new-task')
+    expect(result.current?.data?.tasks[0]?.id).toBe(testTaskId('project-a-new-task'))
   })
 
   it('tag削除時はそのtagを使うprojectのtasksだけを再取得する', async () => {
@@ -292,7 +293,7 @@ describe('useDataQueries', () => {
     const { result } = renderHook(() => useProjectQuery('project-a'))
 
     await waitFor(() => expect(result.current?.status).toBe('success'))
-    expect(result.current?.data?.tasks[0]?.id).toBe('project-a-task')
+    expect(result.current?.data?.tasks[0]?.id).toBe(testTaskId('project-a-task'))
 
     taskRepoMock.getByProjectId.mockRejectedValueOnce(new Error('network error'))
     act(() => {
@@ -300,7 +301,7 @@ describe('useDataQueries', () => {
     })
 
     await waitFor(() => expect(result.current?.status).toBe('error'))
-    expect(result.current?.data?.tasks[0]?.id).toBe('project-a-task')
+    expect(result.current?.data?.tasks[0]?.id).toBe(testTaskId('project-a-task'))
     expect(taskRepoMock.getByProjectId).toHaveBeenCalledTimes(2)
 
     taskRepoMock.getByProjectId.mockResolvedValueOnce({
@@ -312,7 +313,7 @@ describe('useDataQueries', () => {
     })
 
     await waitFor(() => expect(result.current?.status).toBe('success'))
-    expect(result.current?.data?.tasks[0]?.id).toBe('project-a-recovered-task')
+    expect(result.current?.data?.tasks[0]?.id).toBe(testTaskId('project-a-recovered-task'))
   })
 
   it('projectsとtagsも複数consumer間でqueryを共有する', async () => {

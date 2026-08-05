@@ -55,7 +55,7 @@ export function sortGanttTasks<
   })
 }
 
-export function reorderItems<T extends { id: string; order: number }>(
+export function reorderItems<T extends { order: number }>(
   items: T[],
   fromIndex: number,
   toIndex: number

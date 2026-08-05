@@ -33,7 +33,7 @@ const RAW_TOPIC = {
 }
 
 const RAW_TASK = {
-  id: 'task-1',
+  id: 1,
   topicId: 'topic-1',
   title: 'Task',
   description: 'Description',
@@ -53,7 +53,7 @@ const RAW_TASK = {
 
 const RAW_SUBTASK = {
   id: 'subtask-1',
-  taskId: 'task-1',
+  taskId: 1,
   title: 'Subtask',
   isDone: 1,
   order: 0,
@@ -68,7 +68,7 @@ const RAW_TAG = {
 
 const RAW_COMPLETION = {
   id: 'completion-1',
-  taskId: 'task-1',
+  taskId: 1,
   completedAt: 7_000,
 }
 
@@ -164,14 +164,14 @@ describe('API response schemas', () => {
     const result = completeRecurringResponseSchema.parse({
       task: { ...RAW_TASK, status: 'done' },
       completion: RAW_COMPLETION,
-      nextTask: { ...RAW_TASK, id: 'task-next', status: 'todo' },
+      nextTask: { ...RAW_TASK, id: 2, status: 'todo' },
     })
 
     expect(result.task.status).toBe('done')
     expect(result.task.updatedAt).toEqual(new Date(RAW_TASK.updatedAt))
     expect(result.completion.completedAt).toEqual(new Date(RAW_COMPLETION.completedAt))
     expect(result.nextTask).toEqual(
-      expect.objectContaining({ id: 'task-next', status: 'todo', dueDate: new Date(4_000) })
+      expect.objectContaining({ id: 2, status: 'todo', dueDate: new Date(4_000) })
     )
 
     expect(
@@ -197,10 +197,7 @@ describe('API response schemas', () => {
 
   it('一覧内の1件でも壊れていれば配列全体を拒否する', () => {
     expect(
-      tasksResponseSchema.safeParse([
-        RAW_TASK,
-        { ...RAW_TASK, id: 'task-broken', tags: ['tag-1', 2] },
-      ]).success
+      tasksResponseSchema.safeParse([RAW_TASK, { ...RAW_TASK, id: 2, tags: ['tag-1', 2] }]).success
     ).toBe(false)
 
     expect(

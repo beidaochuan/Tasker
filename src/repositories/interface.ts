@@ -19,7 +19,7 @@ export type UpdateTopic = Partial<Omit<Topic, 'id' | 'createdAt'>>
 export type CreateTask = Omit<Task, 'id' | 'statusChangedAt' | 'createdAt' | 'updatedAt'>
 export type UpdateTask = Partial<Omit<Task, 'id' | 'statusChangedAt' | 'createdAt' | 'updatedAt'>>
 export interface GanttOrderUpdate {
-  id: string
+  id: number
   ganttOrder: number
 }
 export type CompleteRecurringTaskResult = {
@@ -62,22 +62,22 @@ export interface ITaskRepository {
   getAll(): Promise<Result<Task[]>>
   getByTopicId(topicId: string): Promise<Result<Task[]>>
   getByProjectId(projectId: string): Promise<Result<Task[]>>
-  getById(id: string): Promise<Result<Task>>
+  getById(id: number): Promise<Result<Task>>
   create(data: CreateTask): Promise<Result<Task>>
-  update(id: string, data: UpdateTask): Promise<Result<Task>>
+  update(id: number, data: UpdateTask): Promise<Result<Task>>
   updateGanttOrder(items: GanttOrderUpdate[]): Promise<Result<void>>
   completeRecurring(
-    id: string,
+    id: number,
     nextTask: CreateTask | null
   ): Promise<Result<CompleteRecurringTaskResult>>
-  getRelatedTasks(id: string): Promise<Result<Task[]>>
-  replaceRelatedTasks(id: string, relatedTaskIds: string[]): Promise<Result<Task[]>>
+  getRelatedTasks(id: number): Promise<Result<Task[]>>
+  replaceRelatedTasks(id: number, relatedTaskIds: number[]): Promise<Result<Task[]>>
   getRelations(): Promise<Result<TaskRelation[]>>
-  delete(id: string): Promise<Result<void>>
+  delete(id: number): Promise<Result<void>>
 }
 
 export interface ISubtaskRepository {
-  getByTaskId(taskId: string): Promise<Result<Subtask[]>>
+  getByTaskId(taskId: number): Promise<Result<Subtask[]>>
   create(data: CreateSubtask): Promise<Result<Subtask>>
   update(id: string, data: UpdateSubtask): Promise<Result<Subtask>>
   updateOrder(items: SubtaskOrderUpdate[]): Promise<Result<void>>
@@ -91,12 +91,12 @@ export interface ITagRepository {
 }
 
 export interface ITaskCompletionRepository {
-  getByTaskId(taskId: string): Promise<Result<TaskCompletion[]>>
-  create(taskId: string): Promise<Result<TaskCompletion>>
+  getByTaskId(taskId: number): Promise<Result<TaskCompletion[]>>
+  create(taskId: number): Promise<Result<TaskCompletion>>
 }
 
 export interface ITaskCommentRepository {
-  getByTaskId(taskId: string): Promise<Result<TaskComment[]>>
+  getByTaskId(taskId: number): Promise<Result<TaskComment[]>>
   create(data: CreateTaskComment): Promise<Result<TaskComment>>
   update(id: string, data: UpdateTaskComment): Promise<Result<TaskComment>>
   delete(id: string): Promise<Result<void>>

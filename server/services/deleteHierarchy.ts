@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 
-export function deleteTaskHierarchy(database: Database.Database, taskId: string): void {
+export function deleteTaskHierarchy(database: Database.Database, taskId: number): void {
   database.transaction(() => {
     database
       .prepare('DELETE FROM task_relations WHERE taskId = ? OR relatedTaskId = ?')

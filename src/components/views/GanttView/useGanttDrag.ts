@@ -5,13 +5,12 @@ import type { GanttScale } from './ganttConstants'
 import { PIXELS_PER_DAY } from './ganttConstants'
 import { taskRepo } from '@/repositories'
 import { useDataQueryStore } from '@/hooks/useDataQueries'
-import { resolveTaskId } from '@/utils/recurrenceUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 
 type Handle = 'move' | 'left' | 'right'
 
 interface DragState {
-  taskId: string
+  taskId: number
   handle: Handle
   startX: number
   ppd: number // ドラッグ開始時点のスケールを固定（#2: スケール変更時のずれ防止）
@@ -22,7 +21,7 @@ interface DragState {
 }
 
 interface GanttDragResult {
-  preview: Map<string, { startDate: Date | null; dueDate: Date | null }>
+  preview: Map<number, { startDate: Date | null; dueDate: Date | null }>
   clearPreview: () => void
   onBarPointerDown: (
     e: React.PointerEvent,
@@ -39,7 +38,7 @@ export function useGanttDrag(
 ): GanttDragResult {
   const dragRef = useRef<DragState | null>(null)
   const [preview, setPreview] = useState<
-    Map<string, { startDate: Date | null; dueDate: Date | null }>
+    Map<number, { startDate: Date | null; dueDate: Date | null }>
   >(new Map())
   const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
   const updateProjectTask = useDataQueryStore((state) => state.updateProjectTask)
@@ -123,7 +122,7 @@ export function useGanttDrag(
       e.preventDefault()
 
       dragRef.current = {
-        taskId: resolveTaskId(task.id),
+        taskId: task.id,
         handle,
         startX: e.clientX,
         ppd: PIXELS_PER_DAY[scale],

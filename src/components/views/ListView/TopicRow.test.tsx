@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Task, Topic } from '@/types'
+import { testTaskId } from '@/test/taskId'
 import { useFilterStore } from '@/store/filterStore'
 import { useUIStore } from '@/store/uiStore'
 import { TopicRow } from './TopicRow'
@@ -24,7 +25,7 @@ const {
   },
   dragMock: {
     onDragEnd: null as
-      | ((event: { active: { id: string }; over: { id: string } | null }) => unknown)
+      | ((event: { active: { id: number }; over: { id: number } | null }) => unknown)
       | null,
   },
   invalidateProjectMock: vi.fn(),
@@ -87,7 +88,7 @@ vi.mock('@/components/task/SortableTaskRow', () => ({
 
 function makeTask(id: string, title: string, order: number, status: Task['status'] = 'todo'): Task {
   return {
-    id,
+    id: testTaskId(id),
     topicId: 'topic-1',
     title,
     description: '',
@@ -211,8 +212,8 @@ describe('TopicRow', () => {
 
     await act(async () => {
       await dragMock.onDragEnd?.({
-        active: { id: 'task-high' },
-        over: { id: 'task-low' },
+        active: { id: testTaskId('task-high') },
+        over: { id: testTaskId('task-low') },
       })
     })
 
@@ -249,8 +250,8 @@ describe('TopicRow', () => {
     let dragPromise: Promise<void> | undefined
     act(() => {
       const result = dragMock.onDragEnd?.({
-        active: { id: 'task-a' },
-        over: { id: 'task-c' },
+        active: { id: testTaskId('task-a') },
+        over: { id: testTaskId('task-c') },
       })
       dragPromise = Promise.resolve(result).then(() => undefined)
     })
@@ -260,9 +261,9 @@ describe('TopicRow', () => {
       screen.getAllByTestId('sortable-task').every((row) => row.dataset.disabled === 'true')
     ).toBe(true)
     expect(taskRepoMock.update.mock.calls.map(([id, updateData]) => [id, updateData])).toEqual([
-      ['task-b', { order: 0 }],
-      ['task-c', { order: 1 }],
-      ['task-a', { order: 2 }],
+      [testTaskId('task-b'), { order: 0 }],
+      [testTaskId('task-c'), { order: 1 }],
+      [testTaskId('task-a'), { order: 2 }],
     ])
 
     await act(async () => {
@@ -318,18 +319,18 @@ describe('TopicRow', () => {
     let dragPromise: Promise<void> | undefined
     act(() => {
       const result = dragMock.onDragEnd?.({
-        active: { id: 'task-active-a' },
-        over: { id: 'task-active-b' },
+        active: { id: testTaskId('task-active-a') },
+        over: { id: testTaskId('task-active-b') },
       })
       dragPromise = Promise.resolve(result).then(() => undefined)
     })
 
     expect(displayedTaskTitles()).toEqual(['未完了B', '未完了A'])
     expect(taskRepoMock.update.mock.calls.map(([id, updateData]) => [id, updateData])).toEqual([
-      ['task-active-b', { order: 0 }],
-      ['task-active-a', { order: 1 }],
-      ['task-done-a', { order: 2 }],
-      ['task-done-b', { order: 3 }],
+      [testTaskId('task-active-b'), { order: 0 }],
+      [testTaskId('task-active-a'), { order: 1 }],
+      [testTaskId('task-done-a'), { order: 2 }],
+      [testTaskId('task-done-b'), { order: 3 }],
     ])
 
     await act(async () => {
@@ -350,8 +351,8 @@ describe('TopicRow', () => {
 
     await act(async () => {
       await dragMock.onDragEnd?.({
-        active: { id: 'task-active' },
-        over: { id: 'task-done' },
+        active: { id: testTaskId('task-active') },
+        over: { id: testTaskId('task-done') },
       })
     })
 
@@ -373,15 +374,15 @@ describe('TopicRow', () => {
 
     await act(async () => {
       await dragMock.onDragEnd?.({
-        active: { id: 'task-done-a' },
-        over: { id: 'task-done-b' },
+        active: { id: testTaskId('task-done-a') },
+        over: { id: testTaskId('task-done-b') },
       })
     })
 
     expect(taskRepoMock.update.mock.calls.map(([id, updateData]) => [id, updateData])).toEqual([
-      ['task-active', { order: 0 }],
-      ['task-done-b', { order: 1 }],
-      ['task-done-a', { order: 2 }],
+      [testTaskId('task-active'), { order: 0 }],
+      [testTaskId('task-done-b'), { order: 1 }],
+      [testTaskId('task-done-a'), { order: 2 }],
     ])
   })
 
@@ -399,8 +400,8 @@ describe('TopicRow', () => {
     let dragPromise: Promise<void> | undefined
     act(() => {
       const result = dragMock.onDragEnd?.({
-        active: { id: 'task-a' },
-        over: { id: 'task-c' },
+        active: { id: testTaskId('task-a') },
+        over: { id: testTaskId('task-c') },
       })
       dragPromise = Promise.resolve(result).then(() => undefined)
     })

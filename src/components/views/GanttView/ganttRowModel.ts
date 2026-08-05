@@ -30,7 +30,7 @@ export type GanttFlatRow = GanttAllFlatRow | GanttCompletedGroupFlatRow
 
 export interface GanttTaskOrder {
   topicId: string
-  taskIds: string[]
+  taskIds: number[]
 }
 
 export interface GanttTaskDates {
@@ -143,7 +143,7 @@ export function applyGanttTaskOrder(
 
 export function applyGanttPreview(
   rows: GanttFlatRow[],
-  preview: ReadonlyMap<string, GanttTaskDates>
+  preview: ReadonlyMap<number, GanttTaskDates>
 ): GanttFlatRow[] {
   if (preview.size === 0) return rows
 

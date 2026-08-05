@@ -4,16 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Task, TaskStatus } from '@/types'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
+import { testTaskId } from '@/test/taskId'
 import { KanbanView } from './KanbanView'
 
 interface ActiveLike {
-  id: string
+  id: string | number
   data: { current?: { task?: Task } }
 }
 
 interface DragEventLike {
   active: ActiveLike
-  over: { id: string } | null
+  over: { id: string | number } | null
 }
 
 const { dndMock, kanbanDataMock, taskRepoMock } = vi.hoisted(() => ({
@@ -94,7 +95,7 @@ vi.mock('./KanbanCardContent', () => ({
 
 function makeTask(id: string, status: TaskStatus): Task {
   return {
-    id,
+    id: testTaskId(id),
     topicId: 'topic-1',
     title: 'テストタスク',
     description: '',
@@ -113,7 +114,7 @@ function makeTask(id: string, status: TaskStatus): Task {
 
 const TASK = makeTask('task-1', 'todo')
 
-function dragEvent(overId: string | null): DragEventLike {
+function dragEvent(overId: string | number | null): DragEventLike {
   return {
     active: { id: TASK.id, data: { current: { task: TASK } } },
     over: overId ? { id: overId } : null,
@@ -170,14 +171,14 @@ describe('KanbanView drag focus', () => {
       dndMock.onDragStart?.({ active: dragEvent(null).active })
       dndMock.onDragOver?.(dragEvent('in_progress'))
     })
-    expect(screen.getByTestId('column-in_progress')).toHaveTextContent(TASK.id)
+    expect(screen.getByTestId('column-in_progress')).toHaveTextContent(String(TASK.id))
 
     act(() => {
       dndMock.onDragCancel?.(dragEvent('in_progress'))
     })
     expect(screen.getByTestId('column-in_progress')).toHaveAttribute('data-is-over', 'false')
     expect(screen.getByTestId('column-in_progress')).toBeEmptyDOMElement()
-    expect(screen.getByTestId('column-todo')).toHaveTextContent(TASK.id)
+    expect(screen.getByTestId('column-todo')).toHaveTextContent(String(TASK.id))
   })
 
   it('ドロップ後は保存完了を待たずに列の枠を解除する', async () => {
@@ -202,7 +203,7 @@ describe('KanbanView drag focus', () => {
       await dropPromise
     })
 
-    expect(screen.getByTestId('column-in_progress')).toHaveTextContent(TASK.id)
+    expect(screen.getByTestId('column-in_progress')).toHaveTextContent(String(TASK.id))
     expect(screen.getByTestId('column-todo')).toBeEmptyDOMElement()
 
     kanbanDataMock.tasksByStatus = {
@@ -221,7 +222,7 @@ describe('KanbanView drag focus', () => {
       done: [{ ...TASK, status: 'done' }],
     }
     rerender(<KanbanView />)
-    expect(screen.getByTestId('column-done')).toHaveTextContent(TASK.id)
+    expect(screen.getByTestId('column-done')).toHaveTextContent(String(TASK.id))
   })
 
   it('保存済みpreviewの再取得待ちでもプロジェクト切替時に旧タスクを残さない', async () => {
@@ -239,7 +240,7 @@ describe('KanbanView drag focus', () => {
     await act(async () => {
       await dndMock.onDragEnd?.(dragEvent('in_progress'))
     })
-    expect(screen.getByTestId('column-in_progress')).toHaveTextContent(TASK.id)
+    expect(screen.getByTestId('column-in_progress')).toHaveTextContent(String(TASK.id))
 
     kanbanDataMock.tasksByStatus = {
       todo: [project2Task],
@@ -251,8 +252,8 @@ describe('KanbanView drag focus', () => {
       await Promise.resolve()
     })
 
-    expect(screen.getByTestId('column-todo')).toHaveTextContent(project2Task.id)
+    expect(screen.getByTestId('column-todo')).toHaveTextContent(String(project2Task.id))
     expect(screen.getByTestId('column-in_progress')).toBeEmptyDOMElement()
-    expect(screen.queryByText(TASK.id)).toBeNull()
+    expect(screen.queryByText(String(TASK.id))).toBeNull()
   })
 })

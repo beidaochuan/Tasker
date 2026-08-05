@@ -45,7 +45,7 @@ export class ApiTaskRepository implements ITaskRepository {
     })
   }
 
-  async getById(id: string): Promise<Result<Task>> {
+  async getById(id: number): Promise<Result<Task>> {
     return apiFetch(`${BASE}/${id}`, { responseSchema: taskResponseSchema })
   }
 
@@ -60,7 +60,7 @@ export class ApiTaskRepository implements ITaskRepository {
     })
   }
 
-  async update(id: string, data: UpdateTask): Promise<Result<Task>> {
+  async update(id: number, data: UpdateTask): Promise<Result<Task>> {
     return apiFetch(`${BASE}/${id}`, {
       responseSchema: taskResponseSchema,
       init: {
@@ -80,7 +80,7 @@ export class ApiTaskRepository implements ITaskRepository {
   }
 
   async completeRecurring(
-    id: string,
+    id: number,
     nextTask: CreateTask | null
   ): Promise<Result<CompleteRecurringTaskResult>> {
     return apiFetch(`${BASE}/${id}/complete-recurring`, {
@@ -95,11 +95,11 @@ export class ApiTaskRepository implements ITaskRepository {
     })
   }
 
-  async getRelatedTasks(id: string): Promise<Result<Task[]>> {
+  async getRelatedTasks(id: number): Promise<Result<Task[]>> {
     return apiFetch(`${BASE}/${id}/related-tasks`, { responseSchema: tasksResponseSchema })
   }
 
-  async replaceRelatedTasks(id: string, relatedTaskIds: string[]): Promise<Result<Task[]>> {
+  async replaceRelatedTasks(id: number, relatedTaskIds: number[]): Promise<Result<Task[]>> {
     return apiFetch(`${BASE}/${id}/related-tasks`, {
       responseSchema: tasksResponseSchema,
       init: {
@@ -114,7 +114,7 @@ export class ApiTaskRepository implements ITaskRepository {
     return apiFetch(`${BASE}/relations`, { responseSchema: taskRelationsResponseSchema })
   }
 
-  async delete(id: string): Promise<Result<void>> {
+  async delete(id: number): Promise<Result<void>> {
     return apiFetchNoContent(`${BASE}/${id}`, { method: 'DELETE' })
   }
 }

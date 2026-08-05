@@ -108,6 +108,9 @@ describe('Tasker API', () => {
     const first = await post('/api/tasks', { topicId: topic.body.id, title: 'First' })
     const second = await post('/api/tasks', { topicId: topic.body.id, title: 'Second' })
 
+    expect(first.body.id).toEqual(expect.any(Number))
+    expect(second.body.id).toBe(first.body.id + 1)
+
     const saved = await request(`/api/tasks/${first.body.id}/related-tasks`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -141,7 +144,7 @@ describe('Tasker API', () => {
     const missingRelation = await request(`/api/tasks/${task.body.id}/related-tasks`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ relatedTaskIds: ['missing-task'] }),
+      body: JSON.stringify({ relatedTaskIds: [Number.MAX_SAFE_INTEGER] }),
     })
 
     expect(selfRelation.response.status).toBe(400)
@@ -423,7 +426,7 @@ describe('Tasker API', () => {
     })
 
     expect(imported.response.status).toBe(204)
-    expect((await request('/api/tasks/task-1')).body.statusChangedAt).toBe(updatedAt)
+    expect((await request('/api/tasks/1')).body.statusChangedAt).toBe(updatedAt)
   })
 
   it('インポートしたタスクの区分(category)を保持する', async () => {
@@ -476,7 +479,7 @@ describe('Tasker API', () => {
     })
 
     expect(imported.response.status).toBe(204)
-    expect((await request('/api/tasks/task-1')).body.category).toBe('electric')
+    expect((await request('/api/tasks/1')).body.category).toBe('electric')
   })
 
   it('プロジェクト削除を関連データ全体へ反映する', async () => {

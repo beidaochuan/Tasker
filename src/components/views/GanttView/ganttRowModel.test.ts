@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Task, Topic } from '@/types'
+import { testTaskId } from '@/test/taskId'
 import {
   applyGanttPreview,
   applyGanttTaskOrder,
@@ -19,7 +20,7 @@ function makeTopic(id: string, name = id): Topic {
 
 function makeTask(id: string, topicId: string, status: Task['status'] = 'todo'): Task {
   return {
-    id,
+    id: testTaskId(id),
     topicId,
     title: id,
     description: '',
@@ -37,7 +38,9 @@ function makeTask(id: string, topicId: string, status: Task['status'] = 'todo'):
 }
 
 function rowKeys(rows: readonly GanttFlatRow[]): string[] {
-  return rows.map((row) => (row.type === 'task-row' ? row.task.id : `${row.type}:${row.topicId}`))
+  return rows.map((row) =>
+    row.type === 'task-row' ? row.task.title : `${row.type}:${row.topicId}`
+  )
 }
 
 describe('projectGanttRows', () => {
@@ -121,15 +124,16 @@ describe('projectGanttRows', () => {
     expect(projectedTasks[1].task).toBe(done)
   })
 
-  it('繰り返し展開タスクの仮想IDをそのまま保つ', () => {
+  it('繰り返し展開タスクの数値IDと仮想表示フラグをそのまま保つ', () => {
     const topic = makeTopic('topic-1')
-    const virtualTask = makeTask('task-1_1781136000000', topic.id)
+    const virtualTask = { ...makeTask('task-1', topic.id), isVirtualOccurrence: true }
 
     const projected = projectGanttRows([{ topic, tasks: [virtualTask] }], {})
     const taskRow = projected.visibleRows.find((row) => row.type === 'task-row')
 
     expect(taskRow?.task).toBe(virtualTask)
-    expect(taskRow?.task.id).toBe('task-1_1781136000000')
+    expect(taskRow?.task.id).toBe(virtualTask.id)
+    expect(taskRow?.task.isVirtualOccurrence).toBe(true)
   })
 })
 

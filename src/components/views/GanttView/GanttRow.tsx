@@ -16,8 +16,8 @@ interface Props {
     handle: 'move' | 'left' | 'right',
     element: HTMLElement
   ) => void
-  onBarClick?: (taskId: string) => void
-  onCreateBar?: (taskId: string, startDate: Date, dueDate: Date) => void | Promise<void>
+  onBarClick?: (taskId: number) => void
+  onCreateBar?: (taskId: number, startDate: Date, dueDate: Date) => void | Promise<void>
 }
 
 export const GanttRow = memo(function GanttRow({

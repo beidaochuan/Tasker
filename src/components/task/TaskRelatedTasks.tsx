@@ -6,13 +6,12 @@ import { useUIStore } from '@/store/uiStore'
 import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo, topicRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
-import type { Project, Task, Topic } from '@/types'
+import type { Task, Topic } from '@/types'
 
 interface TaskRelatedTasksProps {
-  taskId: string | null
+  taskId: number | null
   canEdit: boolean
   projectTopics: Topic[] | undefined
-  projects: Project[]
   onError: (message: string | null) => void
 }
 
@@ -20,7 +19,6 @@ export function TaskRelatedTasks({
   taskId,
   canEdit,
   projectTopics,
-  projects,
   onError,
 }: TaskRelatedTasksProps) {
   const { setSelectedProjectId, openTaskDrawer } = useUIStore()
@@ -28,7 +26,7 @@ export function TaskRelatedTasks({
 
   const [relatedTasks, setRelatedTasks] = useState<Task[]>([])
   const [allTasks, setAllTasks] = useState<Task[]>([])
-  const [relatedTaskIdToAdd, setRelatedTaskIdToAdd] = useState('')
+  const [relatedTaskIdInput, setRelatedTaskIdInput] = useState('')
   const [isSavingRelations, setIsSavingRelations] = useState(false)
 
   useEffect(() => {
@@ -41,7 +39,7 @@ export function TaskRelatedTasks({
       if (cancelled) return
       setRelatedTasks([])
       setAllTasks([])
-      setRelatedTaskIdToAdd('')
+      setRelatedTaskIdInput('')
     })
 
     void Promise.all([taskRepo.getRelatedTasks(taskId), taskRepo.getAll()])
@@ -76,14 +74,14 @@ export function TaskRelatedTasks({
     }
   }
 
-  async function saveRelatedTasks(nextRelatedTaskIds: string[]) {
+  async function saveRelatedTasks(nextRelatedTaskIds: number[]) {
     if (!taskId || !canEdit) return
     onError(null)
     setIsSavingRelations(true)
     try {
       const result = unwrapResult(await taskRepo.replaceRelatedTasks(taskId, nextRelatedTaskIds))
       setRelatedTasks(result)
-      setRelatedTaskIdToAdd('')
+      setRelatedTaskIdInput('')
       invalidateAllProjects()
     } catch (err) {
       console.error('関連タスクの保存に失敗しました', err)
@@ -93,32 +91,41 @@ export function TaskRelatedTasks({
     }
   }
 
-  function handleAddRelatedTask() {
-    if (!relatedTaskIdToAdd || relatedTasks.some((task) => task.id === relatedTaskIdToAdd)) return
-    void saveRelatedTasks([...relatedTasks.map((task) => task.id), relatedTaskIdToAdd])
+  function handleAddTaskById() {
+    const value = relatedTaskIdInput.trim()
+    if (!/^\d+$/.test(value)) {
+      onError('タスクIDは正の整数で入力してください')
+      return
+    }
+    const relatedTaskId = Number(value)
+    if (!Number.isSafeInteger(relatedTaskId) || relatedTaskId <= 0) {
+      onError('タスクIDは正の整数で入力してください')
+      return
+    }
+    if (relatedTaskId === taskId) {
+      onError('現在のタスク自身は関連付けできません')
+      return
+    }
+    if (relatedTasks.some((task) => task.id === relatedTaskId)) {
+      onError('このタスクはすでに関連付けられています')
+      return
+    }
+    if (!allTasks.some((task) => task.id === relatedTaskId)) {
+      onError('入力したタスクIDが見つかりません')
+      return
+    }
+    void saveRelatedTasks([...relatedTasks.map((task) => task.id), relatedTaskId])
   }
 
-  function handleRemoveRelatedTask(taskIdToRemove: string) {
+  function handleRemoveRelatedTask(taskIdToRemove: number) {
     void saveRelatedTasks(
       relatedTasks.filter((task) => task.id !== taskIdToRemove).map((task) => task.id)
     )
   }
 
-  const projectNames = useMemo(
-    () => new Map(projects.map((project) => [project.id, project.name])),
-    [projects]
-  )
   const topicProjectIds = useMemo(
     () => new Map(projectTopics?.map((topic) => [topic.id, topic.projectId]) ?? []),
     [projectTopics]
-  )
-  const availableRelatedTasks = useMemo(
-    () =>
-      allTasks.filter(
-        (task) =>
-          task.id !== taskId && !relatedTasks.some((relatedTask) => relatedTask.id === task.id)
-      ),
-    [allTasks, taskId, relatedTasks]
   )
 
   if (!taskId) return null
@@ -175,34 +182,24 @@ export function TaskRelatedTasks({
 
       {canEdit && (
         <div className="flex gap-2">
-          <select
-            aria-label="関連タスクを追加"
-            value={relatedTaskIdToAdd}
-            onChange={(event) => setRelatedTaskIdToAdd(event.target.value)}
+          <input
+            type="text"
+            aria-label="タスクIDで関連タスクを追加"
+            placeholder="関連付けるタスクIDを入力"
+            value={relatedTaskIdInput}
+            onChange={(event) => setRelatedTaskIdInput(event.target.value)}
             className={FIELD_CLASS}
-            disabled={isSavingRelations || availableRelatedTasks.length === 0}
-          >
-            <option value="">
-              {availableRelatedTasks.length === 0 ? '追加できるタスクはありません' : 'タスクを選択'}
-            </option>
-            {availableRelatedTasks.map((task) => {
-              const projectName = projectNames.get(topicProjectIds.get(task.topicId) ?? '')
-              return (
-                <option key={task.id} value={task.id}>
-                  {projectName ? `${task.title}（${projectName}）` : task.title}
-                </option>
-              )
-            })}
-          </select>
+            disabled={isSavingRelations}
+          />
           <Button
             type="button"
             variant="secondary"
-            onClick={handleAddRelatedTask}
-            disabled={!relatedTaskIdToAdd || isSavingRelations}
-            aria-label="関連タスクを追加する"
+            onClick={handleAddTaskById}
+            disabled={!relatedTaskIdInput.trim() || isSavingRelations}
+            aria-label="入力したタスクIDを追加する"
           >
             <Plus className="mr-1 h-4 w-4" />
-            追加
+            IDで追加
           </Button>
         </div>
       )}

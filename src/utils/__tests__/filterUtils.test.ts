@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { applyFilter } from '@/utils/filterUtils'
 import type { Task } from '@/types'
+import { testTaskId } from '@/test/taskId'
 
-function makeTask(overrides: Partial<Task> = {}): Task {
+function makeTask(overrides: Omit<Partial<Task>, 'id'> & { id?: string | number } = {}): Task {
   return {
-    id: 'task-1',
     topicId: 'topic-1',
     title: 'テストタスク',
     description: '',
@@ -19,6 +19,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
     ...overrides,
+    id: testTaskId(overrides.id ?? 'task-1'),
   }
 }
 
@@ -62,7 +63,7 @@ describe('applyFilter', () => {
         makeTask({ id: 'c', status: 'in_progress' }),
       ]
       const result = applyFilter(tasks, { ...BASE_FILTER, statuses: ['todo', 'in_progress'] })
-      expect(result.map((t) => t.id)).toEqual(['a', 'c'])
+      expect(result.map((t) => t.id)).toEqual([testTaskId('a'), testTaskId('c')])
     })
 
     it('空配列は全件通過', () => {
@@ -78,7 +79,7 @@ describe('applyFilter', () => {
         makeTask({ id: 'b', priority: 'low' }),
       ]
       const result = applyFilter(tasks, { ...BASE_FILTER, priorities: ['high'] })
-      expect(result.map((t) => t.id)).toEqual(['a'])
+      expect(result.map((t) => t.id)).toEqual([testTaskId('a')])
     })
 
     it('空配列は全件通過', () => {
@@ -100,7 +101,7 @@ describe('applyFilter', () => {
         makeTask({ id: 'c', tags: ['tag-3'] }),
       ]
       const result = applyFilter(tasks, { ...BASE_FILTER, tagIds: ['tag-1'] })
-      expect(result.map((t) => t.id)).toEqual(['a'])
+      expect(result.map((t) => t.id)).toEqual([testTaskId('a')])
     })
 
     it('複数タグを指定するとOR検索', () => {
@@ -110,7 +111,7 @@ describe('applyFilter', () => {
         makeTask({ id: 'c', tags: ['tag-3'] }),
       ]
       const result = applyFilter(tasks, { ...BASE_FILTER, tagIds: ['tag-1', 'tag-2'] })
-      expect(result.map((t) => t.id)).toEqual(['a', 'b'])
+      expect(result.map((t) => t.id)).toEqual([testTaskId('a'), testTaskId('b')])
     })
   })
 
@@ -128,7 +129,7 @@ describe('applyFilter', () => {
         dueDateFrom: d('2026-03-05'),
         dueDateTo: null,
       })
-      expect(result.map((t) => t.id)).toEqual(['b'])
+      expect(result.map((t) => t.id)).toEqual([testTaskId('b')])
     })
 
     it('dueDateTo 以前のタスクのみ通過', () => {
@@ -141,7 +142,7 @@ describe('applyFilter', () => {
         dueDateFrom: null,
         dueDateTo: d('2026-03-05'),
       })
-      expect(result.map((t) => t.id)).toEqual(['a'])
+      expect(result.map((t) => t.id)).toEqual([testTaskId('a')])
     })
 
     it('dueDate が null のタスクは日付フィルタで除外', () => {
@@ -201,7 +202,7 @@ describe('applyFilter', () => {
         dueDateFrom: new Date('2026-03-01'),
         dueDateTo: new Date('2026-03-31'),
       })
-      expect(result.map((t) => t.id)).toEqual(['a'])
+      expect(result.map((t) => t.id)).toEqual([testTaskId('a')])
     })
   })
 })

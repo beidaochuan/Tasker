@@ -11,7 +11,7 @@ import { subtaskResponseSchema, subtasksResponseSchema } from './apiResponseSche
 const BASE = '/api/subtasks'
 
 export class ApiSubtaskRepository implements ISubtaskRepository {
-  async getByTaskId(taskId: string): Promise<Result<Subtask[]>> {
+  async getByTaskId(taskId: number): Promise<Result<Subtask[]>> {
     return apiFetch(`${BASE}?taskId=${encodeURIComponent(taskId)}`, {
       responseSchema: subtasksResponseSchema,
     })

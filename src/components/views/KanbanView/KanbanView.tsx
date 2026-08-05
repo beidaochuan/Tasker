@@ -35,7 +35,7 @@ interface LocalBoard {
   tasksByStatus: TasksByStatus
 }
 
-function findColumnOfTask(taskId: string, tasksByStatus: TasksByStatus): TaskStatus | null {
+function findColumnOfTask(taskId: number, tasksByStatus: TasksByStatus): TaskStatus | null {
   for (const col of COLUMN_ORDER) {
     if (tasksByStatus[col].some((t) => t.id === taskId)) return col
   }
@@ -43,14 +43,14 @@ function findColumnOfTask(taskId: string, tasksByStatus: TasksByStatus): TaskSta
 }
 
 function resolveTargetColumn(
-  overId: string | null,
+  overId: string | number | null,
   tasksByStatus: TasksByStatus
 ): TaskStatus | null {
   if (!overId) return null
   // over.id が列ID (TaskStatus) の場合
   if (COLUMN_ORDER.includes(overId as TaskStatus)) return overId as TaskStatus
   // over.id がカードID の場合: そのカードが属する列を返す
-  return findColumnOfTask(overId, tasksByStatus)
+  return typeof overId === 'number' ? findColumnOfTask(overId, tasksByStatus) : null
 }
 
 export function KanbanView() {
@@ -64,7 +64,7 @@ export function KanbanView() {
   const [overColumnId, setOverColumnId] = useState<TaskStatus | null>(null)
   const [localBoard, setLocalBoard] = useState<LocalBoard | null>(null)
   const localTasksByStatusRef = useRef<TasksByStatus | null>(null)
-  const pendingStatusChangeRef = useRef<{ taskId: string; status: TaskStatus } | null>(null)
+  const pendingStatusChangeRef = useRef<{ taskId: number; status: TaskStatus } | null>(null)
 
   const displayed =
     localBoard?.projectId === selectedProjectId ? localBoard.tasksByStatus : tasksByStatus
@@ -121,9 +121,9 @@ export function KanbanView() {
         return
       }
 
-      const activeId = active.id as string
+      const activeId = active.id as number
       const base = localTasksByStatusRef.current ?? tasksByStatus
-      const targetCol = resolveTargetColumn(over.id as string, base)
+      const targetCol = resolveTargetColumn(over.id, base)
 
       if (!targetCol) {
         setOverColumnId(null)
@@ -186,7 +186,7 @@ export function KanbanView() {
       }
 
       const base = currentLocal ?? tasksByStatus
-      const targetCol = resolveTargetColumn(over.id as string, base)
+      const targetCol = resolveTargetColumn(over.id, base)
       const originalCol = findColumnOfTask(activeTask.id, tasksByStatus)
       if (!targetCol || targetCol === originalCol) {
         clearDragState()

@@ -4,7 +4,7 @@ import { calcGanttRange } from './useGanttDrag'
 
 function taskWithDates(startDate: Date | null, dueDate: Date | null): Task {
   return {
-    id: 'task-1',
+    id: 1,
     topicId: 'topic-1',
     title: 'タスク',
     description: '',

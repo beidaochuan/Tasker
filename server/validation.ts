@@ -2,6 +2,8 @@ import type { Response } from 'express'
 import { z } from 'zod'
 
 const idSchema = z.string().min(1).max(128)
+export const taskIdSchema = z.number().int().positive().safe()
+const importedTaskIdSchema = z.union([taskIdSchema, idSchema])
 const nameSchema = z.string().trim().min(1).max(200)
 const titleSchema = z.string().trim().min(1).max(500)
 const descriptionSchema = z.string().max(100_000)
@@ -101,7 +103,7 @@ export const completeRecurringSchema = z.object({ nextTask: taskCreateSchema.nul
 export const ganttOrderSchema = z
   .object({
     items: z
-      .array(z.object({ id: idSchema, ganttOrder: orderSchema }).strict())
+      .array(z.object({ id: taskIdSchema, ganttOrder: orderSchema }).strict())
       .min(1)
       .max(100_000)
       .refine((items) => new Set(items.map((item) => item.id)).size === items.length, {
@@ -113,7 +115,7 @@ export const ganttOrderSchema = z
 export const taskRelationsSchema = z
   .object({
     relatedTaskIds: z
-      .array(idSchema)
+      .array(taskIdSchema)
       .max(1_000)
       .refine((ids) => new Set(ids).size === ids.length, { message: 'IDが重複しています' }),
   })
@@ -121,7 +123,7 @@ export const taskRelationsSchema = z
 
 export const subtaskCreateSchema = z
   .object({
-    taskId: idSchema,
+    taskId: taskIdSchema,
     title: titleSchema,
     isDone: z.boolean().default(false),
     order: orderSchema.default(0),
@@ -148,7 +150,7 @@ export const subtaskOrderSchema = z
 
 export const commentCreateSchema = z
   .object({
-    taskId: idSchema,
+    taskId: taskIdSchema,
     body: z.string().trim().min(1).max(100_000),
   })
   .strict()
@@ -161,7 +163,7 @@ export const tagCreateSchema = z
   .object({ name: nameSchema, color: colorSchema.default('#6366f1') })
   .strict()
 
-export const completionCreateSchema = z.object({ taskId: idSchema }).strict()
+export const completionCreateSchema = z.object({ taskId: taskIdSchema }).strict()
 
 const sqliteBooleanSchema = z
   .union([z.boolean(), z.literal(0), z.literal(1)])
@@ -192,7 +194,7 @@ const importedTopicSchema = z
 
 const importedTaskSchema = z
   .object({
-    id: idSchema,
+    id: importedTaskIdSchema,
     topicId: idSchema,
     title: titleSchema,
     description: descriptionSchema,
@@ -214,7 +216,7 @@ const importedTaskSchema = z
 const importedSubtaskSchema = z
   .object({
     id: idSchema,
-    taskId: idSchema,
+    taskId: importedTaskIdSchema,
     title: titleSchema,
     isDone: sqliteBooleanSchema,
     order: orderSchema,
@@ -225,13 +227,13 @@ const importedSubtaskSchema = z
 const importedTagSchema = z.object({ id: idSchema, name: nameSchema, color: colorSchema }).strip()
 
 const importedCompletionSchema = z
-  .object({ id: idSchema, taskId: idSchema, completedAt: timestampSchema })
+  .object({ id: idSchema, taskId: importedTaskIdSchema, completedAt: timestampSchema })
   .strip()
 
 const importedCommentSchema = z
   .object({
     id: idSchema,
-    taskId: idSchema,
+    taskId: importedTaskIdSchema,
     body: z.string().trim().min(1).max(100_000),
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
@@ -255,12 +257,7 @@ export const importSchema = z
         task_comments: z.array(importedCommentSchema).max(MAX_ROWS).default([]),
         task_relations: z
           .array(
-            z
-              .object({ taskId: idSchema, relatedTaskId: idSchema })
-              .strict()
-              .refine((relation) => relation.taskId < relation.relatedTaskId, {
-                message: '関連タスクの組み合わせが不正です',
-              })
+            z.object({ taskId: importedTaskIdSchema, relatedTaskId: importedTaskIdSchema }).strict()
           )
           .max(MAX_ROWS)
           .default([]),

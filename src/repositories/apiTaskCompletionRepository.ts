@@ -6,13 +6,13 @@ import { completionResponseSchema, completionsResponseSchema } from './apiRespon
 const BASE = '/api/completions'
 
 export class ApiTaskCompletionRepository implements ITaskCompletionRepository {
-  async getByTaskId(taskId: string): Promise<Result<TaskCompletion[]>> {
+  async getByTaskId(taskId: number): Promise<Result<TaskCompletion[]>> {
     return apiFetch(`${BASE}?taskId=${encodeURIComponent(taskId)}`, {
       responseSchema: completionsResponseSchema,
     })
   }
 
-  async create(taskId: string): Promise<Result<TaskCompletion>> {
+  async create(taskId: number): Promise<Result<TaskCompletion>> {
     return apiFetch(BASE, {
       responseSchema: completionResponseSchema,
       init: {

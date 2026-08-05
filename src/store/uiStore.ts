@@ -5,7 +5,7 @@ export type ViewType = 'list' | 'kanban' | 'calendar' | 'gantt'
 interface UIState {
   activeView: ViewType
   selectedProjectId: string | null
-  selectedTaskId: string | null
+  selectedTaskId: number | null
   newTaskTopicId: string | null
   isTaskDrawerOpen: boolean
   isProjectFormOpen: boolean
@@ -14,7 +14,7 @@ interface UIState {
 
   setActiveView: (view: ViewType) => void
   setSelectedProjectId: (id: string | null) => void
-  openTaskDrawer: (taskId: string) => void
+  openTaskDrawer: (taskId: number) => void
   openNewTaskDrawer: (topicId: string) => void
   closeTaskDrawer: () => void
   openProjectForm: () => void

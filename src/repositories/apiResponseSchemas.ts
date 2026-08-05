@@ -12,6 +12,7 @@ import type {
 import { fromUnixMs } from '@/utils/dateUtils'
 
 const idSchema = z.string().min(1).max(128)
+const taskIdSchema = z.number().int().positive().safe()
 const orderSchema = z.number().int().nonnegative().finite()
 const MAX_DATE_MS = 8_640_000_000_000_000
 const unixMsSchema = z.number().int().nonnegative().max(MAX_DATE_MS).finite()
@@ -68,7 +69,7 @@ export const topicsResponseSchema = z.array(topicResponseSchema)
 
 export const taskWireSchema = z
   .object({
-    id: idSchema,
+    id: taskIdSchema,
     topicId: idSchema,
     title: z.string(),
     description: z.string(),
@@ -116,7 +117,7 @@ export const tasksResponseSchema = z.array(taskResponseSchema)
 export const subtaskWireSchema = z
   .object({
     id: idSchema,
-    taskId: idSchema,
+    taskId: taskIdSchema,
     title: z.string(),
     isDone: sqliteBooleanSchema,
     order: orderSchema,
@@ -157,7 +158,7 @@ export const tagsResponseSchema = z.array(tagResponseSchema)
 export const completionWireSchema = z
   .object({
     id: idSchema,
-    taskId: idSchema,
+    taskId: taskIdSchema,
     completedAt: unixMsSchema,
   })
   .strip()
@@ -177,7 +178,7 @@ export const completionsResponseSchema = z.array(completionResponseSchema)
 export const commentWireSchema = z
   .object({
     id: idSchema,
-    taskId: idSchema,
+    taskId: taskIdSchema,
     body: z.string(),
     createdAt: unixMsSchema,
     updatedAt: unixMsSchema,
@@ -198,7 +199,7 @@ export const commentResponseSchema = commentWireSchema.transform(mapCommentDto)
 export const commentsResponseSchema = z.array(commentResponseSchema)
 
 export const taskRelationWireSchema = z
-  .object({ taskId: idSchema, relatedTaskId: idSchema })
+  .object({ taskId: taskIdSchema, relatedTaskId: taskIdSchema })
   .strip()
 
 export function mapTaskRelationDto(raw: z.infer<typeof taskRelationWireSchema>): TaskRelation {

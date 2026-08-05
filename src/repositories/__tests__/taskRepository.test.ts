@@ -5,7 +5,7 @@ import { ApiTaskRepository } from '../apiTaskRepository'
 const repo = new ApiTaskRepository()
 
 const RAW_TASK = {
-  id: 'task-1',
+  id: 1,
   topicId: 'topic-1',
   title: 'タスク1',
   description: '',
@@ -53,7 +53,7 @@ describe('ApiTaskRepository', () => {
       })
       expect(result.ok).toBe(true)
       if (!result.ok) return
-      expect(result.data.id).toBe('task-1')
+      expect(result.data.id).toBe(1)
       expect(result.data.title).toBe('タスク1')
       expect(result.data.statusChangedAt).toEqual(new Date(RAW_TASK.updatedAt))
       expect(result.data.createdAt).toBeInstanceOf(Date)
@@ -84,7 +84,7 @@ describe('ApiTaskRepository', () => {
 
   describe('getByTopicId', () => {
     it('トピックのタスク一覧を返す', async () => {
-      mockFetch([RAW_TASK, { ...RAW_TASK, id: 'task-2', title: 'タスク2', order: 1 }])
+      mockFetch([RAW_TASK, { ...RAW_TASK, id: 2, title: 'タスク2', order: 1 }])
       const result = await repo.getByTopicId('topic-1')
       expect(result.ok).toBe(true)
       if (!result.ok) return
@@ -98,7 +98,7 @@ describe('ApiTaskRepository', () => {
   describe('update', () => {
     it('ステータスを更新できる', async () => {
       mockFetch({ ...RAW_TASK, status: 'done' })
-      const result = await repo.update('task-1', { status: 'done' })
+      const result = await repo.update(1, { status: 'done' })
       expect(result.ok).toBe(true)
       if (!result.ok) return
       expect(result.data.status).toBe('done')
@@ -113,8 +113,8 @@ describe('ApiTaskRepository', () => {
         json: () => Promise.resolve({}),
       } as unknown as Response)
       const items = [
-        { id: 'task-2', ganttOrder: 0 },
-        { id: 'task-1', ganttOrder: 1 },
+        { id: 2, ganttOrder: 0 },
+        { id: 1, ganttOrder: 1 },
       ]
 
       const result = await repo.updateGanttOrder(items)
@@ -134,7 +134,7 @@ describe('ApiTaskRepository', () => {
       const due = new Date(2024, 5, 16)
       const nextTask = {
         ...RAW_TASK,
-        id: 'task-next',
+        id: 2,
         status: 'todo',
         dueDate: due.getTime(),
         repeatRule: 'RRULE:FREQ=DAILY;INTERVAL=1',
@@ -142,13 +142,13 @@ describe('ApiTaskRepository', () => {
       mockFetch(
         {
           task: { ...RAW_TASK, status: 'done' },
-          completion: { id: 'completion-1', taskId: 'task-1', completedAt: 1_100_000 },
+          completion: { id: 'completion-1', taskId: 1, completedAt: 1_100_000 },
           nextTask,
         },
         201
       )
 
-      const result = await repo.completeRecurring('task-1', {
+      const result = await repo.completeRecurring(1, {
         topicId: 'topic-1',
         title: 'タスク1',
         description: '',
@@ -166,9 +166,9 @@ describe('ApiTaskRepository', () => {
       if (!result.ok) return
       expect(result.data.task.status).toBe('done')
       expect(result.data.completion.completedAt).toBeInstanceOf(Date)
-      expect(result.data.nextTask?.id).toBe('task-next')
+      expect(result.data.nextTask?.id).toBe(2)
       expect(result.data.nextTask?.dueDate?.getTime()).toBe(due.getTime())
-      expect(global.fetch).toHaveBeenCalledWith('/api/tasks/task-1/complete-recurring', {
+      expect(global.fetch).toHaveBeenCalledWith('/api/tasks/1/complete-recurring', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -198,9 +198,9 @@ describe('ApiTaskRepository', () => {
         status: 204,
         json: () => Promise.resolve({}),
       } as unknown as Response)
-      const result = await repo.delete('task-1')
+      const result = await repo.delete(1)
       expect(result.ok).toBe(true)
-      expect(global.fetch).toHaveBeenCalledWith('/api/tasks/task-1', {
+      expect(global.fetch).toHaveBeenCalledWith('/api/tasks/1', {
         method: 'DELETE',
         credentials: 'same-origin',
       })

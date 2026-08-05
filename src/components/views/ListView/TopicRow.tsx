@@ -44,7 +44,7 @@ export function TopicRow({ topic, tasks, canEdit, onAddTask }: TopicRowProps) {
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
   const editInputRef = useRef<HTMLInputElement>(null)
-  const [pendingTaskOrder, setPendingTaskOrder] = useState<string[] | null>(null)
+  const [pendingTaskOrder, setPendingTaskOrder] = useState<number[] | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const reorderingRef = useRef(false)
   const isFiltering = useFilterStore(selectIsFiltering)

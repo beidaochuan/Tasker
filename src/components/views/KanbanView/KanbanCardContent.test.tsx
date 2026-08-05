@@ -5,7 +5,7 @@ import { CATEGORY_LABELS, PRIORITY_LABELS } from '@/utils/taskPresentation'
 import { KanbanCardContent } from './KanbanCardContent'
 
 const task: Task = {
-  id: 'task-1',
+  id: 1,
   topicId: 'topic-1',
   title: '視認性を確認するタスク',
   description: 'card description',
@@ -38,6 +38,16 @@ describe('KanbanCardContent', () => {
     )
     expect(screen.queryByText(task.description)).not.toBeInTheDocument()
     expect(screen.queryByTitle(PRIORITY_LABELS[task.priority])).not.toBeInTheDocument()
+  })
+
+  it('関連付けに使うタスクIDを表示する', () => {
+    render(<KanbanCardContent task={task} />)
+
+    expect(screen.getByText(`ID: ${task.id}`)).toHaveClass(
+      'font-mono',
+      'text-[10px]',
+      'text-muted-foreground'
+    )
   })
 
   it('優先度を色付きの薄い背景を持つバッジで表示する', () => {

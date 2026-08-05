@@ -17,7 +17,6 @@ import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo } from '@/repositories'
-import { resolveTaskId } from '@/utils/recurrenceUtils'
 import { useGanttData } from '@/hooks/useGanttData'
 import { GanttHeader } from './GanttHeader'
 import { GanttDayBackground } from './GanttDayBackground'
@@ -65,7 +64,7 @@ interface SortableTaskLabelProps {
   height: number
   disabled: boolean
   animatePosition: boolean
-  onTaskClick: (taskId: string) => void
+  onTaskClick: (taskId: number) => void
 }
 
 function SortableTaskLabel({
@@ -115,7 +114,7 @@ function SortableTaskLabel({
       </button>
       <button
         type="button"
-        onClick={() => onTaskClick(resolveTaskId(task.id))}
+        onClick={() => onTaskClick(task.id)}
         className={`relative z-10 flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-md pr-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset ${
           isInProgress
             ? 'hover:bg-white/10 focus-visible:ring-white'
@@ -193,10 +192,10 @@ export function GanttView() {
   )
 
   const handleCreateBar = useCallback(
-    async (taskId: string, startDate: Date, dueDate: Date) => {
+    async (taskId: number, startDate: Date, dueDate: Date) => {
       if (!isAuthenticated) return
       const updatedTask = unwrapResult(
-        await taskRepo.update(resolveTaskId(taskId), { startDate, dueDate, status: 'todo' })
+        await taskRepo.update(taskId, { startDate, dueDate, status: 'todo' })
       )
       if (selectedProjectId) {
         updateProjectTask(selectedProjectId, updatedTask)
@@ -365,7 +364,7 @@ export function GanttView() {
         unwrapResult(
           await taskRepo.updateGanttOrder(
             taskOrder.taskIds.map((taskId, ganttOrder) => ({
-              id: resolveTaskId(taskId),
+              id: taskId,
               ganttOrder,
             }))
           )
@@ -392,7 +391,7 @@ export function GanttView() {
   useEffect(() => {
     if (preview.size === 0) return
 
-    const tasksById = new Map<string, Task>()
+    const tasksById = new Map<number, Task>()
     for (const row of allFlatRows) {
       if (row.type !== 'task-row') continue
       tasksById.set(row.task.id, row.task)

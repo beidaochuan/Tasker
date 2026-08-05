@@ -23,7 +23,7 @@ export interface Topic {
 }
 
 export interface Task {
-  id: string
+  id: number
   topicId: string
   title: string
   description: string
@@ -41,11 +41,13 @@ export interface Task {
   statusChangedAt?: Date
   createdAt: Date
   updatedAt: Date
+  /** 繰り返しタスクをガント上で仮想表示している場合のみtrue */
+  isVirtualOccurrence?: boolean
 }
 
 export interface Subtask {
   id: string
-  taskId: string
+  taskId: number
   title: string
   isDone: boolean
   order: number
@@ -60,21 +62,21 @@ export interface Tag {
 
 export interface TaskCompletion {
   id: string
-  taskId: string
+  taskId: number
   completedAt: Date
 }
 
 export interface TaskComment {
   id: string
-  taskId: string
+  taskId: number
   body: string
   createdAt: Date
   updatedAt: Date
 }
 
 export interface TaskRelation {
-  taskId: string
-  relatedTaskId: string
+  taskId: number
+  relatedTaskId: number
 }
 
 export type AppError =

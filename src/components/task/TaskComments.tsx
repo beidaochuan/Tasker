@@ -8,7 +8,7 @@ import { formatDateTime } from '@/utils/dateUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 
 interface TaskCommentsProps {
-  taskId: string | null
+  taskId: number | null
   canEdit: boolean
 }
 
@@ -20,7 +20,7 @@ export function TaskComments({ taskId, canEdit }: TaskCommentsProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set())
-  const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null)
+  const [loadedTaskId, setLoadedTaskId] = useState<number | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [reloadCounter, setReloadCounter] = useState(0)

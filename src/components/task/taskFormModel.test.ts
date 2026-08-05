@@ -10,7 +10,7 @@ import {
 } from './taskFormModel'
 
 const TASK: Task = {
-  id: 'task-1',
+  id: 1,
   topicId: 'topic-1',
   title: '既存タスク',
   description: '説明',

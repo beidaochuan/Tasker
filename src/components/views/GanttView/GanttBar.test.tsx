@@ -9,7 +9,7 @@ function makeTask(
   category: Task['category'] = null
 ): Task {
   return {
-    id: 'task-1',
+    id: 1,
     topicId: 'topic-1',
     title: '期限確認タスク',
     description: '',

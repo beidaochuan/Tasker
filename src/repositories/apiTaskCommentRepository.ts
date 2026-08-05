@@ -6,7 +6,7 @@ import { commentResponseSchema, commentsResponseSchema } from './apiResponseSche
 const BASE = '/api/comments'
 
 export class ApiTaskCommentRepository implements ITaskCommentRepository {
-  async getByTaskId(taskId: string): Promise<Result<TaskComment[]>> {
+  async getByTaskId(taskId: number): Promise<Result<TaskComment[]>> {
     return apiFetch(`${BASE}?taskId=${encodeURIComponent(taskId)}`, {
       responseSchema: commentsResponseSchema,
     })

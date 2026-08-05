@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { decodeTaskTags, encodeTaskTags, taskRowToApi, type TaskRow } from '../taskRecord.js'
 
 const TASK_ROW: TaskRow = {
-  id: 'task-1',
+  id: 1,
   topicId: 'topic-1',
   title: 'Task',
   description: '',
