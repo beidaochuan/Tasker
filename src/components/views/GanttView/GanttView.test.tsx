@@ -201,6 +201,23 @@ describe('GanttView task reordering', () => {
     ).toBe(true)
   })
 
+  it('右ペインの横スクロールバー高を左ペイン末尾に補償する', () => {
+    const offsetHeight = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(500)
+    const clientHeight = vi
+      .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.getAttribute('aria-label') === 'ガントタイムライン' ? 483 : 500
+      })
+
+    render(<GanttView />)
+
+    const leftPane = screen.getByRole('region', { name: 'タスク一覧' })
+    expect(leftPane.querySelector('[data-gantt-scrollbar-spacer]')).toHaveStyle({ height: '17px' })
+
+    offsetHeight.mockRestore()
+    clientHeight.mockRestore()
+  })
+
   it('期限超過の未完了タスクに超過日数バッジを表示する', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-15T12:00:00'))

@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useState, useMemo } from 'react'
+import { useRef, useCallback, useEffect, useLayoutEffect, useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Clock, FolderOpen, GripVertical, Plus } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
@@ -413,7 +413,31 @@ export function GanttView() {
   // 縦スクロール同期用 refs
   const leftScrollRef = useRef<HTMLDivElement>(null)
   const rightScrollRef = useRef<HTMLDivElement>(null)
+  const leftScrollbarSpacerRef = useRef<HTMLDivElement>(null)
   const syncingRef = useRef(false)
+
+  const updateScrollbarCompensation = useCallback(() => {
+    if (!rightScrollRef.current || !leftScrollbarSpacerRef.current) return
+
+    // 右ペインだけに横スクロールバーがあるため、その占有高を左ペイン末尾に足して
+    // 左右の最大 scrollTop を揃える。オーバーレイスクロールバーでは 0 になる。
+    const horizontalScrollbarHeight = Math.max(
+      0,
+      rightScrollRef.current.offsetHeight - rightScrollRef.current.clientHeight
+    )
+    leftScrollbarSpacerRef.current.style.height = `${horizontalScrollbarHeight}px`
+  }, [])
+
+  useLayoutEffect(() => {
+    updateScrollbarCompensation()
+
+    const rightPane = rightScrollRef.current
+    if (!rightPane || typeof ResizeObserver === 'undefined') return
+
+    const observer = new ResizeObserver(updateScrollbarCompensation)
+    observer.observe(rightPane)
+    return () => observer.disconnect()
+  }, [scale, totalDays, updateScrollbarCompensation])
 
   // フラグを次フレームで解除し、左右ペインの相互scrollイベントを抑える。
   const syncLeft = useCallback(() => {
@@ -508,6 +532,8 @@ export function GanttView() {
             ref={leftScrollRef}
             style={{ width: LEFT_PANE_WIDTH }}
             onScroll={syncLeft}
+            role="region"
+            aria-label="タスク一覧"
           >
             <div
               className="sticky top-0 z-10 border-b border-border bg-card"
@@ -574,10 +600,17 @@ export function GanttView() {
                 })}
               </div>
             </SortableContext>
+            <div ref={leftScrollbarSpacerRef} data-gantt-scrollbar-spacer aria-hidden="true" />
           </div>
 
           {/* 右ペイン: タイムライン（ヘッダー + 本体を同一スクロールコンテナに入れ横スクロールを同期） */}
-          <div ref={rightScrollRef} className="flex-1 overflow-auto" onScroll={syncRight}>
+          <div
+            ref={rightScrollRef}
+            className="flex-1 overflow-auto"
+            onScroll={syncRight}
+            role="region"
+            aria-label="ガントタイムライン"
+          >
             {/* sticky ヘッダー: 縦スクロールで固定、横は本体と同期 */}
             <div className="sticky top-0 z-10" style={{ width: totalWidth, height: HEADER_HEIGHT }}>
               <GanttHeader startDate={startDate} totalDays={totalDays} scale={scale} />
