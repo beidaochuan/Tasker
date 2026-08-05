@@ -20,6 +20,7 @@ const PATCH_ALLOWED = new Set([
   'description',
   'status',
   'priority',
+  'category',
   'dueDate',
   'startDate',
   'order',
@@ -164,6 +165,7 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
         description: nextTask.description,
         status: 'todo',
         priority: nextTask.priority,
+        category: nextTask.category,
         dueDate: nextTask.dueDate,
         startDate: nextTask.startDate,
         order: nextTask.order,
@@ -175,7 +177,7 @@ tasksRouter.post('/:id/complete-recurring', (req, res) => {
         updatedAt: completedAt,
       }
       db.prepare(
-        'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, statusChangedAt, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @statusChangedAt, @createdAt, @updatedAt)'
+        'INSERT INTO tasks (id, topicId, title, description, status, priority, category, dueDate, startDate, "order", ganttOrder, tags, repeatRule, statusChangedAt, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @category, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @statusChangedAt, @createdAt, @updatedAt)'
       ).run(createdNextTask)
     }
 
@@ -199,6 +201,7 @@ tasksRouter.post('/', (req, res) => {
     description,
     status,
     priority,
+    category,
     dueDate,
     startDate,
     order,
@@ -214,6 +217,7 @@ tasksRouter.post('/', (req, res) => {
     description,
     status,
     priority,
+    category,
     dueDate,
     startDate,
     order,
@@ -225,7 +229,7 @@ tasksRouter.post('/', (req, res) => {
     updatedAt: now,
   }
   db.prepare(
-    'INSERT INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, statusChangedAt, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @statusChangedAt, @createdAt, @updatedAt)'
+    'INSERT INTO tasks (id, topicId, title, description, status, priority, category, dueDate, startDate, "order", ganttOrder, tags, repeatRule, statusChangedAt, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @category, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @statusChangedAt, @createdAt, @updatedAt)'
   ).run(row)
   res.status(201).json(taskRowToApi(row))
 })
@@ -272,6 +276,7 @@ tasksRouter.patch('/:id', (req, res) => {
     description,
     status,
     priority,
+    category,
     dueDate,
     startDate,
     order,
@@ -288,6 +293,7 @@ tasksRouter.patch('/:id', (req, res) => {
     if (status !== existing.status) patch.statusChangedAt = now
   }
   if (priority !== undefined) patch.priority = priority
+  if (category !== undefined) patch.category = category
   if (dueDate !== undefined) patch.dueDate = dueDate
   if (startDate !== undefined) patch.startDate = startDate
   if (order !== undefined) patch.order = order
@@ -315,6 +321,7 @@ interface NextTaskInput {
   title: string
   description: string
   priority: string
+  category: string | null
   dueDate: number | null
   startDate: number | null
   order: number
@@ -334,6 +341,13 @@ function normalizeNextTask(value: unknown, existing: TaskRow): NextTaskInput | n
   const description =
     typeof input.description === 'string' ? input.description : existing.description
   const priority = typeof input.priority === 'string' ? input.priority : existing.priority
+  // category は priority と異なりnullを許容するため、string/nullはどちらも
+  // そのまま採用し、それ以外の型（undefined等）のときだけ既存値を継承する。
+  // 値の妥当性（software/electricのみ）は下流のtaskCreateSchemaで検証される。
+  const category =
+    typeof input.category === 'string' || input.category === null
+      ? input.category
+      : existing.category
   const dueDate = typeof input.dueDate === 'number' || input.dueDate === null ? input.dueDate : null
   const startDate =
     typeof input.startDate === 'number' || input.startDate === null ? input.startDate : null
@@ -346,5 +360,16 @@ function normalizeNextTask(value: unknown, existing: TaskRow): NextTaskInput | n
       ? input.repeatRule
       : existing.repeatRule
 
-  return { topicId, title, description, priority, dueDate, startDate, order, tags, repeatRule }
+  return {
+    topicId,
+    title,
+    description,
+    priority,
+    category,
+    dueDate,
+    startDate,
+    order,
+    tags,
+    repeatRule,
+  }
 }

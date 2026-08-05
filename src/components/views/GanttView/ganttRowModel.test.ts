@@ -25,6 +25,7 @@ function makeTask(id: string, topicId: string, status: Task['status'] = 'todo'):
     description: '',
     status,
     priority: 'medium',
+    category: null,
     dueDate: new Date('2026-01-10'),
     startDate: new Date('2026-01-08'),
     order: 0,

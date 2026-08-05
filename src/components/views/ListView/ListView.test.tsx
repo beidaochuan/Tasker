@@ -105,6 +105,7 @@ function makeTask(
     description: '',
     status,
     priority: 'medium',
+    category: null,
     dueDate: null,
     startDate: null,
     order,

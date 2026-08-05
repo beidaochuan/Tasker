@@ -8,7 +8,12 @@ import { useRecurrence } from '@/hooks/useRecurrence'
 import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo } from '@/repositories'
 import { Button } from '@/components/ui/button'
-import { PRIORITY_LABELS, PRIORITY_TEXT_CLASSES } from '@/utils/taskPresentation'
+import {
+  CATEGORY_BADGE_CLASSES,
+  CATEGORY_LABELS,
+  PRIORITY_LABELS,
+  PRIORITY_TEXT_CLASSES,
+} from '@/utils/taskPresentation'
 import { hasRepeatRule } from '@/utils/recurrenceUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 import type { Task } from '@/types'
@@ -105,6 +110,17 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
         >
           {PRIORITY_LABELS[task.priority]}
         </span>
+
+        {task.category && (
+          <span
+            className={cn(
+              'hidden shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium sm:inline-flex',
+              CATEGORY_BADGE_CLASSES[task.category]
+            )}
+          >
+            {CATEGORY_LABELS[task.category]}
+          </span>
+        )}
 
         {task.dueDate && (
           <span

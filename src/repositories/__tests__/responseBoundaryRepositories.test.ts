@@ -33,6 +33,7 @@ const RAW_TASK = {
   description: '',
   status: 'todo',
   priority: 'medium',
+  category: null,
   dueDate: null,
   startDate: null,
   order: 0,

@@ -39,6 +39,7 @@ const RAW_TASK = {
   description: 'Description',
   status: 'in_progress',
   priority: 'high',
+  category: 'electric',
   dueDate: 4_000,
   startDate: 3_500,
   order: 1,

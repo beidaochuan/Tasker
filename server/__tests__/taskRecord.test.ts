@@ -10,6 +10,7 @@ const TASK_ROW: TaskRow = {
   description: '',
   status: 'todo',
   priority: 'medium',
+  category: null,
   dueDate: null,
   startDate: null,
   order: 0,

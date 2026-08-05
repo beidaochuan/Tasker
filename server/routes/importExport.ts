@@ -31,12 +31,13 @@ importRouter.post('/', (req, res) => {
     for (const row of data.tasks) {
       const r = {
         ...row,
+        category: row.category ?? null,
         ganttOrder: row.ganttOrder ?? null,
         statusChangedAt: row.statusChangedAt ?? row.updatedAt,
         tags: typeof row.tags === 'string' ? row.tags : JSON.stringify(row.tags ?? []),
       }
       db.prepare(
-        'INSERT OR REPLACE INTO tasks (id, topicId, title, description, status, priority, dueDate, startDate, "order", ganttOrder, tags, repeatRule, statusChangedAt, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @statusChangedAt, @createdAt, @updatedAt)'
+        'INSERT OR REPLACE INTO tasks (id, topicId, title, description, status, priority, category, dueDate, startDate, "order", ganttOrder, tags, repeatRule, statusChangedAt, createdAt, updatedAt) VALUES (@id, @topicId, @title, @description, @status, @priority, @category, @dueDate, @startDate, @order, @ganttOrder, @tags, @repeatRule, @statusChangedAt, @createdAt, @updatedAt)'
       ).run(r)
     }
     for (const row of data.subtasks) {

@@ -10,6 +10,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     description: '',
     status: 'todo',
     priority: 'medium',
+    category: null,
     dueDate: null,
     startDate: null,
     order: 0,

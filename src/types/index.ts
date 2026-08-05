@@ -1,6 +1,7 @@
 export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'archived'
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
 export type Priority = 'low' | 'medium' | 'high' | 'urgent'
+export type TaskCategory = 'software' | 'electric'
 
 export interface Project {
   id: string
@@ -28,6 +29,7 @@ export interface Task {
   description: string
   status: TaskStatus
   priority: Priority
+  category: TaskCategory | null
   dueDate: Date | null
   startDate: Date | null
   order: number

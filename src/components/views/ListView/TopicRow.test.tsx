@@ -93,6 +93,7 @@ function makeTask(id: string, title: string, order: number, status: Task['status
     description: '',
     status,
     priority: 'medium',
+    category: null,
     dueDate: null,
     startDate: null,
     order,

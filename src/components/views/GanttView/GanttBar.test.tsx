@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Task } from '@/types'
 import { GanttBar } from './GanttBar'
 
-function makeTask(status: Task['status'] = 'todo', dueDate = new Date('2026-07-12')): Task {
+function makeTask(
+  status: Task['status'] = 'todo',
+  dueDate = new Date('2026-07-12'),
+  category: Task['category'] = null
+): Task {
   return {
     id: 'task-1',
     topicId: 'topic-1',
@@ -11,6 +15,7 @@ function makeTask(status: Task['status'] = 'todo', dueDate = new Date('2026-07-1
     description: '',
     status,
     priority: 'medium',
+    category,
     startDate: new Date('2026-07-10'),
     dueDate,
     order: 0,
@@ -62,6 +67,24 @@ describe('GanttBar 期限超過ツールチップ', () => {
 
     expect(screen.getByRole('tooltip')).toHaveTextContent('期限確認タスク')
     expect(screen.getByRole('tooltip')).toHaveTextContent('3日超過')
+  })
+
+  it('区分が設定されている場合はツールチップに区分を表示する', async () => {
+    const { container } = render(
+      <GanttBar
+        task={makeTask('todo', new Date('2026-07-12'), 'electric')}
+        ganttStart={new Date('2026-07-01')}
+        scale="day"
+      />
+    )
+    const bar = container.firstElementChild as HTMLElement
+
+    fireEvent.pointerMove(bar, { pointerType: 'mouse' })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150)
+    })
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent('区分: デンキ')
   })
 
   it.each([

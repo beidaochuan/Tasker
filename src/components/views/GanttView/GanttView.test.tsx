@@ -124,6 +124,7 @@ function makeTask(
     description: '',
     status,
     priority: 'medium',
+    category: null,
     dueDate: new Date('2026-01-10'),
     startDate: new Date('2026-01-08'),
     order: ganttOrder,

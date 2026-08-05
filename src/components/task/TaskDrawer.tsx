@@ -22,7 +22,8 @@ import { taskRepo, topicRepo } from '@/repositories'
 import { buildRRule, describeRRule } from '@/utils/recurrenceUtils'
 import { parseDateInput } from '@/utils/dateUtils'
 import { unwrapResult } from '@/utils/resultUtils'
-import type { Task } from '@/types'
+import { CATEGORY_LABELS } from '@/utils/taskPresentation'
+import type { Task, TaskCategory } from '@/types'
 
 const FREQ_OPTIONS = [
   { value: 'DAILY', label: '毎日' },
@@ -187,6 +188,7 @@ export function TaskDrawer() {
             description: values.description,
             status: values.status,
             priority: values.priority,
+            category: values.category,
             startDate,
             dueDate,
             order,
@@ -203,6 +205,7 @@ export function TaskDrawer() {
               title: values.title,
               description: values.description,
               priority: values.priority,
+              category: values.category,
               startDate,
               dueDate,
               repeatRule,
@@ -219,6 +222,7 @@ export function TaskDrawer() {
             description: values.description,
             status: values.status,
             priority: values.priority,
+            category: values.category,
             startDate,
             dueDate,
             repeatRule,
@@ -546,7 +550,7 @@ export function TaskDrawer() {
               </section>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <label htmlFor="task-status" className={LABEL_CLASS}>
                   ステータス
@@ -578,6 +582,32 @@ export function TaskDrawer() {
                   <option value="high">高</option>
                   <option value="urgent">緊急</option>
                 </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="task-category" className={LABEL_CLASS}>
+                  区分
+                </label>
+                <Controller
+                  name="category"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      id="task-category"
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        field.onChange(value === '' ? null : (value as TaskCategory))
+                      }}
+                      className={FIELD_CLASS}
+                      disabled={!isAuthenticated}
+                    >
+                      <option value="">未設定</option>
+                      <option value="software">{CATEGORY_LABELS.software}</option>
+                      <option value="electric">{CATEGORY_LABELS.electric}</option>
+                    </select>
+                  )}
+                />
               </div>
             </div>
 

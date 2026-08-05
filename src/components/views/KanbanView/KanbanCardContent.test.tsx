@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Task } from '@/types'
-import { PRIORITY_LABELS } from '@/utils/taskPresentation'
+import { CATEGORY_LABELS, PRIORITY_LABELS } from '@/utils/taskPresentation'
 import { KanbanCardContent } from './KanbanCardContent'
 
 const task: Task = {
@@ -11,6 +11,7 @@ const task: Task = {
   description: 'card description',
   status: 'todo',
   priority: 'medium',
+  category: null,
   dueDate: null,
   startDate: null,
   order: 0,
@@ -46,6 +47,19 @@ describe('KanbanCardContent', () => {
       'bg-amber-500/15',
       'text-[hsl(var(--priority-medium))]'
     )
+  })
+
+  it('区分が設定されていない場合はバッジを表示しない', () => {
+    render(<KanbanCardContent task={task} />)
+
+    expect(screen.queryByText(CATEGORY_LABELS.software)).not.toBeInTheDocument()
+    expect(screen.queryByText(CATEGORY_LABELS.electric)).not.toBeInTheDocument()
+  })
+
+  it('区分が設定されている場合はバッジで表示する', () => {
+    render(<KanbanCardContent task={{ ...task, category: 'electric' }} />)
+
+    expect(screen.getByText(CATEGORY_LABELS.electric)).toBeInTheDocument()
   })
 
   it('期限超過の日付には文字表示用の警告色を使用する', () => {

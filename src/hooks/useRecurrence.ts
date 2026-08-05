@@ -30,6 +30,7 @@ export function useRecurrence(): UseRecurrenceResult {
               description: task.description,
               status: 'todo' as const,
               priority: task.priority,
+              category: task.category,
               dueDate: nextDue,
               startDate: nextStart ?? null,
               order: 9999,

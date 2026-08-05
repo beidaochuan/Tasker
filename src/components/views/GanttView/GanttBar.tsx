@@ -11,7 +11,12 @@ import {
 } from './ganttConstants'
 import { resolveTaskId, isVirtualTask } from '@/utils/recurrenceUtils'
 import { getOverdueDays } from '@/utils/dateUtils'
-import { PRIORITY_LABELS, STATUS_BACKGROUND_CLASSES, STATUS_LABELS } from '@/utils/taskPresentation'
+import {
+  CATEGORY_LABELS,
+  PRIORITY_LABELS,
+  STATUS_BACKGROUND_CLASSES,
+  STATUS_LABELS,
+} from '@/utils/taskPresentation'
 
 interface Props {
   task: Task
@@ -97,7 +102,8 @@ export const GanttBar = memo(function GanttBar({
   const colorClass = STATUS_BACKGROUND_CLASSES[task.status]
   const overdueDays = task.status === 'done' ? 0 : getOverdueDays(task.dueDate)
   const overdueLabel = overdueDays > 0 ? `${overdueDays}日超過` : null
-  const tooltipText = `${task.title} / ${STATUS_LABELS[task.status]} / 優先度: ${PRIORITY_LABELS[task.priority]}${overdueLabel ? ` / ${overdueLabel}` : ''}`
+  const categoryLabel = task.category ? ` / 区分: ${CATEGORY_LABELS[task.category]}` : ''
+  const tooltipText = `${task.title} / ${STATUS_LABELS[task.status]} / 優先度: ${PRIORITY_LABELS[task.priority]}${categoryLabel}${overdueLabel ? ` / ${overdueLabel}` : ''}`
 
   return (
     <Tooltip.Provider delayDuration={150} skipDelayDuration={100}>

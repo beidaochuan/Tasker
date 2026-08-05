@@ -42,6 +42,7 @@ db.exec(`
     description TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'todo',
     priority TEXT NOT NULL DEFAULT 'medium',
+    category TEXT,
     dueDate INTEGER,
     startDate INTEGER,
     "order" INTEGER NOT NULL DEFAULT 0,
@@ -103,4 +104,9 @@ if (!taskColumns.some((column) => column.name === 'ganttOrder')) {
 if (!taskColumns.some((column) => column.name === 'statusChangedAt')) {
   db.exec('ALTER TABLE tasks ADD COLUMN statusChangedAt INTEGER')
   db.exec('UPDATE tasks SET statusChangedAt = updatedAt WHERE statusChangedAt IS NULL')
+}
+
+// Existing databases predate the ソフト/デンキ category distinction.
+if (!taskColumns.some((column) => column.name === 'category')) {
+  db.exec('ALTER TABLE tasks ADD COLUMN category TEXT')
 }

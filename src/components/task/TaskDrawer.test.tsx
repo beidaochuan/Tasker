@@ -99,6 +99,7 @@ const TASK: Task = {
   description: '',
   status: 'todo',
   priority: 'medium',
+  category: null,
   startDate: null,
   dueDate: null,
   order: 0,
@@ -317,6 +318,22 @@ describe('TaskDrawer', () => {
     expect(useDataQueryStore.getState().projectsById['project-1']?.tasks.revision).toBe(1)
     expect(useDataQueryStore.getState().projectsById['project-2']?.tasks.revision).toBe(1)
     expect(useUIStore.getState().isTaskDrawerOpen).toBe(false)
+  })
+
+  it('区分を選択して保存すると category が送信される', async () => {
+    const user = userEvent.setup()
+
+    render(<TaskDrawer />)
+
+    await user.selectOptions(await screen.findByLabelText('区分'), 'electric')
+    await user.click(screen.getByRole('button', { name: '保存する' }))
+
+    await waitFor(() => {
+      expect(taskRepoMock.update).toHaveBeenCalledWith(
+        'task-1',
+        expect.objectContaining({ category: 'electric' })
+      )
+    })
   })
 
   it('2番目以降のトピックにある既存タスクの所属を保持する', async () => {

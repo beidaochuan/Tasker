@@ -12,6 +12,7 @@ const nullableTimestampSchema = timestampSchema.nullable()
 const orderSchema = z.number().int().nonnegative().finite()
 const statusSchema = z.enum(['todo', 'in_progress', 'done'])
 const prioritySchema = z.enum(['low', 'medium', 'high', 'urgent'])
+const categorySchema = z.enum(['software', 'electric']).nullable()
 const projectStatusSchema = z.enum(['active', 'on_hold', 'completed', 'archived'])
 const tagsSchema = z.array(idSchema).max(1_000)
 const serializedTagsSchema = z
@@ -70,6 +71,7 @@ export const taskCreateSchema = z
     description: descriptionSchema.default(''),
     status: statusSchema.default('todo'),
     priority: prioritySchema.default('medium'),
+    category: categorySchema.default(null),
     dueDate: nullableTimestampSchema.default(null),
     startDate: nullableTimestampSchema.default(null),
     order: orderSchema.default(0),
@@ -85,6 +87,7 @@ export const taskUpdateSchema = nonEmptyPatch({
   description: descriptionSchema.optional(),
   status: statusSchema.optional(),
   priority: prioritySchema.optional(),
+  category: categorySchema.optional(),
   dueDate: nullableTimestampSchema.optional(),
   startDate: nullableTimestampSchema.optional(),
   order: orderSchema.optional(),
@@ -184,6 +187,7 @@ const importedTaskSchema = z
     description: descriptionSchema,
     status: statusSchema,
     priority: prioritySchema,
+    category: categorySchema.nullish(),
     dueDate: nullableTimestampSchema,
     startDate: nullableTimestampSchema,
     order: orderSchema,

@@ -31,6 +31,7 @@ function makeTask(
     description: '',
     status,
     priority,
+    category: null,
     dueDate: null,
     startDate: null,
     order: 0,

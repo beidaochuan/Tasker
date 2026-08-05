@@ -30,6 +30,7 @@ const TASK = {
   description: '',
   status: 'todo',
   priority: 'medium',
+  category: null,
   dueDate: 4_000,
   startDate: 3_500,
   order: 0,

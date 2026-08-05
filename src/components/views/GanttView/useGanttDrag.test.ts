@@ -10,6 +10,7 @@ function taskWithDates(startDate: Date | null, dueDate: Date | null): Task {
     description: '',
     status: 'todo',
     priority: 'medium',
+    category: null,
     dueDate,
     startDate,
     order: 0,

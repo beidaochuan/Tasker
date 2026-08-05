@@ -1,4 +1,4 @@
-import type { Priority, TaskStatus } from '@/types'
+import type { Priority, TaskCategory, TaskStatus } from '@/types'
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
   todo: '未着手',
@@ -50,4 +50,14 @@ export const PRIORITY_BADGE_CLASSES: Record<Priority, string> = {
   medium: 'bg-amber-500/15 text-[hsl(var(--priority-medium))]',
   high: 'bg-orange-500/15 text-[hsl(var(--priority-high))]',
   urgent: 'bg-rose-500/15 text-[hsl(var(--priority-urgent))]',
+}
+
+export const CATEGORY_LABELS: Record<TaskCategory, string> = {
+  software: 'ソフト',
+  electric: 'デンキ',
+}
+
+export const CATEGORY_BADGE_CLASSES: Record<TaskCategory, string> = {
+  software: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
+  electric: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
 }

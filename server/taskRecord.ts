@@ -5,6 +5,7 @@ export interface TaskRow {
   description: string
   status: string
   priority: string
+  category: string | null
   dueDate: number | null
   startDate: number | null
   order: number

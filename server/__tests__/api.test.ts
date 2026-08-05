@@ -425,6 +425,59 @@ describe('Tasker API', () => {
     expect((await request('/api/tasks/task-1')).body.statusChangedAt).toBe(updatedAt)
   })
 
+  it('インポートしたタスクの区分(category)を保持する', async () => {
+    const imported = await post('/api/import', {
+      version: 1,
+      data: {
+        projects: [
+          {
+            id: 'project-1',
+            name: 'Project',
+            description: '',
+            color: '#6366f1',
+            status: 'active',
+            isArchived: 0,
+            createdAt: 1_000,
+            updatedAt: 1_000,
+          },
+        ],
+        topics: [
+          {
+            id: 'topic-1',
+            projectId: 'project-1',
+            name: 'Topic',
+            order: 0,
+            createdAt: 1_000,
+          },
+        ],
+        tasks: [
+          {
+            id: 'task-1',
+            topicId: 'topic-1',
+            title: 'Task',
+            description: '',
+            status: 'todo',
+            priority: 'medium',
+            category: 'electric',
+            dueDate: null,
+            startDate: null,
+            order: 0,
+            tags: [],
+            repeatRule: null,
+            createdAt: 1_000,
+            updatedAt: 1_000,
+          },
+        ],
+        subtasks: [],
+        tags: [],
+        task_completions: [],
+      },
+    })
+
+    expect(imported.response.status).toBe(204)
+    expect((await request('/api/tasks/task-1')).body.category).toBe('electric')
+  })
+
   it('プロジェクト削除を関連データ全体へ反映する', async () => {
     const project = await post('/api/projects', { name: 'Project' })
     const topic = await post('/api/topics', {

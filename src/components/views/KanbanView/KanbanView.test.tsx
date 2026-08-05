@@ -100,6 +100,7 @@ function makeTask(id: string, status: TaskStatus): Task {
     description: '',
     status,
     priority: 'medium',
+    category: null,
     dueDate: null,
     startDate: null,
     order: 0,

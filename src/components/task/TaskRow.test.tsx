@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Task } from '@/types'
+import { CATEGORY_LABELS } from '@/utils/taskPresentation'
 import { TaskRow } from './TaskRow'
 
 const task: Task = {
@@ -10,6 +11,7 @@ const task: Task = {
   description: '',
   status: 'todo',
   priority: 'medium',
+  category: null,
   dueDate: new Date(2026, 6, 15),
   startDate: null,
   order: 0,
@@ -33,5 +35,18 @@ describe('TaskRow', () => {
 
     expect(screen.getByText('2026/07/15')).toHaveClass('text-muted-foreground')
     expect(screen.getByText('2026/07/15')).not.toHaveClass('text-danger')
+  })
+
+  it('区分が設定されていない場合はバッジを表示しない', () => {
+    render(<TaskRow task={task} />)
+
+    expect(screen.queryByText(CATEGORY_LABELS.software)).not.toBeInTheDocument()
+    expect(screen.queryByText(CATEGORY_LABELS.electric)).not.toBeInTheDocument()
+  })
+
+  it('区分が設定されている場合はバッジで表示する', () => {
+    render(<TaskRow task={{ ...task, category: 'software' }} />)
+
+    expect(screen.getByText(CATEGORY_LABELS.software)).toBeInTheDocument()
   })
 })

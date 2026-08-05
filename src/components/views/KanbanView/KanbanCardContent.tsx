@@ -2,7 +2,12 @@ import { memo } from 'react'
 import { Clock } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { formatDate, isOverdue } from '@/utils/dateUtils'
-import { PRIORITY_BADGE_CLASSES, PRIORITY_LABELS } from '@/utils/taskPresentation'
+import {
+  CATEGORY_BADGE_CLASSES,
+  CATEGORY_LABELS,
+  PRIORITY_BADGE_CLASSES,
+  PRIORITY_LABELS,
+} from '@/utils/taskPresentation'
 import type { Task } from '@/types'
 
 interface KanbanCardContentProps {
@@ -33,6 +38,16 @@ export const KanbanCardContent = memo(function KanbanCardContent({
         >
           {PRIORITY_LABELS[task.priority]}
         </span>
+        {task.category && (
+          <span
+            className={cn(
+              'mt-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-tight',
+              CATEGORY_BADGE_CLASSES[task.category]
+            )}
+          >
+            {CATEGORY_LABELS[task.category]}
+          </span>
+        )}
         <p className="font-soft line-clamp-2 flex-1 text-[15px] font-semibold leading-snug">
           {task.title}
         </p>
