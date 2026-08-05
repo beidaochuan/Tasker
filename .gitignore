@@ -37,3 +37,5 @@ public/third-party-licenses.json
 *.njsproj
 *.sln
 *.sw?
+
+/.claude
