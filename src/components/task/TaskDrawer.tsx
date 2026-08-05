@@ -444,6 +444,99 @@ export function TaskDrawer() {
               </div>
             </div>
 
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="task-status" className={LABEL_CLASS}>
+                  ステータス
+                </label>
+                <select
+                  id="task-status"
+                  {...register('status')}
+                  className={FIELD_CLASS}
+                  disabled={!isAuthenticated}
+                >
+                  <option value="todo">未着手</option>
+                  <option value="in_progress">進行中</option>
+                  <option value="done">完了</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="task-priority" className={LABEL_CLASS}>
+                  優先度
+                </label>
+                <select
+                  id="task-priority"
+                  {...register('priority')}
+                  className={FIELD_CLASS}
+                  disabled={!isAuthenticated}
+                >
+                  <option value="low">低</option>
+                  <option value="medium">中</option>
+                  <option value="high">高</option>
+                  <option value="urgent">緊急</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="task-category" className={LABEL_CLASS}>
+                  区分
+                </label>
+                <Controller
+                  name="category"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      id="task-category"
+                      value={field.value ?? ''}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        field.onChange(value === '' ? null : (value as TaskCategory))
+                      }}
+                      className={FIELD_CLASS}
+                      disabled={!isAuthenticated}
+                    >
+                      <option value="">未設定</option>
+                      <option value="software">{CATEGORY_LABELS.software}</option>
+                      <option value="electric">{CATEGORY_LABELS.electric}</option>
+                    </select>
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="task-startdate" className={LABEL_CLASS}>
+                  開始日
+                </label>
+                <input
+                  id="task-startdate"
+                  {...register('startDate')}
+                  type="date"
+                  className={FIELD_CLASS}
+                  disabled={!isAuthenticated}
+                />
+                {errors.startDate && (
+                  <p className="text-xs text-danger">{errors.startDate.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="task-duedate" className={LABEL_CLASS}>
+                  期日
+                </label>
+                <input
+                  id="task-duedate"
+                  {...register('dueDate')}
+                  type="date"
+                  className={FIELD_CLASS}
+                  disabled={!isAuthenticated}
+                />
+                {errors.dueDate && <p className="text-xs text-danger">{errors.dueDate.message}</p>}
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <label htmlFor="task-description" className={LABEL_CLASS}>
                 説明
@@ -549,99 +642,6 @@ export function TaskDrawer() {
                 )}
               </section>
             )}
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="task-status" className={LABEL_CLASS}>
-                  ステータス
-                </label>
-                <select
-                  id="task-status"
-                  {...register('status')}
-                  className={FIELD_CLASS}
-                  disabled={!isAuthenticated}
-                >
-                  <option value="todo">未着手</option>
-                  <option value="in_progress">進行中</option>
-                  <option value="done">完了</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="task-priority" className={LABEL_CLASS}>
-                  優先度
-                </label>
-                <select
-                  id="task-priority"
-                  {...register('priority')}
-                  className={FIELD_CLASS}
-                  disabled={!isAuthenticated}
-                >
-                  <option value="low">低</option>
-                  <option value="medium">中</option>
-                  <option value="high">高</option>
-                  <option value="urgent">緊急</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="task-category" className={LABEL_CLASS}>
-                  区分
-                </label>
-                <Controller
-                  name="category"
-                  control={control}
-                  render={({ field }) => (
-                    <select
-                      id="task-category"
-                      value={field.value ?? ''}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        field.onChange(value === '' ? null : (value as TaskCategory))
-                      }}
-                      className={FIELD_CLASS}
-                      disabled={!isAuthenticated}
-                    >
-                      <option value="">未設定</option>
-                      <option value="software">{CATEGORY_LABELS.software}</option>
-                      <option value="electric">{CATEGORY_LABELS.electric}</option>
-                    </select>
-                  )}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="task-startdate" className={LABEL_CLASS}>
-                  開始日
-                </label>
-                <input
-                  id="task-startdate"
-                  {...register('startDate')}
-                  type="date"
-                  className={FIELD_CLASS}
-                  disabled={!isAuthenticated}
-                />
-                {errors.startDate && (
-                  <p className="text-xs text-danger">{errors.startDate.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="task-duedate" className={LABEL_CLASS}>
-                  期日
-                </label>
-                <input
-                  id="task-duedate"
-                  {...register('dueDate')}
-                  type="date"
-                  className={FIELD_CLASS}
-                  disabled={!isAuthenticated}
-                />
-                {errors.dueDate && <p className="text-xs text-danger">{errors.dueDate.message}</p>}
-              </div>
-            </div>
 
             {/* 繰り返し設定 */}
             <div className="space-y-3 rounded-md border border-border bg-background p-3">
