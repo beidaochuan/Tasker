@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MessageSquare, Pencil, Trash2, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { TEXTAREA_CLASS } from '@/components/task/taskFieldStyles'
 import { taskCommentRepo } from '@/repositories'
 import type { TaskComment } from '@/types'
 import { formatDateTime } from '@/utils/dateUtils'
@@ -10,9 +11,6 @@ interface TaskCommentsProps {
   taskId: string | null
   canEdit: boolean
 }
-
-const TEXTAREA_CLASS =
-  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20'
 
 export function TaskComments({ taskId, canEdit }: TaskCommentsProps) {
   const [comments, setComments] = useState<TaskComment[]>([])

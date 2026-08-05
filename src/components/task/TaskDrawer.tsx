@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useForm, Controller, useWatch } from 'react-hook-form'
+import { useCallback, useEffect, useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { X, Trash2, RefreshCw, Link2, Plus } from 'lucide-react'
+import { X, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TaskComments } from '@/components/task/TaskComments'
 import { TaskWorkList } from '@/components/task/TaskWorkList'
+import { TaskFormFields } from '@/components/task/TaskFormFields'
+import { TaskRepeatSettings } from '@/components/task/TaskRepeatSettings'
+import { TaskRelatedTasks } from '@/components/task/TaskRelatedTasks'
 import {
   createEmptyTaskFormValues,
   createExistingTaskFormValues,
@@ -19,48 +22,18 @@ import { useTask, useTopics } from '@/hooks/useTasks'
 import { useProjects } from '@/hooks/useProjects'
 import { useRecurrence } from '@/hooks/useRecurrence'
 import { useDataQueryStore } from '@/hooks/useDataQueries'
-import { taskRepo, topicRepo } from '@/repositories'
-import { buildRRule, describeRRule } from '@/utils/recurrenceUtils'
+import { taskRepo } from '@/repositories'
 import { parseDateInput } from '@/utils/dateUtils'
 import { unwrapResult } from '@/utils/resultUtils'
-import { CATEGORY_LABELS } from '@/utils/taskPresentation'
-import type { Task, TaskCategory } from '@/types'
-
-const FREQ_OPTIONS = [
-  { value: 'DAILY', label: '毎日' },
-  { value: 'WEEKLY', label: '毎週' },
-  { value: 'MONTHLY', label: '毎月' },
-  { value: 'YEARLY', label: '毎年' },
-] as const
-
-const FIELD_CLASS =
-  'h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20'
-
-const TEXTAREA_CLASS =
-  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20'
-
-const LABEL_CLASS = 'text-xs font-semibold text-muted-foreground'
 
 export function TaskDrawer() {
-  const {
-    isTaskDrawerOpen,
-    selectedProjectId,
-    selectedTaskId,
-    newTaskTopicId,
-    closeTaskDrawer,
-    openTaskDrawer,
-    setSelectedProjectId,
-  } = useUIStore()
+  const { isTaskDrawerOpen, selectedProjectId, selectedTaskId, newTaskTopicId, closeTaskDrawer } =
+    useUIStore()
   const { isAuthenticated, openLoginDialog } = useAuthStore()
   const { completeRecurringTask } = useRecurrence()
   const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
-  const invalidateAllProjects = useDataQueryStore((state) => state.invalidateAllProjects)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [autoSelectTopicProjectId, setAutoSelectTopicProjectId] = useState<string | null>(null)
-  const [relatedTasks, setRelatedTasks] = useState<Task[]>([])
-  const [allTasks, setAllTasks] = useState<Task[]>([])
-  const [relatedTaskIdToAdd, setRelatedTaskIdToAdd] = useState('')
-  const [isSavingRelations, setIsSavingRelations] = useState(false)
 
   const isNew = newTaskTopicId !== null
   const existingTask = useTask(
@@ -80,9 +53,6 @@ export function TaskDrawer() {
     defaultValues: createEmptyTaskFormValues(),
   })
 
-  const repeatEnabled = useWatch({ control, name: 'repeatEnabled' })
-  const repeatFreq = useWatch({ control, name: 'repeatFreq' })
-  const repeatInterval = useWatch({ control, name: 'repeatInterval' })
   const selectedFormProjectId = useWatch({ control, name: 'projectId' })
   const selectedFormTopicId = useWatch({ control, name: 'topicId' })
 
@@ -90,27 +60,6 @@ export function TaskDrawer() {
   const projectTopics = useTopics(
     isTaskDrawerOpen && selectedFormProjectId ? selectedFormProjectId : null
   )
-
-  useEffect(() => {
-    if (!isTaskDrawerOpen || isNew || !selectedTaskId) return
-
-    let cancelled = false
-    void Promise.all([taskRepo.getRelatedTasks(selectedTaskId), taskRepo.getAll()])
-      .then(([relatedResult, allTasksResult]) => {
-        if (cancelled) return
-        if (relatedResult.ok) setRelatedTasks(relatedResult.data)
-        else setSubmitError(relatedResult.error.message)
-        if (allTasksResult.ok) setAllTasks(allTasksResult.data)
-        else setSubmitError(allTasksResult.error.message)
-      })
-      .catch(() => {
-        if (!cancelled) setSubmitError('関連タスクの読み込みに失敗しました')
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [isNew, isTaskDrawerOpen, selectedTaskId])
 
   const handleClose = useCallback(() => {
     setSubmitError(null)
@@ -166,6 +115,11 @@ export function TaskDrawer() {
 
   const hasSelectedFormTopic =
     projectTopics?.some((topic) => topic.id === selectedFormTopicId) ?? false
+
+  function handleProjectChange(projectId: string) {
+    setAutoSelectTopicProjectId(projectId)
+    setValue('topicId', '', { shouldDirty: true, shouldValidate: true })
+  }
 
   async function onSubmit(values: TaskFormValues) {
     if (!isAuthenticated) {
@@ -258,72 +212,6 @@ export function TaskDrawer() {
     }
   }
 
-  async function handleOpenRelatedTask(task: Task) {
-    setSubmitError(null)
-    try {
-      const currentProjectTopic = projectTopics?.find((topic) => topic.id === task.topicId)
-      const projectId =
-        currentProjectTopic?.projectId ??
-        unwrapResult(await topicRepo.getById(task.topicId)).projectId
-      setSelectedProjectId(projectId)
-      openTaskDrawer(task.id)
-    } catch (err) {
-      console.error('関連タスクを開けませんでした', err)
-      setSubmitError(err instanceof Error ? err.message : '関連タスクを開けませんでした')
-    }
-  }
-
-  async function saveRelatedTasks(nextRelatedTaskIds: string[]) {
-    if (!existingTask || !isAuthenticated) return
-    setSubmitError(null)
-    setIsSavingRelations(true)
-    try {
-      const result = unwrapResult(
-        await taskRepo.replaceRelatedTasks(existingTask.id, nextRelatedTaskIds)
-      )
-      setRelatedTasks(result)
-      setRelatedTaskIdToAdd('')
-      invalidateAllProjects()
-    } catch (err) {
-      console.error('関連タスクの保存に失敗しました', err)
-      setSubmitError(err instanceof Error ? err.message : '関連タスクの保存に失敗しました')
-    } finally {
-      setIsSavingRelations(false)
-    }
-  }
-
-  function handleAddRelatedTask() {
-    if (!relatedTaskIdToAdd || relatedTasks.some((task) => task.id === relatedTaskIdToAdd)) return
-    void saveRelatedTasks([...relatedTasks.map((task) => task.id), relatedTaskIdToAdd])
-  }
-
-  function handleRemoveRelatedTask(taskId: string) {
-    void saveRelatedTasks(relatedTasks.filter((task) => task.id !== taskId).map((task) => task.id))
-  }
-
-  const repeatSummary = useMemo(() => {
-    if (!repeatEnabled || !repeatFreq) return ''
-    return describeRRule(buildRRule({ freq: repeatFreq, interval: repeatInterval }))
-  }, [repeatEnabled, repeatFreq, repeatInterval])
-
-  const projectNames = useMemo(
-    () => new Map(projects.map((project) => [project.id, project.name])),
-    [projects]
-  )
-  const topicProjectIds = useMemo(
-    () => new Map(projectTopics?.map((topic) => [topic.id, topic.projectId]) ?? []),
-    [projectTopics]
-  )
-  const availableRelatedTasks = useMemo(
-    () =>
-      allTasks.filter(
-        (task) =>
-          task.id !== existingTask?.id &&
-          !relatedTasks.some((relatedTask) => relatedTask.id === task.id)
-      ),
-    [allTasks, existingTask?.id, relatedTasks]
-  )
-
   if (!isTaskDrawerOpen) return null
   if (isNew && !isAuthenticated) return null
 
@@ -358,349 +246,35 @@ export function TaskDrawer() {
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
           <div className="flex-1 space-y-5 overflow-y-auto p-5">
-            <div className="space-y-1.5">
-              <label htmlFor="task-title" className={LABEL_CLASS}>
-                タイトル
-              </label>
-              <input
-                id="task-title"
-                {...register('title')}
-                className={FIELD_CLASS}
-                placeholder="タスク名を入力"
-                disabled={!isAuthenticated}
-              />
-              {errors.title && <p className="text-xs text-danger">{errors.title.message}</p>}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="task-project" className={LABEL_CLASS}>
-                  プロジェクト
-                </label>
-                <Controller
-                  name="projectId"
-                  control={control}
-                  render={({ field }) => (
-                    <select
-                      id="task-project"
-                      {...field}
-                      onChange={(event) => {
-                        field.onChange(event)
-                        setAutoSelectTopicProjectId(event.target.value)
-                        setValue('topicId', '', {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        })
-                      }}
-                      className={FIELD_CLASS}
-                      disabled={!isAuthenticated}
-                    >
-                      <option value="">プロジェクトを選択</option>
-                      {projects.map((project) => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                />
-                {errors.projectId && (
-                  <p className="text-xs text-danger">{errors.projectId.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="task-topic" className={LABEL_CLASS}>
-                  トピック
-                </label>
-                <Controller
-                  name="topicId"
-                  control={control}
-                  render={({ field }) => (
-                    <select
-                      id="task-topic"
-                      {...field}
-                      className={FIELD_CLASS}
-                      disabled={
-                        !isAuthenticated ||
-                        projectTopics === undefined ||
-                        projectTopics.length === 0
-                      }
-                    >
-                      {projectTopics === undefined ? (
-                        <option value="">読み込み中</option>
-                      ) : projectTopics.length === 0 ? (
-                        <option value="">トピックがありません</option>
-                      ) : (
-                        projectTopics.map((topic) => (
-                          <option key={topic.id} value={topic.id}>
-                            {topic.name}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  )}
-                />
-                {errors.topicId && <p className="text-xs text-danger">{errors.topicId.message}</p>}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="task-status" className={LABEL_CLASS}>
-                  ステータス
-                </label>
-                <select
-                  id="task-status"
-                  {...register('status')}
-                  className={FIELD_CLASS}
-                  disabled={!isAuthenticated}
-                >
-                  <option value="todo">未着手</option>
-                  <option value="in_progress">進行中</option>
-                  <option value="done">完了</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="task-priority" className={LABEL_CLASS}>
-                  優先度
-                </label>
-                <select
-                  id="task-priority"
-                  {...register('priority')}
-                  className={FIELD_CLASS}
-                  disabled={!isAuthenticated}
-                >
-                  <option value="low">低</option>
-                  <option value="medium">中</option>
-                  <option value="high">高</option>
-                  <option value="urgent">緊急</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="task-category" className={LABEL_CLASS}>
-                  区分
-                </label>
-                <Controller
-                  name="category"
-                  control={control}
-                  render={({ field }) => (
-                    <select
-                      id="task-category"
-                      value={field.value ?? ''}
-                      onChange={(event) => {
-                        const value = event.target.value
-                        field.onChange(value === '' ? null : (value as TaskCategory))
-                      }}
-                      className={FIELD_CLASS}
-                      disabled={!isAuthenticated}
-                    >
-                      <option value="">未設定</option>
-                      <option value="software">{CATEGORY_LABELS.software}</option>
-                      <option value="electric">{CATEGORY_LABELS.electric}</option>
-                    </select>
-                  )}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="task-startdate" className={LABEL_CLASS}>
-                  開始日
-                </label>
-                <input
-                  id="task-startdate"
-                  {...register('startDate')}
-                  type="date"
-                  className={FIELD_CLASS}
-                  disabled={!isAuthenticated}
-                />
-                {errors.startDate && (
-                  <p className="text-xs text-danger">{errors.startDate.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="task-duedate" className={LABEL_CLASS}>
-                  期日
-                </label>
-                <input
-                  id="task-duedate"
-                  {...register('dueDate')}
-                  type="date"
-                  className={FIELD_CLASS}
-                  disabled={!isAuthenticated}
-                />
-                {errors.dueDate && <p className="text-xs text-danger">{errors.dueDate.message}</p>}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="task-description" className={LABEL_CLASS}>
-                説明
-              </label>
-              <textarea
-                id="task-description"
-                {...register('description')}
-                rows={6}
-                className={TEXTAREA_CLASS}
-                placeholder="説明（省略可）"
-                disabled={!isAuthenticated}
-              />
-            </div>
+            <TaskFormFields
+              register={register}
+              control={control}
+              errors={errors}
+              isAuthenticated={isAuthenticated}
+              projects={projects}
+              projectTopics={projectTopics}
+              onProjectChange={handleProjectChange}
+            />
 
             <TaskWorkList taskId={isNew ? null : selectedTaskId} canEdit={isAuthenticated} />
 
             <TaskComments taskId={isNew ? null : selectedTaskId} canEdit={isAuthenticated} />
 
             {!isNew && (
-              <section
-                className="space-y-3 rounded-md border border-border bg-background p-3"
-                aria-labelledby="related-tasks-heading"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Link2 className="h-3.5 w-3.5" />
-                  <h3 id="related-tasks-heading" className="text-sm font-semibold">
-                    関連タスク
-                  </h3>
-                </div>
-
-                {relatedTasks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">関連タスクはありません</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {relatedTasks.map((task) => (
-                      <li
-                        key={task.id}
-                        className="flex min-h-9 items-center gap-2 rounded-md border border-border px-2.5 py-1.5"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => void handleOpenRelatedTask(task)}
-                          className="min-w-0 flex-1 truncate text-left text-sm hover:underline focus:outline-none focus:underline"
-                          aria-label={`「${task.title}」を開く`}
-                        >
-                          {task.title}
-                        </button>
-                        {topicProjectIds.has(task.topicId) && (
-                          <span className="text-xs text-muted-foreground">このプロジェクト</span>
-                        )}
-                        {isAuthenticated && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 shrink-0"
-                            onClick={() => handleRemoveRelatedTask(task.id)}
-                            disabled={isSavingRelations}
-                            aria-label={`「${task.title}」との関連を解除`}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {isAuthenticated && (
-                  <div className="flex gap-2">
-                    <select
-                      aria-label="関連タスクを追加"
-                      value={relatedTaskIdToAdd}
-                      onChange={(event) => setRelatedTaskIdToAdd(event.target.value)}
-                      className={FIELD_CLASS}
-                      disabled={isSavingRelations || availableRelatedTasks.length === 0}
-                    >
-                      <option value="">
-                        {availableRelatedTasks.length === 0
-                          ? '追加できるタスクはありません'
-                          : 'タスクを選択'}
-                      </option>
-                      {availableRelatedTasks.map((task) => {
-                        const projectName = projectNames.get(
-                          topicProjectIds.get(task.topicId) ?? ''
-                        )
-                        return (
-                          <option key={task.id} value={task.id}>
-                            {projectName ? `${task.title}（${projectName}）` : task.title}
-                          </option>
-                        )
-                      })}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={handleAddRelatedTask}
-                      disabled={!relatedTaskIdToAdd || isSavingRelations}
-                      aria-label="関連タスクを追加する"
-                    >
-                      <Plus className="mr-1 h-4 w-4" />
-                      追加
-                    </Button>
-                  </div>
-                )}
-              </section>
+              <TaskRelatedTasks
+                taskId={selectedTaskId}
+                canEdit={isAuthenticated}
+                projectTopics={projectTopics}
+                projects={projects}
+                onError={setSubmitError}
+              />
             )}
 
-            {/* 繰り返し設定 */}
-            <div className="space-y-3 rounded-md border border-border bg-background p-3">
-              <div className="flex items-center gap-2">
-                <Controller
-                  name="repeatEnabled"
-                  control={control}
-                  render={({ field }) => (
-                    <input
-                      id="repeat-enabled"
-                      type="checkbox"
-                      checked={field.value}
-                      onChange={field.onChange}
-                      className="h-4 w-4 rounded border-input accent-primary"
-                      disabled={!isAuthenticated}
-                    />
-                  )}
-                />
-                <label
-                  htmlFor="repeat-enabled"
-                  className="flex items-center gap-1.5 text-sm font-semibold"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  繰り返す
-                </label>
-                {repeatSummary && (
-                  <span className="ml-auto text-xs text-muted-foreground">{repeatSummary}</span>
-                )}
-              </div>
-
-              {repeatEnabled && (
-                <div className="grid grid-cols-[1fr_auto_72px_auto] items-center gap-2 pt-1">
-                  <select
-                    {...register('repeatFreq')}
-                    className={FIELD_CLASS}
-                    disabled={!isAuthenticated}
-                  >
-                    {FREQ_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">ごとに</span>
-                  <input
-                    {...register('repeatInterval')}
-                    type="number"
-                    min={1}
-                    max={99}
-                    className={FIELD_CLASS}
-                    disabled={!isAuthenticated}
-                  />
-                  <span className="text-sm text-muted-foreground">回</span>
-                </div>
-              )}
-            </div>
+            <TaskRepeatSettings
+              register={register}
+              control={control}
+              isAuthenticated={isAuthenticated}
+            />
           </div>
 
           {isAuthenticated && (
