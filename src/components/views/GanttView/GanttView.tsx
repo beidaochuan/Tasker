@@ -24,7 +24,13 @@ import { GanttDayBackground } from './GanttDayBackground'
 import { GanttRow } from './GanttRow'
 import { useGanttDrag, calcGanttRange } from './useGanttDrag'
 import type { GanttScale } from './ganttConstants'
-import { PIXELS_PER_DAY, ROW_HEIGHT, HEADER_HEIGHT, LEFT_PANE_WIDTH } from './ganttConstants'
+import {
+  PIXELS_PER_DAY,
+  ROW_HEIGHT,
+  HEADER_HEIGHT,
+  LEFT_PANE_WIDTH,
+  BAR_VERTICAL_INSET,
+} from './ganttConstants'
 import {
   applyGanttPreview,
   applyGanttTaskOrder,
@@ -37,6 +43,7 @@ import {
   PRIORITY_LABELS,
   PRIORITY_TEXT_CLASSES,
   STATUS_BACKGROUND_CLASSES,
+  STATUS_FOREGROUND_CLASSES,
   STATUS_LABELS,
 } from '@/utils/taskPresentation'
 import { unwrapResult } from '@/utils/resultUtils'
@@ -71,6 +78,7 @@ function SortableTaskLabel({
 }: SortableTaskLabelProps) {
   const task = row.task
   const overdueDays = task.status === 'done' ? 0 : getOverdueDays(task.dueDate)
+  const isInProgress = task.status === 'in_progress'
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: task.id,
     disabled,
@@ -79,14 +87,23 @@ function SortableTaskLabel({
   return (
     <div
       ref={setNodeRef}
-      className={`group/gantt-task absolute left-0 right-0 flex items-center border-b border-border pl-1 text-sm text-foreground ${
-        isDragging ? 'opacity-30' : ''
-      }`}
+      className={`group/gantt-task absolute left-0 right-0 flex items-center border-b border-border pl-1 text-sm ${
+        isInProgress ? STATUS_FOREGROUND_CLASSES.in_progress : 'text-foreground'
+      } ${isDragging ? 'opacity-30' : ''}`}
       style={{ top, height, transition: animatePosition ? 'top 250ms ease' : undefined }}
     >
+      {isInProgress && (
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute left-0 right-0 ${STATUS_BACKGROUND_CLASSES.in_progress}`}
+          style={{ top: BAR_VERTICAL_INSET, bottom: BAR_VERTICAL_INSET }}
+        />
+      )}
       <button
         {...(disabled ? {} : { ...attributes, ...listeners })}
-        className={`flex h-full w-5 shrink-0 touch-none items-center justify-center text-muted-foreground transition-opacity ${
+        className={`relative z-10 flex h-full w-5 shrink-0 touch-none items-center justify-center transition-opacity ${
+          isInProgress ? 'text-white/80' : 'text-muted-foreground'
+        } ${
           disabled
             ? 'invisible'
             : 'cursor-grab opacity-0 group-hover/gantt-task:opacity-100 focus:opacity-100 active:cursor-grabbing'
@@ -99,7 +116,11 @@ function SortableTaskLabel({
       <button
         type="button"
         onClick={() => onTaskClick(resolveTaskId(task.id))}
-        className="flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-md pr-3 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className={`relative z-10 flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-md pr-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset ${
+          isInProgress
+            ? 'hover:bg-white/10 focus-visible:ring-white'
+            : 'hover:bg-accent/60 focus-visible:ring-ring'
+        }`}
         aria-label={`${row.label}を編集`}
       >
         <span
@@ -135,7 +156,9 @@ export function GanttView() {
   const [scale, setScale] = useState<GanttScale>('day')
   const [pendingTaskOrder, setPendingTaskOrder] = useState<GanttTaskOrder | null>(null)
   const [dragTaskOrder, setDragTaskOrder] = useState<GanttTaskOrder | null>(null)
-  const [draggingLabel, setDraggingLabel] = useState<string | null>(null)
+  const [draggingTask, setDraggingTask] = useState<{ label: string; isInProgress: boolean } | null>(
+    null
+  )
   const [isReordering, setIsReordering] = useState(false)
   const dragTaskOrderRef = useRef<GanttTaskOrder | null>(null)
   const dragStartTaskOrderRef = useRef<GanttTaskOrder | null>(null)
@@ -218,7 +241,9 @@ export function GanttView() {
       const row = orderedFlatRows.find(
         (item): item is GanttTaskFlatRow => item.type === 'task-row' && item.task.id === active.id
       )
-      setDraggingLabel(row?.label ?? null)
+      setDraggingTask(
+        row ? { label: row.label, isInProgress: row.task.status === 'in_progress' } : null
+      )
       if (!row) return
 
       const savedTaskOrder =
@@ -301,7 +326,7 @@ export function GanttView() {
     dragStartTaskOrderRef.current = null
     lastDragOverIdRef.current = null
     setDragTaskOrder(null)
-    setDraggingLabel(null)
+    setDraggingTask(null)
   }, [])
 
   const handleTaskDragEnd = useCallback(
@@ -312,7 +337,7 @@ export function GanttView() {
       dragStartTaskOrderRef.current = null
       lastDragOverIdRef.current = null
       setDragTaskOrder(null)
-      setDraggingLabel(null)
+      setDraggingTask(null)
       if (!isAuthenticated || reorderingRef.current || !over || !taskOrder || !startTaskOrder) {
         return
       }
@@ -604,12 +629,16 @@ export function GanttView() {
           </div>
         </div>
         <DragOverlay>
-          {draggingLabel && (
+          {draggingTask && (
             <div
-              className="flex items-center border border-border bg-card px-6 text-sm text-foreground shadow-lg"
+              className={`flex items-center border border-border px-6 text-sm shadow-lg ${
+                draggingTask.isInProgress
+                  ? `${STATUS_BACKGROUND_CLASSES.in_progress} ${STATUS_FOREGROUND_CLASSES.in_progress}`
+                  : 'bg-card text-foreground'
+              }`}
               style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
             >
-              <span className="truncate">{draggingLabel}</span>
+              <span className="truncate">{draggingTask.label}</span>
             </div>
           )}
         </DragOverlay>

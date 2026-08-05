@@ -21,7 +21,7 @@ describe('KanbanColumn 状態色', () => {
 
   it.each([
     ['todo', '未着手', 'text-slate-600', 'dark:text-slate-300', 'bg-slate-400'],
-    ['in_progress', '進行中', 'text-blue-600', 'dark:text-blue-400', 'bg-blue-500'],
+    ['in_progress', '進行中', 'text-blue-600', 'dark:text-blue-400', 'bg-blue-600'],
     ['done', '完了', 'text-emerald-600', 'dark:text-emerald-400', 'bg-emerald-500'],
   ] as const)(
     '%s の見出しとアクセントに共通の色相を使用する',

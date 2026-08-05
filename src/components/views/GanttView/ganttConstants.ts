@@ -10,3 +10,4 @@ export const ROW_HEIGHT = 36
 export const HEADER_HEIGHT = 48
 export const LEFT_PANE_WIDTH = 400
 export const RESIZE_HANDLE_WIDTH = 8
+export const BAR_VERTICAL_INSET = 6

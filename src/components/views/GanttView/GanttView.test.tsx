@@ -278,6 +278,30 @@ describe('GanttView task reordering', () => {
     })
   })
 
+  it('進行中タスクの行背景をガントバーと同じ色にして連結させる', () => {
+    ganttDataMock.rows = [
+      {
+        topic: TOPIC,
+        tasks: [
+          makeTask('task-todo', '未着手タスク', 0),
+          makeTask('task-in-progress', '進行中タスク', 1, 'in_progress'),
+        ],
+      },
+    ]
+
+    render(<GanttView />)
+
+    const inProgressRow = screen.getByRole('button', { name: '進行中タスクをドラッグして並べ替え' })
+      .parentElement as HTMLElement
+    expect(inProgressRow).toHaveClass('text-white')
+    expect(inProgressRow.querySelector('div[aria-hidden="true"]')).toHaveClass('bg-blue-600')
+
+    const todoRow = screen.getByRole('button', { name: '未着手タスクをドラッグして並べ替え' })
+      .parentElement as HTMLElement
+    expect(todoRow).not.toHaveClass('text-white')
+    expect(todoRow.querySelector('div[aria-hidden="true"]')).toBeNull()
+  })
+
   it('ドラッグ中に表示順を更新し、ドロップ時にプレビュー順を保存する', async () => {
     const update = deferred<{ ok: true; data: undefined }>()
     taskRepoMock.updateGanttOrder.mockReturnValue(update.promise)

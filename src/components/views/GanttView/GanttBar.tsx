@@ -3,7 +3,12 @@ import { differenceInDays, startOfDay } from 'date-fns'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import type { Task } from '@/types'
 import type { GanttScale } from './ganttConstants'
-import { PIXELS_PER_DAY, ROW_HEIGHT, RESIZE_HANDLE_WIDTH } from './ganttConstants'
+import {
+  PIXELS_PER_DAY,
+  ROW_HEIGHT,
+  RESIZE_HANDLE_WIDTH,
+  BAR_VERTICAL_INSET,
+} from './ganttConstants'
 import { resolveTaskId, isVirtualTask } from '@/utils/recurrenceUtils'
 import { getOverdueDays } from '@/utils/dateUtils'
 import { PRIORITY_LABELS, STATUS_BACKGROUND_CLASSES, STATUS_LABELS } from '@/utils/taskPresentation'
@@ -88,7 +93,7 @@ export const GanttBar = memo(function GanttBar({
 
   if (!hasDate) return null
 
-  const barHeight = ROW_HEIGHT - 12
+  const barHeight = ROW_HEIGHT - BAR_VERTICAL_INSET * 2
   const colorClass = STATUS_BACKGROUND_CLASSES[task.status]
   const overdueDays = task.status === 'done' ? 0 : getOverdueDays(task.dueDate)
   const overdueLabel = overdueDays > 0 ? `${overdueDays}日超過` : null
@@ -99,8 +104,9 @@ export const GanttBar = memo(function GanttBar({
       <Tooltip.Root>
         <Tooltip.Trigger asChild>
           <div
-            className={`absolute top-[6px] flex select-none items-center overflow-hidden rounded-md shadow-xs ${colorClass}`}
+            className={`absolute flex select-none items-center overflow-hidden rounded-md shadow-xs ${colorClass}`}
             style={{
+              top: BAR_VERTICAL_INSET,
               left,
               width,
               height: barHeight,

@@ -14,8 +14,14 @@ export const STATUS_TEXT_CLASSES: Record<TaskStatus, string> = {
 
 export const STATUS_BACKGROUND_CLASSES: Record<TaskStatus, string> = {
   todo: 'bg-slate-400',
-  in_progress: 'bg-blue-500',
+  in_progress: 'bg-blue-600',
   done: 'bg-emerald-500',
+}
+
+export const STATUS_FOREGROUND_CLASSES: Record<TaskStatus, string> = {
+  todo: 'text-foreground',
+  in_progress: 'text-white',
+  done: 'text-foreground',
 }
 
 export const PRIORITY_LABELS: Record<Priority, string> = {
