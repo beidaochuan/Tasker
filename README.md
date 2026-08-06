@@ -44,7 +44,7 @@
 
 ここでは、ターミナルから Tasker を一時的に起動する手順を説明します。`npm start` を実行している間だけ動作し、終了するには `Ctrl+C` を押します。
 
-Windows で PC の起動後も常駐させる場合は、この手順ではなく [Windows で常駐させる](#windows-で常駐させる) を使用してください。推奨のセットアップスクリプトは、リリースの取得・依存関係のインストール・サービス登録を自動で行います。
+Windows で PC の起動後も常駐させる場合は、この手順ではなく [Windows で常駐させる](#windows-で常駐させる) を使用してください。推奨のセットアップスクリプトは、依存関係のインストールとサービス登録を自動で行います。
 
 リリース版はビルド済みです。ソースコードから開発する場合は、[開発](#開発) を参照してください。
 
@@ -104,11 +104,15 @@ Windows を主に使う場合は、セットアップスクリプトがもっと
 
 ### セットアップスクリプトを使う（推奨）
 
-手動起動の 1〜4 は不要です。任意のフォルダで次を実行します。
+1. [GitHub Releases](https://github.com/beidaochuan/Tasker/releases) から最新リリースの `tasker-vX.X.X.zip` をダウンロードします。
+2. ZIP を任意の一時フォルダへ解凍します。
+3. 解凍したフォルダで PowerShell または Windows Terminal を**管理者として実行**し、次を実行します。
 
 ```powershell
-.\setup-windows.ps1
+.\scripts\setup-windows.ps1
 ```
+
+セットアップスクリプトは、同じ配布 ZIP に含まれる Tasker 本体をインストール先へコピーします。依存関係の手動インストール、環境変数の設定、`npm start` の実行は不要です。セットアップ完了後は、元の ZIP と一時的な解凍フォルダを削除できます。
 
 #### 既定値について
 
@@ -132,10 +136,10 @@ Windows を主に使う場合は、セットアップスクリプトがもっと
 
 ```powershell
 # インストール先とポートを変更
-.\setup-windows.ps1 -InstallPath 'D:\Apps\Tasker' -Port 8080
+.\scripts\setup-windows.ps1 -InstallPath 'D:\Apps\Tasker' -Port 8080
 
-# 同じバージョンでも再インストール
-.\setup-windows.ps1 -Force
+# GitHub Releasesから取得し直して、同じバージョンでも再インストール
+.\scripts\setup-windows.ps1 -Force
 ```
 
 ### 手動でサービス登録する
@@ -156,16 +160,16 @@ npm run service:install
 
 公式のセットアップで登録した Windows サービス版では、新しいバージョンの通知に表示される **「この端末を更新」** からも更新できます。サービスは `LocalSystem` アカウントで登録されるため、初回セットアップ後は UAC を表示せずに更新できます。更新中はサービスが再起動するため、完了後にブラウザを再読み込みしてください。手動起動、macOS、Linux では GitHub Releases から更新してください。
 
-インストール済みの Tasker フォルダにある `scripts\` で、PowerShell または Windows Terminal を**管理者として実行**して次を実行します。
+インストール済みの Tasker フォルダで、PowerShell または Windows Terminal を**管理者として実行**して次を実行します。
 
 ```powershell
-.\setup-windows.ps1
+.\scripts\setup-windows.ps1
 ```
 
 特定のリリースや、既定以外のポートを使っている場合の例:
 
 ```powershell
-.\setup-windows.ps1 -InstallPath 'D:\Apps\Tasker' -ReleaseTag 'v0.14.0' -Port 8080
+.\scripts\setup-windows.ps1 -InstallPath 'D:\Apps\Tasker' -ReleaseTag 'v0.14.0' -Port 8080
 ```
 
 サービスだけを削除するには次を実行します。`tasker.db` は削除されません。
