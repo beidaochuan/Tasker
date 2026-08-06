@@ -56,7 +56,12 @@ export function ReleaseDialog({
                 {state.type === 'checking' && 'GitHub Releases を確認しています...'}
                 {state.type === 'installing' &&
                   'サーバーを再起動して更新します。完了後、ページを再読み込みしてください。'}
-                {isAvailable && `Tasker ${state.release.version} を利用できます。`}
+                {isAvailable && (
+                  <>
+                    Tasker {state.release.version} を利用できます。
+                    {canSelfUpdate && ' 更新はTasker Windowsサービスの管理者権限で実行されます。'}
+                  </>
+                )}
                 {state.type === 'upToDate' && `現在のバージョン（v${__APP_VERSION__}）は最新です。`}
                 {state.type === 'error' && state.message}
               </Dialog.Description>
@@ -68,7 +73,7 @@ export function ReleaseDialog({
                 再試行
               </Button>
             )}
-            {isAvailable && (
+            {isAvailable && !canSelfUpdate && (
               <a
                 href={state.release.url}
                 target="_blank"

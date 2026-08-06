@@ -211,7 +211,12 @@ describe('Sidebar', () => {
 
     render(<Sidebar />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'この端末を更新' }))
+    const updateButton = await screen.findByRole('button', { name: 'この端末を更新' })
+    expect(
+      screen.getByText(/更新はTasker Windowsサービスの管理者権限で実行されます/)
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'GitHub Releases を開く' })).toBeNull()
+    fireEvent.click(updateButton)
 
     expect(await screen.findByText('更新を実行中')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
