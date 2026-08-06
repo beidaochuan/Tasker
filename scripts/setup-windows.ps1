@@ -451,7 +451,10 @@ function Install-LanFirewallRule {
 }
 
 function Invoke-ExistingTaskerUpdate {
-  param([string]$ResolvedInstallPath)
+  param(
+    [string]$ResolvedInstallPath,
+    [string]$LocalSourcePath
+  )
 
   $updateScript = Join-Path $PSScriptRoot 'update-windows.ps1'
   if (-not (Test-Path -LiteralPath $updateScript -PathType Leaf)) {
@@ -483,6 +486,9 @@ function Invoke-ExistingTaskerUpdate {
   if ($Token) {
     $updateArguments.Token = $Token
   }
+  if ($LocalSourcePath) {
+    $updateArguments.SourcePath = $LocalSourcePath
+  }
 
   Write-Step '既存のTaskerを更新'
   & $updateScript @updateArguments
@@ -507,8 +513,40 @@ try {
     throw 'ドライブ直下はInstallPathに指定できません。例: D:\app\Tasker'
   }
   Write-Host "インストール先: $resolvedInstallPath"
+
+  $localSource = Split-Path -Parent $PSScriptRoot
+  $requiredLocalFiles = @(
+    'package.json',
+    'package-lock.json',
+    'dist\index.html',
+    'dist-server\index.js',
+    'scripts\service-install.cjs'
+  )
+  $missingLocalFiles = $requiredLocalFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $localSource $_) -PathType Leaf) }
+  $localReleaseTag = $null
+  if (-not $missingLocalFiles) {
+    $localVersion = [string](Get-Content -LiteralPath (Join-Path $localSource 'package.json') -Raw | ConvertFrom-Json).version
+    $localReleaseTag = "v$localVersion"
+    if ($localReleaseTag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$') {
+      throw "ローカル配布物のバージョンが不正です: $localVersion"
+    }
+  }
+
+  $useLocalRelease = (
+    $localReleaseTag -and
+    (-not $ReleaseTag -or $ReleaseTag -eq $localReleaseTag)
+  )
+
   if (Test-Path -LiteralPath $resolvedInstallPath) {
-    Invoke-ExistingTaskerUpdate -ResolvedInstallPath $resolvedInstallPath
+    $resolvedLocalSource = [IO.Path]::GetFullPath($localSource)
+    $sourceIsInstallPath = [StringComparer]::OrdinalIgnoreCase.Equals(
+      $resolvedLocalSource.TrimEnd('\'),
+      $resolvedInstallPath.TrimEnd('\')
+    )
+    $updateSourcePath = if ($useLocalRelease -and -not $sourceIsInstallPath) { $resolvedLocalSource } else { $null }
+    Invoke-ExistingTaskerUpdate `
+      -ResolvedInstallPath $resolvedInstallPath `
+      -LocalSourcePath $updateSourcePath
     return
   }
 
@@ -554,19 +592,9 @@ try {
   New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
   Install-NodeIfNeeded
 
-  $localSource = Split-Path -Parent $PSScriptRoot
-  $requiredLocalFiles = @(
-    'package.json',
-    'package-lock.json',
-    'dist\index.html',
-    'dist-server\index.js',
-    'scripts\service-install.cjs'
-  )
-  $missingLocalFiles = $requiredLocalFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $localSource $_) -PathType Leaf) }
-  if (-not $missingLocalFiles -and -not $Force) {
+  if ($useLocalRelease) {
     Write-Step 'ZIPを解凍済みのファイルをそのまま使用'
-    $installedTag = (Get-Content -LiteralPath (Join-Path $localSource 'package.json') -Raw | ConvertFrom-Json).version
-    $installedTag = "v$installedTag"
+    $installedTag = $localReleaseTag
     New-Item -ItemType Directory -Path $resolvedInstallPath -Force | Out-Null
     Copy-Item -Path (Join-Path $localSource '*') -Destination $resolvedInstallPath -Recurse -Exclude 'tasker.db', 'tasker.db-wal', 'tasker.db-shm'
   }

@@ -8,6 +8,8 @@ param(
   [ValidatePattern('^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$')]
   [string]$ReleaseTag,
 
+  [string]$SourcePath,
+
   [string]$BackupPath,
 
   [ValidateRange(1, 65535)]
@@ -290,11 +292,32 @@ try {
   }
 
   New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
-  $archivePath = Join-Path $temporaryRoot 'tasker-release.zip'
-  $releaseTag = Download-TaskerRelease -Destination $archivePath
-  $expandedPath = Join-Path $temporaryRoot 'expanded'
-  Expand-Archive -LiteralPath $archivePath -DestinationPath $expandedPath
-  Test-ReleaseFiles -Path $expandedPath
+  if ($SourcePath) {
+    $expandedPath = [IO.Path]::GetFullPath($SourcePath)
+    if (-not (Test-Path -LiteralPath $expandedPath -PathType Container)) {
+      throw "SourcePathが見つかりません: $expandedPath"
+    }
+    if ([StringComparer]::OrdinalIgnoreCase.Equals($expandedPath.TrimEnd('\'), $resolvedInstallPath.TrimEnd('\'))) {
+      throw 'SourcePathとInstallPathには異なるフォルダを指定してください。'
+    }
+    Test-ReleaseFiles -Path $expandedPath
+    $sourceVersion = [string](Get-Content -LiteralPath (Join-Path $expandedPath 'package.json') -Raw | ConvertFrom-Json).version
+    $releaseTag = "v$sourceVersion"
+    if ($releaseTag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$') {
+      throw "ローカル配布物のバージョンが不正です: $sourceVersion"
+    }
+    if ($ReleaseTag -and $ReleaseTag -ne $releaseTag) {
+      throw "SourcePathのバージョン $releaseTag は指定されたReleaseTag $ReleaseTag と一致しません。"
+    }
+    Write-Step "ローカルの配布ファイル $releaseTag を使用"
+  }
+  else {
+    $archivePath = Join-Path $temporaryRoot 'tasker-release.zip'
+    $releaseTag = Download-TaskerRelease -Destination $archivePath
+    $expandedPath = Join-Path $temporaryRoot 'expanded'
+    Expand-Archive -LiteralPath $archivePath -DestinationPath $expandedPath
+    Test-ReleaseFiles -Path $expandedPath
+  }
 
   $installedVersion = (Get-Content -LiteralPath (Join-Path $resolvedInstallPath 'package.json') -Raw | ConvertFrom-Json).version
   if ($releaseTag -eq "v$installedVersion" -and -not $Force) {
