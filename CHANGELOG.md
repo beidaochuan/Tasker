@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-08-07
+
+### Fixed
+
+- インストール先が既存の場合でも、実行元にある配布物のバージョンを検証してGitHubからの再ダウンロードを回避
+- Windowsサービス版の更新導線を「この端末を更新」ボタンによる直接実行に統一し、自己更新可能な環境ではGitHub Releasesへのリンクを非表示に
+
 ## [0.17.0] - 2026-08-05
 
 ### Added
