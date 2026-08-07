@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.3] - 2026-08-07
+
+### Fixed
+
+- Windowsサービスの表示名（Tasker）と実際のサービス名（tasker.exe）の不一致により、自動更新ボタンが表示されない不具合を修正
+
 ## [0.17.2] - 2026-08-07
 
 ### Fixed
