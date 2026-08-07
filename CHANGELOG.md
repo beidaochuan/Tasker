@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-08-07
+
+### Added
+
+- タスクに「一時停止」ステータスを追加し、進行中のタスクを一時停止として管理できるように（issue #10）
+
 ## [0.17.3] - 2026-08-07
 
 ### Fixed
