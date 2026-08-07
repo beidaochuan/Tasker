@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-08-07
+
+### Fixed
+
+- better-sqlite3を13.0.3へアップグレードし、非推奨なprebuild-install依存によるインストール時の警告を解消
+
 ## [0.17.1] - 2026-08-07
 
 ### Fixed
