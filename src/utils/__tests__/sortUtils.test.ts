@@ -76,7 +76,7 @@ describe('sortKanbanColumnTasks', () => {
     ])
   })
 
-  it('done は状態変更日時の新しい順に並べる', () => {
+  it.each(['done', 'paused'] as const)('%s は状態変更日時の新しい順に並べる', (status) => {
     const items = [
       {
         ...base,
@@ -92,7 +92,7 @@ describe('sortKanbanColumnTasks', () => {
       },
     ]
 
-    expect(sortKanbanColumnTasks('done', items).map((item) => item.id)).toEqual(['newer', 'older'])
+    expect(sortKanbanColumnTasks(status, items).map((item) => item.id)).toEqual(['newer', 'older'])
   })
 
   it('旧データは updatedAt を状態変更日時として扱う', () => {

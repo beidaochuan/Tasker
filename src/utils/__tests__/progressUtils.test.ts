@@ -43,4 +43,8 @@ describe('calcProjectProgress', () => {
   it('in_progress は未完了として扱う', () => {
     expect(calcProjectProgress(['done', 'in_progress'])).toBe(50)
   })
+
+  it('paused は未完了として扱う', () => {
+    expect(calcProjectProgress(['done', 'paused'])).toBe(50)
+  })
 })

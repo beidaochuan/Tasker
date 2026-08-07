@@ -139,6 +139,7 @@ describe('KanbanView drag focus', () => {
     kanbanDataMock.tasksByStatus = {
       todo: [TASK],
       in_progress: [],
+      paused: [],
       done: [],
     }
     useAuthStore.setState({ isAuthenticated: true, isLoginDialogOpen: false })
@@ -209,6 +210,7 @@ describe('KanbanView drag focus', () => {
     kanbanDataMock.tasksByStatus = {
       todo: [],
       in_progress: [{ ...TASK, status: 'in_progress' }],
+      paused: [],
       done: [],
     }
     await act(async () => {
@@ -219,6 +221,7 @@ describe('KanbanView drag focus', () => {
     kanbanDataMock.tasksByStatus = {
       todo: [],
       in_progress: [],
+      paused: [],
       done: [{ ...TASK, status: 'done' }],
     }
     rerender(<KanbanView />)
@@ -245,6 +248,7 @@ describe('KanbanView drag focus', () => {
     kanbanDataMock.tasksByStatus = {
       todo: [project2Task],
       in_progress: [],
+      paused: [],
       done: [],
     }
     await act(async () => {

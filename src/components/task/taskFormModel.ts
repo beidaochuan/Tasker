@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Task } from '@/types'
+import { TASK_STATUSES, type Task } from '@/types'
 import { formatDateInput, parseDateInput } from '@/utils/dateUtils'
 import { buildRRule, parseRRule } from '@/utils/recurrenceUtils'
 
@@ -15,7 +15,7 @@ export const taskFormSchema = z
     projectId: z.string().min(1, 'プロジェクトを選択してください'),
     topicId: z.string().min(1, 'トピックを選択してください'),
     description: z.string(),
-    status: z.enum(['todo', 'in_progress', 'done'] as const),
+    status: z.enum(TASK_STATUSES),
     priority: z.enum(['low', 'medium', 'high', 'urgent'] as const),
     category: z.enum(['software', 'electric'] as const).nullable(),
     startDate: dateTextSchema,

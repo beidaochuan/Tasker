@@ -90,6 +90,7 @@ describe('GanttBar 期限超過ツールチップ', () => {
   it.each([
     ['todo', 'bg-slate-400'],
     ['in_progress', 'bg-blue-600'],
+    ['paused', 'bg-gray-300'],
     ['done', 'bg-emerald-500'],
   ] as const)('%s の状態色をバーに使用する', (status, colorClass) => {
     const { container } = render(

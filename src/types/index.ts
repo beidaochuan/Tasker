@@ -1,5 +1,6 @@
 export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'archived'
-export type TaskStatus = 'todo' | 'in_progress' | 'done'
+export const TASK_STATUSES = ['todo', 'in_progress', 'paused', 'done'] as const
+export type TaskStatus = (typeof TASK_STATUSES)[number]
 export type Priority = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskCategory = 'software' | 'electric'
 

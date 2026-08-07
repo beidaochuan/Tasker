@@ -1,13 +1,14 @@
 import { z } from 'zod'
-import type {
-  Project,
-  Subtask,
-  Tag,
-  Task,
-  TaskComment,
-  TaskCompletion,
-  TaskRelation,
-  Topic,
+import {
+  TASK_STATUSES,
+  type Project,
+  type Subtask,
+  type Tag,
+  type Task,
+  type TaskComment,
+  type TaskCompletion,
+  type TaskRelation,
+  type Topic,
 } from '@/types'
 import { fromUnixMs } from '@/utils/dateUtils'
 
@@ -73,7 +74,7 @@ export const taskWireSchema = z
     topicId: idSchema,
     title: z.string(),
     description: z.string(),
-    status: z.enum(['todo', 'in_progress', 'done']),
+    status: z.enum(TASK_STATUSES),
     priority: z.enum(['low', 'medium', 'high', 'urgent']),
     category: z.enum(['software', 'electric']).nullable(),
     dueDate: unixMsSchema.nullable(),

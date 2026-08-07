@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { useFilterStore } from '@/store/filterStore'
 import { useTags } from '@/hooks/useTags'
 import { PRIORITY_LABELS, STATUS_LABELS } from '@/utils/taskPresentation'
-import type { TaskStatus, Priority } from '@/types'
+import { TASK_STATUSES, type TaskStatus, type Priority } from '@/types'
 
-const ALL_STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done']
+const ALL_STATUSES: TaskStatus[] = [...TASK_STATUSES]
 const ALL_PRIORITIES: Priority[] = ['urgent', 'high', 'medium', 'low']
 
 export function FilterPanel() {

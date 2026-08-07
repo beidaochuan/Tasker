@@ -18,6 +18,7 @@ export interface CalendarEvent {
 const STATUS_COLORS: Record<TaskStatus, string> = {
   todo: '#6366f1',
   in_progress: '#f59e0b',
+  paused: '#9ca3af',
   done: '#22c55e',
 }
 

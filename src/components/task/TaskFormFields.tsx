@@ -117,6 +117,7 @@ export function TaskFormFields({
           >
             <option value="todo">未着手</option>
             <option value="in_progress">進行中</option>
+            <option value="paused">一時停止</option>
             <option value="done">完了</option>
           </select>
         </div>

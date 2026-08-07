@@ -3,24 +3,28 @@ import type { Priority, TaskCategory, TaskStatus } from '@/types'
 export const STATUS_LABELS: Record<TaskStatus, string> = {
   todo: '未着手',
   in_progress: '進行中',
+  paused: '一時停止',
   done: '完了',
 }
 
 export const STATUS_TEXT_CLASSES: Record<TaskStatus, string> = {
   todo: 'text-slate-600 dark:text-slate-300',
   in_progress: 'text-blue-600 dark:text-blue-400',
+  paused: 'text-gray-400 dark:text-gray-500',
   done: 'text-emerald-600 dark:text-emerald-400',
 }
 
 export const STATUS_BACKGROUND_CLASSES: Record<TaskStatus, string> = {
   todo: 'bg-slate-400',
   in_progress: 'bg-blue-600',
+  paused: 'bg-gray-300',
   done: 'bg-emerald-500',
 }
 
 export const STATUS_FOREGROUND_CLASSES: Record<TaskStatus, string> = {
   todo: 'text-foreground',
   in_progress: 'text-white',
+  paused: 'text-foreground',
   done: 'text-foreground',
 }
 

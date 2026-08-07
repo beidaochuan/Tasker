@@ -64,6 +64,7 @@ export function useKanbanData(projectId: string | null): KanbanDataWithLoading {
     const tasksByStatus: Record<TaskStatus, Task[]> = {
       todo: [],
       in_progress: [],
+      paused: [],
       done: [],
     }
     for (const task of tasks ?? []) {

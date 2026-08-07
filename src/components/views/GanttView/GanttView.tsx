@@ -37,7 +37,7 @@ import {
   type GanttTaskFlatRow,
   type GanttTaskOrder,
 } from './ganttRowModel'
-import type { Task } from '@/types'
+import { TASK_STATUSES, type Task } from '@/types'
 import {
   PRIORITY_LABELS,
   PRIORITY_TEXT_CLASSES,
@@ -505,7 +505,7 @@ export function GanttView() {
         <div className="hidden items-center gap-5 text-xs text-muted-foreground lg:flex">
           <div className="flex items-center gap-3">
             <span className="text-[11px] font-semibold">状態</span>
-            {(['todo', 'in_progress', 'done'] as const).map((status) => (
+            {TASK_STATUSES.map((status) => (
               <span key={status} className="flex items-center gap-1.5">
                 <span className={`h-2 w-2 rounded-full ${STATUS_BACKGROUND_CLASSES[status]}`} />
                 {STATUS_LABELS[status]}
