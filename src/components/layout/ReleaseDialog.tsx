@@ -8,6 +8,7 @@ export type ReleaseCheckState =
   | { type: 'available'; release: GitHubRelease }
   | { type: 'upToDate'; release: GitHubRelease }
   | { type: 'installing' }
+  | { type: 'installed'; version: string }
   | { type: 'error'; message: string }
 
 interface ReleaseDialogProps {
@@ -46,16 +47,20 @@ export function ReleaseDialog({
                   ? '更新を確認中'
                   : state.type === 'installing'
                     ? '更新を実行中'
-                    : isAvailable
-                      ? '新しいバージョンがあります'
-                      : state.type === 'upToDate'
-                        ? '最新バージョンです'
-                        : '更新の確認に失敗しました'}
+                    : state.type === 'installed'
+                      ? '更新が完了しました'
+                      : isAvailable
+                        ? '新しいバージョンがあります'
+                        : state.type === 'upToDate'
+                          ? '最新バージョンです'
+                          : '更新の確認に失敗しました'}
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-xs text-muted-foreground">
                 {state.type === 'checking' && 'GitHub Releases を確認しています...'}
                 {state.type === 'installing' &&
-                  'サーバーを再起動して更新します。完了後、ページを再読み込みしてください。'}
+                  'サーバーを再起動して更新します。完了まで少しお待ちください。'}
+                {state.type === 'installed' &&
+                  `Tasker ${state.version} に更新しました。ページを再読み込みしてください。`}
                 {isAvailable && (
                   <>
                     Tasker {state.release.version} を利用できます。
@@ -90,7 +95,16 @@ export function ReleaseDialog({
                 <Download className="h-3.5 w-3.5" />
               </Button>
             )}
-            <Button variant={isAvailable ? 'outline' : 'default'} size="sm" onClick={onClose}>
+            {state.type === 'installed' && (
+              <Button size="sm" onClick={() => window.location.reload()}>
+                ページを再読み込み
+              </Button>
+            )}
+            <Button
+              variant={isAvailable || state.type === 'installed' ? 'outline' : 'default'}
+              size="sm"
+              onClick={onClose}
+            >
               閉じる
             </Button>
           </div>

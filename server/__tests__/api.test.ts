@@ -99,7 +99,7 @@ describe('Tasker API', () => {
     const result = await rawRequest('/api/update/status')
 
     expect(result.response.status).toBe(200)
-    expect(result.body).toEqual({ canSelfUpdate: expect.any(Boolean) })
+    expect(result.body).toEqual({ canSelfUpdate: expect.any(Boolean), version: expect.any(String) })
   })
 
   it('関連タスクを双方向に保存し、タスク削除時に関連も解除する', async () => {

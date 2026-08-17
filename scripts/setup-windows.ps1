@@ -502,10 +502,15 @@ try {
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
   Write-Step 'インストール先を確認'
-  Write-Host "インストール先 (既定: $InstallPath):"
-  $inputPath = (Read-Host "  そのままEnterで既定を使用").Trim()
-  if (-not [string]::IsNullOrWhiteSpace($inputPath)) {
-    $InstallPath = $inputPath
+  if ($PSBoundParameters.ContainsKey('InstallPath')) {
+    Write-Host "インストール先が指定されたため確認をスキップします: $InstallPath"
+  }
+  else {
+    Write-Host "インストール先 (既定: $InstallPath):"
+    $inputPath = (Read-Host "  そのままEnterで既定を使用").Trim()
+    if (-not [string]::IsNullOrWhiteSpace($inputPath)) {
+      $InstallPath = $inputPath
+    }
   }
   $resolvedInstallPath = [IO.Path]::GetFullPath($InstallPath)
   $installRoot = [IO.Path]::GetPathRoot($resolvedInstallPath)

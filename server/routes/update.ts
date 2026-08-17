@@ -1,11 +1,16 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Router } from 'express'
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const setupScriptPath = path.join(appRoot, 'scripts', 'setup-windows.ps1')
+const updateLogPath = path.join(os.tmpdir(), 'tasker-update.log')
+const serverVersion = (
+  JSON.parse(readFileSync(path.join(appRoot, 'package.json'), 'utf8')) as { version: string }
+).version
 
 // node-windowsが登録するSERVICE_NAMEはDISPLAY_NAMEと異なる（例: "Tasker" -> "tasker.exe"）ため、
 // 表示名から実際のサービス名を解決する。sc.exeの出力はASCII前提（encoding: 'utf8'）。
@@ -17,7 +22,8 @@ function findServiceName(nameOrDisplayName: string): string | null {
       encoding: 'utf8',
       timeout: 5000,
     })
-  } catch {
+  } catch (err) {
+    console.error('[update] sc.exeによるサービス一覧の取得に失敗しました', err)
     return null
   }
 
@@ -47,7 +53,8 @@ function updateUnavailableMessage(): string | null {
   if (!findServiceName('Tasker')) return 'Tasker の Windows サービスが見つかりません'
   try {
     execFileSync('net.exe', ['session'], { stdio: 'ignore', windowsHide: true })
-  } catch {
+  } catch (err) {
+    console.error('[update] 管理者権限の確認(net session)に失敗しました', err)
     return 'Tasker サービスに更新に必要な管理者権限がありません'
   }
   return null
@@ -58,13 +65,24 @@ export function createUpdateRouter(port: number): Router {
 
   router.get('/status', (_req, res) => {
     res.set('Cache-Control', 'no-store')
-    res.json({ canSelfUpdate: updateUnavailableMessage() === null })
+    res.json({ canSelfUpdate: updateUnavailableMessage() === null, version: serverVersion })
   })
 
   router.post('/', (_req, res) => {
     const unavailable = updateUnavailableMessage()
     if (unavailable) {
       res.status(501).json({ error: 'UPDATE_UNAVAILABLE', message: unavailable })
+      return
+    }
+
+    let logFd: number
+    try {
+      logFd = openSync(updateLogPath, 'w')
+    } catch (err) {
+      console.error('[update] 更新ログファイルを作成できませんでした', err)
+      res
+        .status(500)
+        .json({ error: 'UPDATE_START_FAILED', message: '更新プログラムを起動できませんでした' })
       return
     }
 
@@ -82,14 +100,17 @@ export function createUpdateRouter(port: number): Router {
           '-Port',
           String(port),
         ],
-        { detached: true, stdio: 'ignore', windowsHide: true }
+        { detached: true, stdio: ['ignore', logFd, logFd], windowsHide: true }
       )
       child.unref()
       res.status(202).json({ started: true })
-    } catch {
+    } catch (err) {
+      console.error('[update] 更新プログラムの起動に失敗しました', err)
       res
         .status(500)
         .json({ error: 'UPDATE_START_FAILED', message: '更新プログラムを起動できませんでした' })
+    } finally {
+      closeSync(logFd)
     }
   })
 

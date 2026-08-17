@@ -189,7 +189,7 @@ describe('Sidebar', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({ canSelfUpdate: true }),
+          json: async () => ({ canSelfUpdate: true, version: __APP_VERSION__ }),
         })
       }
       if (url === '/api/update') {
@@ -223,5 +223,165 @@ describe('Sidebar', () => {
       '/api/update',
       expect.objectContaining({ method: 'POST', credentials: 'same-origin' })
     )
+  })
+
+  it('更新完了を検知するとページ再読み込みを促す', async () => {
+    vi.useFakeTimers()
+    useAuthStore.setState({ isAuthenticated: true, csrfToken: 'csrf-token' })
+    const updatedVersion = NEWER_TAG.slice(1)
+    // POST /api/updateが呼ばれた後は、サーバーが新バージョンで応答するようになったとみなす。
+    // API呼び出し回数ではなく「更新が実際に開始されたか」に結びつけることで、
+    // マウント時のチェックなど他の呼び出しが増減してもテストの意図が崩れない。
+    let updateStarted = false
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/update/status') {
+        const version = updateStarted ? updatedVersion : __APP_VERSION__
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ canSelfUpdate: true, version }),
+        })
+      }
+      if (url === '/api/update') {
+        updateStarted = true
+        return Promise.resolve({ ok: true, status: 202, json: async () => ({ started: true }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tag_name: NEWER_TAG,
+          html_url: `https://github.com/beidaochuan/Tasker/releases/tag/${NEWER_TAG}`,
+        }),
+      })
+    })
+
+    render(<Sidebar />)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    const updateButton = screen.getByRole('button', { name: 'この端末を更新' })
+    await act(async () => {
+      fireEvent.click(updateButton)
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(screen.getByText('更新を実行中')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000)
+    })
+
+    expect(screen.getByText('更新が完了しました')).toBeInTheDocument()
+  })
+
+  it('サーバー再起動中の一時的な接続エラーを無視してポーリングを継続する', async () => {
+    vi.useFakeTimers()
+    useAuthStore.setState({ isAuthenticated: true, csrfToken: 'csrf-token' })
+    const updatedVersion = NEWER_TAG.slice(1)
+    let updateStarted = false
+    // 更新開始後、最初のポーリングだけサーバー再起動中の接続エラーを再現する。
+    let statusCallsAfterStart = 0
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/update/status') {
+        if (!updateStarted) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ canSelfUpdate: true, version: __APP_VERSION__ }),
+          })
+        }
+        statusCallsAfterStart += 1
+        if (statusCallsAfterStart === 1) {
+          return Promise.reject(new Error('サーバー再起動中'))
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ canSelfUpdate: true, version: updatedVersion }),
+        })
+      }
+      if (url === '/api/update') {
+        updateStarted = true
+        return Promise.resolve({ ok: true, status: 202, json: async () => ({ started: true }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tag_name: NEWER_TAG,
+          html_url: `https://github.com/beidaochuan/Tasker/releases/tag/${NEWER_TAG}`,
+        }),
+      })
+    })
+
+    render(<Sidebar />)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    const updateButton = screen.getByRole('button', { name: 'この端末を更新' })
+    await act(async () => {
+      fireEvent.click(updateButton)
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(screen.getByText('更新を実行中')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000)
+    })
+    expect(screen.getByText('更新を実行中')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000)
+    })
+    expect(screen.getByText('更新が完了しました')).toBeInTheDocument()
+  })
+
+  it('更新の完了を確認できないままタイムアウトするとエラーを表示する', async () => {
+    vi.useFakeTimers()
+    useAuthStore.setState({ isAuthenticated: true, csrfToken: 'csrf-token' })
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/update/status') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ canSelfUpdate: true, version: __APP_VERSION__ }),
+        })
+      }
+      if (url === '/api/update') {
+        return Promise.resolve({ ok: true, status: 202, json: async () => ({ started: true }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tag_name: NEWER_TAG,
+          html_url: `https://github.com/beidaochuan/Tasker/releases/tag/${NEWER_TAG}`,
+        }),
+      })
+    })
+
+    render(<Sidebar />)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    const updateButton = screen.getByRole('button', { name: 'この端末を更新' })
+    await act(async () => {
+      fireEvent.click(updateButton)
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(screen.getByText('更新を実行中')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+    })
+
+    expect(
+      screen.getByText(
+        '更新の完了を確認できませんでした。しばらくしてページを再読み込みしてください。'
+      )
+    ).toBeInTheDocument()
   })
 })

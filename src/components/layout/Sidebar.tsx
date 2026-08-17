@@ -42,6 +42,8 @@ type DialogState =
   | { type: 'deleteConfirm'; projectId: string; projectName: string }
 
 const RELEASE_CHECK_INTERVAL_MS = 60 * 60 * 1000
+const UPDATE_POLL_INTERVAL_MS = 3_000
+const UPDATE_POLL_TIMEOUT_MS = 5 * 60 * 1000
 
 export function Sidebar() {
   const projects = useProjects()
@@ -61,6 +63,16 @@ export function Sidebar() {
   const importInputRef = useRef<HTMLInputElement>(null)
   const hasCheckedRelease = useRef(false)
   const releaseRequestId = useRef(0)
+  const updatePollTimer = useRef<number | null>(null)
+
+  function clearUpdatePolling() {
+    if (updatePollTimer.current !== null) {
+      window.clearTimeout(updatePollTimer.current)
+      updatePollTimer.current = null
+    }
+  }
+
+  useEffect(() => clearUpdatePolling, [])
 
   useEffect(() => {
     if (
@@ -114,16 +126,65 @@ export function Sidebar() {
   }, [])
 
   async function handleStartUpdate() {
-    releaseRequestId.current += 1
+    const requestId = ++releaseRequestId.current
     setReleaseCheckState({ type: 'installing' })
+
+    const before = await getUpdateCapability()
+    if (requestId !== releaseRequestId.current) return
+    // beforeの取得が一時的に失敗しても完了検知が永久に機能しなくならないよう、
+    // 現在ロード済みのアプリバージョンをフォールバックにする。
+    const previousVersion = before.ok ? before.data.version : __APP_VERSION__
+
     const result = await startSelfUpdate()
+    if (requestId !== releaseRequestId.current) return
     if (!result.ok) {
       setReleaseCheckState({
         type: 'error',
         message:
           '更新を開始できませんでした。Windows サービスの状態を確認して、再試行してください。',
       })
+      return
     }
+
+    const deadline = Date.now() + UPDATE_POLL_TIMEOUT_MS
+
+    async function pollUpdateStatus() {
+      if (requestId !== releaseRequestId.current) {
+        clearUpdatePolling()
+        return
+      }
+      const status = await getUpdateCapability()
+      if (requestId !== releaseRequestId.current) {
+        clearUpdatePolling()
+        return
+      }
+
+      if (status.ok && status.data.version !== previousVersion) {
+        clearUpdatePolling()
+        setAvailableRelease(null)
+        setReleaseCheckState({ type: 'installed', version: status.data.version })
+        return
+      }
+      if (Date.now() >= deadline) {
+        clearUpdatePolling()
+        setReleaseCheckState({
+          type: 'error',
+          message: '更新の完了を確認できませんでした。しばらくしてページを再読み込みしてください。',
+        })
+        return
+      }
+      // 前回のレスポンスを待ってから次回をスケジュールし、多重リクエストを避ける。
+      updatePollTimer.current = window.setTimeout(
+        () => void pollUpdateStatus(),
+        UPDATE_POLL_INTERVAL_MS
+      )
+    }
+
+    clearUpdatePolling()
+    updatePollTimer.current = window.setTimeout(
+      () => void pollUpdateStatus(),
+      UPDATE_POLL_INTERVAL_MS
+    )
   }
 
   function handleReleaseButtonClick() {
