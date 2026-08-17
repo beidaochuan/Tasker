@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-08-17
+
+### Added
+
+- 進行中のタスクを完了に変更した際、完了日時をKanbanカードとタスク詳細に表示（issue #11）
+
 ## [0.18.0] - 2026-08-07
 
 ### Added
