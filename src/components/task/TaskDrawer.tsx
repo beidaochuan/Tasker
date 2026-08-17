@@ -23,7 +23,7 @@ import { useProjects } from '@/hooks/useProjects'
 import { useRecurrence } from '@/hooks/useRecurrence'
 import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo } from '@/repositories'
-import { parseDateInput } from '@/utils/dateUtils'
+import { formatDateTime, getStatusChangedAt, parseDateInput } from '@/utils/dateUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 
 export function TaskDrawer() {
@@ -225,13 +225,21 @@ export function TaskDrawer() {
         className="relative z-10 flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl"
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div className="flex items-baseline gap-2">
-            <h2 id="task-dialog-title" className="text-base font-semibold">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+            <h2 id="task-dialog-title" className="truncate text-base font-semibold">
               {!isAuthenticated ? 'タスク詳細' : isNew ? 'タスクを作成' : 'タスクを編集'}
             </h2>
-            <span className="text-xs text-muted-foreground" data-testid="task-id">
+            <span className="shrink-0 text-xs text-muted-foreground" data-testid="task-id">
               ID: {isNew ? '未採番' : selectedTaskId}
             </span>
+            {existingTask?.status === 'done' && (
+              <span
+                className="shrink-0 text-xs text-muted-foreground"
+                data-testid="task-completed-at"
+              >
+                完了日時: {formatDateTime(getStatusChangedAt(existingTask))}
+              </span>
+            )}
           </div>
           <div className="flex gap-1">
             {isAuthenticated && !isNew && (

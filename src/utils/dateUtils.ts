@@ -49,6 +49,10 @@ export function formatDateTime(date: Date): string {
   return format(date, 'yyyy/MM/dd HH:mm')
 }
 
+export function getStatusChangedAt(task: { statusChangedAt?: Date; updatedAt: Date }): Date {
+  return task.statusChangedAt ?? task.updatedAt
+}
+
 export function formatDateInput(date: Date | null): string {
   if (date === null) return ''
   const year = date.getFullYear()

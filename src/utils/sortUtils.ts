@@ -1,4 +1,5 @@
 import type { Priority, TaskStatus } from '@/types'
+import { getStatusChangedAt } from '@/utils/dateUtils'
 
 const PRIORITY_RANK: Record<Priority, number> = {
   urgent: 0,
@@ -30,8 +31,8 @@ export function sortKanbanColumnTasks<
   if (status === 'todo' || status === 'in_progress') return sortByPriority(items)
 
   return [...items].sort((a, b) => {
-    const aChangedAt = (a.statusChangedAt ?? a.updatedAt).getTime()
-    const bChangedAt = (b.statusChangedAt ?? b.updatedAt).getTime()
+    const aChangedAt = getStatusChangedAt(a).getTime()
+    const bChangedAt = getStatusChangedAt(b).getTime()
     return bChangedAt - aChangedAt
   })
 }

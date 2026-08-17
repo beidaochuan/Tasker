@@ -194,6 +194,50 @@ describe('TaskDrawer', () => {
     expect(screen.getByLabelText('説明')).toHaveAttribute('rows', '6')
   })
 
+  it('未完了タスクには完了日時を表示しない', async () => {
+    render(<TaskDrawer />)
+
+    await screen.findByRole('dialog', { name: 'タスクを編集' })
+    expect(screen.queryByTestId('task-completed-at')).not.toBeInTheDocument()
+  })
+
+  it('完了したタスクにはstatusChangedAtを完了日時として表示する', async () => {
+    const doneTask: Task = {
+      ...TASK,
+      status: 'done',
+      statusChangedAt: new Date(2026, 0, 3, 9, 30),
+    }
+    taskRepoMock.getByProjectId.mockImplementation((projectId: string) =>
+      Promise.resolve({ ok: true, data: projectId === 'project-1' ? [doneTask] : [] })
+    )
+    taskRepoMock.getAll.mockResolvedValue({ ok: true, data: [doneTask] })
+
+    render(<TaskDrawer />)
+
+    expect(await screen.findByTestId('task-completed-at')).toHaveTextContent(
+      '完了日時: 2026/01/03 09:30'
+    )
+  })
+
+  it('完了したタスクでstatusChangedAtが無い場合はupdatedAtを完了日時として表示する', async () => {
+    const doneTask: Task = {
+      ...TASK,
+      status: 'done',
+      statusChangedAt: undefined,
+      updatedAt: new Date(2026, 0, 5, 14, 0),
+    }
+    taskRepoMock.getByProjectId.mockImplementation((projectId: string) =>
+      Promise.resolve({ ok: true, data: projectId === 'project-1' ? [doneTask] : [] })
+    )
+    taskRepoMock.getAll.mockResolvedValue({ ok: true, data: [doneTask] })
+
+    render(<TaskDrawer />)
+
+    expect(await screen.findByTestId('task-completed-at')).toHaveTextContent(
+      '完了日時: 2026/01/05 14:00'
+    )
+  })
+
   it('新規タスクはIDが未採番であることを表示する', async () => {
     useUIStore.setState({
       selectedTaskId: null,

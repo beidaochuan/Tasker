@@ -1,7 +1,7 @@
 import { memo } from 'react'
-import { Clock } from 'lucide-react'
+import { CheckCircle, Clock } from 'lucide-react'
 import { cn } from '@/utils/cn'
-import { formatDate, isOverdue } from '@/utils/dateUtils'
+import { formatDate, getStatusChangedAt, isOverdue } from '@/utils/dateUtils'
 import {
   CATEGORY_BADGE_CLASSES,
   CATEGORY_LABELS,
@@ -20,6 +20,7 @@ export const KanbanCardContent = memo(function KanbanCardContent({
   className,
 }: KanbanCardContentProps) {
   const overdue = task.status !== 'done' && isOverdue(task.dueDate)
+  const completedAt = task.status === 'done' ? getStatusChangedAt(task) : null
 
   return (
     <div
@@ -69,6 +70,15 @@ export const KanbanCardContent = memo(function KanbanCardContent({
           >
             <Clock className="h-3 w-3 shrink-0" />
             {formatDate(task.dueDate)}
+          </span>
+        </div>
+      )}
+
+      {completedAt && (
+        <div className="mt-2 flex justify-end">
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <CheckCircle className="h-3 w-3 shrink-0 text-green-500" />
+            完了: {formatDate(completedAt)}
           </span>
         </div>
       )}

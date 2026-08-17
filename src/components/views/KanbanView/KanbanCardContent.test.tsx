@@ -87,4 +87,39 @@ describe('KanbanCardContent', () => {
     expect(screen.getByText('2026/07/15')).toHaveClass('text-muted-foreground')
     expect(screen.getByText('2026/07/15')).not.toHaveClass('text-danger')
   })
+
+  it('完了したタスクにはstatusChangedAtを完了日として表示する', () => {
+    render(
+      <KanbanCardContent
+        task={{
+          ...task,
+          status: 'done',
+          statusChangedAt: new Date(2026, 6, 20),
+        }}
+      />
+    )
+
+    expect(screen.getByText('完了: 2026/07/20')).toBeInTheDocument()
+  })
+
+  it('完了したタスクでstatusChangedAtが無い場合はupdatedAtを完了日として表示する', () => {
+    render(
+      <KanbanCardContent
+        task={{
+          ...task,
+          status: 'done',
+          statusChangedAt: undefined,
+          updatedAt: new Date(2026, 6, 21),
+        }}
+      />
+    )
+
+    expect(screen.getByText('完了: 2026/07/21')).toBeInTheDocument()
+  })
+
+  it('未完了のタスクには完了日を表示しない', () => {
+    render(<KanbanCardContent task={{ ...task, status: 'in_progress' }} />)
+
+    expect(screen.queryByText(/^完了:/)).not.toBeInTheDocument()
+  })
 })
