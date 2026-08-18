@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-08-18
+
+### Fixed
+
+- Windowsサービス版の自己更新で、既存インストール先自身のスクリプトを実行するため
+  ローカルソースと判定され、GitHub Releaseへの再アクセスが必要な自己更新特有の経路で
+  更新が進まない（画面が「更新を実行中」のまま止まる）問題を修正。GitHub Releaseの
+  最新版を別の一時フォルダへダウンロード・展開し、その中のセットアップスクリプトを
+  実行するように変更（issue #12）
+
 ## [0.20.0] - 2026-08-18
 
 ### Added

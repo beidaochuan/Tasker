@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { Router } from 'express'
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const setupScriptPath = path.join(appRoot, 'scripts', 'setup-windows.ps1')
+const selfUpdateScriptPath = path.join(appRoot, 'scripts', 'self-update.ps1')
 const updateLogPath = path.join(os.tmpdir(), 'tasker-update.log')
 const serverVersion = (
   JSON.parse(readFileSync(path.join(appRoot, 'package.json'), 'utf8')) as { version: string }
@@ -43,7 +43,7 @@ function findServiceName(nameOrDisplayName: string): string | null {
 
 function updateUnavailableMessage(): string | null {
   if (process.platform !== 'win32') return 'この端末ではアプリ内更新を利用できません'
-  if (!existsSync(setupScriptPath)) return 'セットアップスクリプトが見つかりません'
+  if (!existsSync(selfUpdateScriptPath)) return '更新スクリプトが見つかりません'
 
   let serviceName: string | null
   try {
@@ -97,7 +97,7 @@ export function createUpdateRouter(port: number): Router {
           '-ExecutionPolicy',
           'Bypass',
           '-File',
-          setupScriptPath,
+          selfUpdateScriptPath,
           '-InstallPath',
           appRoot,
           '-Port',
