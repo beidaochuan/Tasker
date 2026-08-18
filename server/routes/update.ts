@@ -15,17 +15,11 @@ const serverVersion = (
 // node-windowsが登録するSERVICE_NAMEはDISPLAY_NAMEと異なる（例: "Tasker" -> "tasker.exe"）ため、
 // 表示名から実際のサービス名を解決する。sc.exeの出力はASCII前提（encoding: 'utf8'）。
 function findServiceName(nameOrDisplayName: string): string | null {
-  let output: string
-  try {
-    output = execFileSync('sc.exe', ['query', 'type=', 'service', 'state=', 'all'], {
-      windowsHide: true,
-      encoding: 'utf8',
-      timeout: 5000,
-    })
-  } catch (err) {
-    console.error('[update] sc.exeによるサービス一覧の取得に失敗しました', err)
-    return null
-  }
+  const output = execFileSync('sc.exe', ['query', 'type=', 'service', 'state=', 'all'], {
+    windowsHide: true,
+    encoding: 'utf8',
+    timeout: 5000,
+  })
 
   let currentServiceName: string | null = null
   for (const line of output.split(/\r?\n/)) {
@@ -50,11 +44,20 @@ function findServiceName(nameOrDisplayName: string): string | null {
 function updateUnavailableMessage(): string | null {
   if (process.platform !== 'win32') return 'この端末ではアプリ内更新を利用できません'
   if (!existsSync(setupScriptPath)) return 'セットアップスクリプトが見つかりません'
-  if (!findServiceName('Tasker')) return 'Tasker の Windows サービスが見つかりません'
+
+  let serviceName: string | null
+  try {
+    serviceName = findServiceName('Tasker')
+  } catch (err) {
+    console.error('[update] sc.exeによるサービス一覧の取得に失敗しました', err)
+    return 'Tasker の Windows サービスの確認に失敗しました'
+  }
+  if (!serviceName) return 'Tasker の Windows サービスが見つかりません'
+
   try {
     execFileSync('net.exe', ['session'], { stdio: 'ignore', windowsHide: true })
-  } catch (err) {
-    console.error('[update] 管理者権限の確認(net session)に失敗しました', err)
+  } catch {
+    // net sessionの失敗は管理者権限がないことの正常な検知方法であり、エラーではない
     return 'Tasker サービスに更新に必要な管理者権限がありません'
   }
   return null
@@ -102,6 +105,9 @@ export function createUpdateRouter(port: number): Router {
         ],
         { detached: true, stdio: ['ignore', logFd, logFd], windowsHide: true }
       )
+      child.on('error', (err) => {
+        console.error('[update] 更新プログラムの起動に失敗しました', err)
+      })
       child.unref()
       res.status(202).json({ started: true })
     } catch (err) {
