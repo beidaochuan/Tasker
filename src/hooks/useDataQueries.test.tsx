@@ -348,4 +348,27 @@ describe('useDataQueries', () => {
       expect(useDataQueryStore.getState().tags.status).toBe('success')
     })
   })
+
+  it('updateProjectTaskは一覧APIで得た作業リストの進捗を単票APIの応答で消さない', async () => {
+    taskRepoMock.getByProjectId.mockResolvedValue({
+      ok: true,
+      data: [{ ...makeTask('project-a'), subtaskTotal: 3, subtaskDone: 1 }],
+    })
+
+    const { result } = renderHook(() => useProjectQuery('project-a'))
+    await waitFor(() => expect(result.current?.data?.tasks[0]?.subtaskTotal).toBe(3))
+
+    act(() => {
+      // 単票のPATCH応答にはsubtaskTotal/subtaskDoneが含まれない
+      useDataQueryStore
+        .getState()
+        .updateProjectTask('project-a', { ...makeTask('project-a'), status: 'done' })
+    })
+
+    expect(result.current?.data?.tasks[0]).toMatchObject({
+      status: 'done',
+      subtaskTotal: 3,
+      subtaskDone: 1,
+    })
+  })
 })

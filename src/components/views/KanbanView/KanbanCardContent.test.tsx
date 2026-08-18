@@ -122,4 +122,29 @@ describe('KanbanCardContent', () => {
 
     expect(screen.queryByText(/^完了:/)).not.toBeInTheDocument()
   })
+
+  it('作業リストがある場合は進捗バーと完了数を表示する', () => {
+    render(<KanbanCardContent task={{ ...task, subtaskTotal: 4, subtaskDone: 1 }} />)
+
+    expect(screen.getByText('1/4')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
+  })
+
+  it('作業リストが無い場合は進捗バーを表示しない', () => {
+    render(<KanbanCardContent task={{ ...task, subtaskTotal: 0, subtaskDone: 0 }} />)
+
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
+  it('作業リストが全完了の場合は進捗バーを緑色にする', () => {
+    render(<KanbanCardContent task={{ ...task, subtaskTotal: 2, subtaskDone: 2 }} />)
+
+    expect(screen.getByRole('progressbar').firstChild).toHaveClass('bg-green-500')
+  })
+
+  it('作業リストが未完了を含む場合は進捗バーを既定色にする', () => {
+    render(<KanbanCardContent task={{ ...task, subtaskTotal: 2, subtaskDone: 1 }} />)
+
+    expect(screen.getByRole('progressbar').firstChild).toHaveClass('bg-primary')
+  })
 })

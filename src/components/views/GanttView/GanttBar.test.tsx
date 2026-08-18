@@ -113,4 +113,24 @@ describe('GanttBar 期限超過ツールチップ', () => {
       expect.not.stringContaining('日超過')
     )
   })
+
+  it('作業リストがある場合は進捗をツールチップとバー内オーバーレイに表示する', async () => {
+    const task = { ...makeTask(), subtaskTotal: 4, subtaskDone: 1 }
+    const { container } = render(
+      <GanttBar task={task} ganttStart={new Date('2026-07-01')} scale="day" />
+    )
+    const bar = container.firstElementChild as HTMLElement
+
+    expect(bar).toHaveAttribute('aria-label', expect.stringContaining('進捗: 1/4'))
+    expect(bar.firstElementChild).toHaveStyle({ width: '25%' })
+  })
+
+  it('作業リストが無い場合はバー内オーバーレイを表示しない', () => {
+    const { container } = render(
+      <GanttBar task={makeTask()} ganttStart={new Date('2026-07-01')} scale="day" />
+    )
+    const bar = container.firstElementChild as HTMLElement
+
+    expect(bar.firstElementChild).toBeNull()
+  })
 })

@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { CheckCircle, Clock } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { formatDate, getStatusChangedAt, isOverdue } from '@/utils/dateUtils'
+import { calcSubtaskProgressPercent } from '@/utils/progressUtils'
 import {
   CATEGORY_BADGE_CLASSES,
   CATEGORY_LABELS,
@@ -21,6 +22,10 @@ export const KanbanCardContent = memo(function KanbanCardContent({
 }: KanbanCardContentProps) {
   const overdue = task.status !== 'done' && isOverdue(task.dueDate)
   const completedAt = task.status === 'done' ? getStatusChangedAt(task) : null
+  const subtaskTotal = task.subtaskTotal ?? 0
+  const subtaskDone = task.subtaskDone ?? 0
+  const hasSubtasks = subtaskTotal > 0
+  const subtaskProgress = calcSubtaskProgressPercent(subtaskDone, subtaskTotal)
 
   return (
     <div
@@ -30,12 +35,39 @@ export const KanbanCardContent = memo(function KanbanCardContent({
         className
       )}
     >
-      <p
-        className="mb-1.5 truncate font-mono text-[10px] text-muted-foreground"
-        title={String(task.id)}
-      >
-        ID: {task.id}
-      </p>
+      <div className="mb-1.5 flex items-center gap-2">
+        <p
+          className="shrink-0 truncate font-mono text-[10px] text-muted-foreground"
+          title={String(task.id)}
+        >
+          ID: {task.id}
+        </p>
+        {hasSubtasks && (
+          <>
+            <div
+              role="progressbar"
+              aria-label="作業リストの進捗"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={subtaskProgress}
+              aria-valuetext={`${subtaskDone} / ${subtaskTotal} 完了`}
+              className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
+            >
+              <div
+                className={cn(
+                  'h-full rounded-full transition-[width]',
+                  subtaskProgress >= 100 ? 'bg-green-500' : 'bg-primary'
+                )}
+                style={{ width: `${subtaskProgress}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-[10px] text-muted-foreground">
+              {subtaskDone}/{subtaskTotal}
+            </span>
+          </>
+        )}
+      </div>
+
       <div className="flex items-start gap-2">
         <span
           className={cn(

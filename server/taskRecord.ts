@@ -15,6 +15,9 @@ export interface TaskRow {
   statusChangedAt: number | null
   createdAt: number
   updatedAt: number
+  /** 一覧取得APIの相関サブクエリでのみ付与される作業リストの進捗 */
+  subtaskTotal?: number
+  subtaskDone?: number
 }
 
 export type TaskApiRecord = Omit<TaskRow, 'tags' | 'statusChangedAt'> & {

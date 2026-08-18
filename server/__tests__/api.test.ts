@@ -186,6 +186,21 @@ describe('Tasker API', () => {
     ).toEqual([second.body.id, first.body.id])
   })
 
+  it('プロジェクトIDでのタスク一覧取得時に作業リストの進捗を集計して返す', async () => {
+    const project = await post('/api/projects', { name: 'Project' })
+    const topic = await post('/api/topics', { projectId: project.body.id, name: 'Topic' })
+    const withSubtasks = await post('/api/tasks', { topicId: topic.body.id, title: 'With' })
+    const withoutSubtasks = await post('/api/tasks', { topicId: topic.body.id, title: 'Without' })
+    await post('/api/subtasks', { taskId: withSubtasks.body.id, title: 'Done', isDone: true })
+    await post('/api/subtasks', { taskId: withSubtasks.body.id, title: 'Todo', isDone: false })
+
+    const list = await request(`/api/tasks?projectId=${project.body.id}`)
+    const byId = new Map(list.body.map((task: { id: number }) => [task.id, task]))
+
+    expect(byId.get(withSubtasks.body.id)).toMatchObject({ subtaskTotal: 2, subtaskDone: 1 })
+    expect(byId.get(withoutSubtasks.body.id)).toMatchObject({ subtaskTotal: 0, subtaskDone: 0 })
+  })
+
   it('不正なタスク状態を400で拒否し、DBへ保存しない', async () => {
     const project = await post('/api/projects', { name: 'Project' })
     const topic = await post('/api/topics', {

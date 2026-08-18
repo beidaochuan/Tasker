@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcProgress, calcProjectProgress } from '../progressUtils'
+import { calcProgress, calcProjectProgress, calcSubtaskProgressPercent } from '../progressUtils'
 
 describe('calcProgress', () => {
   it('サブタスクが空の場合は0を返す', () => {
@@ -46,5 +46,23 @@ describe('calcProjectProgress', () => {
 
   it('paused は未完了として扱う', () => {
     expect(calcProjectProgress(['done', 'paused'])).toBe(50)
+  })
+})
+
+describe('calcSubtaskProgressPercent', () => {
+  it('totalが0なら0を返す', () => {
+    expect(calcSubtaskProgressPercent(0, 0)).toBe(0)
+  })
+
+  it('totalが負の場合も0を返す', () => {
+    expect(calcSubtaskProgressPercent(0, -1)).toBe(0)
+  })
+
+  it('全完了なら100を返す', () => {
+    expect(calcSubtaskProgressPercent(3, 3)).toBe(100)
+  })
+
+  it('端数は整数に切り捨てる', () => {
+    expect(calcSubtaskProgressPercent(1, 3)).toBe(33)
   })
 })

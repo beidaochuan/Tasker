@@ -37,6 +37,9 @@ export function useGanttData(projectId: string | null): GanttRow[] {
             isVirtualOccurrence: true,
             dueDate: nextDate,
             startDate: duration !== null ? new Date(nextDate.getTime() - duration) : null,
+            // 未来の仮想発生には現在の作業リスト進捗を引き継がない
+            subtaskTotal: undefined,
+            subtaskDone: undefined,
           })
         } else {
           expandedTasks.push(task)

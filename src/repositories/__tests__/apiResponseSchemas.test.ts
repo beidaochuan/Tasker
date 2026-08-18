@@ -141,6 +141,16 @@ describe('API response schemas', () => {
     expect(taskResponseSchema.parse(raw).ganttOrder).toBeNull()
   })
 
+  it('TaskのsubtaskTotal/subtaskDoneをそのまま透過し、欠落時はundefinedのままにする', () => {
+    const task = taskResponseSchema.parse({ ...RAW_TASK, subtaskTotal: 3, subtaskDone: 1 })
+    expect(task.subtaskTotal).toBe(3)
+    expect(task.subtaskDone).toBe(1)
+
+    const taskWithoutProgress = taskResponseSchema.parse(RAW_TASK)
+    expect(taskWithoutProgress.subtaskTotal).toBeUndefined()
+    expect(taskWithoutProgress.subtaskDone).toBeUndefined()
+  })
+
   it('Subtaskを検証してSQLite booleanと日時を変換する', () => {
     expect(subtaskResponseSchema.parse(RAW_SUBTASK)).toEqual({
       ...RAW_SUBTASK,

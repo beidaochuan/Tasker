@@ -37,23 +37,34 @@ function parseTaskId(value: string): number | null {
   return result.success ? result.data : null
 }
 
+// 一覧取得（カンバン/ガント表示用）では、作業リストの進捗をN+1にせず1クエリで返すため
+// 相関サブクエリで各タスクにサブタスクの完了数/総数を付与する。
+const SUBTASK_PROGRESS_SELECT = `
+  (SELECT COUNT(*) FROM subtasks s WHERE s.taskId = t.id) AS subtaskTotal,
+  (SELECT COUNT(*) FROM subtasks s WHERE s.taskId = t.id AND s.isDone = 1) AS subtaskDone
+`
+
 tasksRouter.get('/', (req, res) => {
   const { topicId, projectId } = req.query
   if (topicId) {
     const rows = db
-      .prepare('SELECT * FROM tasks WHERE topicId = ? ORDER BY "order" ASC')
+      .prepare(
+        `SELECT t.*, ${SUBTASK_PROGRESS_SELECT} FROM tasks t WHERE t.topicId = ? ORDER BY t."order" ASC`
+      )
       .all(topicId as string) as TaskRow[]
     return res.json(rows.map(taskRowToApi))
   }
   if (projectId) {
     const rows = db
       .prepare(
-        'SELECT t.* FROM tasks t INNER JOIN topics tp ON t.topicId = tp.id WHERE tp.projectId = ? ORDER BY t."order" ASC'
+        `SELECT t.*, ${SUBTASK_PROGRESS_SELECT} FROM tasks t INNER JOIN topics tp ON t.topicId = tp.id WHERE tp.projectId = ? ORDER BY t."order" ASC`
       )
       .all(projectId as string)
     return res.json((rows as TaskRow[]).map(taskRowToApi))
   }
-  const rows = db.prepare('SELECT * FROM tasks ORDER BY "order" ASC').all() as TaskRow[]
+  const rows = db
+    .prepare(`SELECT t.*, ${SUBTASK_PROGRESS_SELECT} FROM tasks t ORDER BY t."order" ASC`)
+    .all() as TaskRow[]
   res.json(rows.map(taskRowToApi))
 })
 

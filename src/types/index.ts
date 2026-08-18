@@ -44,6 +44,10 @@ export interface Task {
   updatedAt: Date
   /** 繰り返しタスクをガント上で仮想表示している場合のみtrue */
   isVirtualOccurrence?: boolean
+  /** 作業リスト（サブタスク）の総数。一覧取得APIでのみ付与される */
+  subtaskTotal?: number
+  /** 作業リスト（サブタスク）の完了数。一覧取得APIでのみ付与される */
+  subtaskDone?: number
 }
 
 export interface Subtask {

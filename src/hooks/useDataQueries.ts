@@ -245,7 +245,17 @@ export const useDataQueryStore = create<DataQueryState>((set, get) => ({
             ...current,
             tasks: {
               ...current.tasks,
-              data: tasks.map((item) => (item.id === task.id ? task : item)),
+              data: tasks.map((item) =>
+                item.id === task.id
+                  ? {
+                      ...task,
+                      // 単票取得/作成/更新APIは作業リストの進捗集計を返さないため、
+                      // 一覧取得で得ていた値をキャッシュに残す
+                      subtaskTotal: task.subtaskTotal ?? item.subtaskTotal,
+                      subtaskDone: task.subtaskDone ?? item.subtaskDone,
+                    }
+                  : item
+              ),
             },
           },
         },

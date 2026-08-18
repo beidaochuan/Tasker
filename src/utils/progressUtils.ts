@@ -11,3 +11,8 @@ export function calcProjectProgress(statuses: TaskStatus[]): number {
   const done = statuses.filter((s) => s === 'done').length
   return Math.floor((done / statuses.length) * 100)
 }
+
+export function calcSubtaskProgressPercent(done: number, total: number): number {
+  if (total <= 0) return 0
+  return Math.floor((done / total) * 100)
+}

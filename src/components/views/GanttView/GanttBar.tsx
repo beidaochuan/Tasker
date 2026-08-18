@@ -10,6 +10,7 @@ import {
   BAR_VERTICAL_INSET,
 } from './ganttConstants'
 import { getOverdueDays } from '@/utils/dateUtils'
+import { calcSubtaskProgressPercent } from '@/utils/progressUtils'
 import {
   CATEGORY_LABELS,
   PRIORITY_LABELS,
@@ -102,7 +103,12 @@ export const GanttBar = memo(function GanttBar({
   const overdueDays = task.status === 'done' ? 0 : getOverdueDays(task.dueDate)
   const overdueLabel = overdueDays > 0 ? `${overdueDays}日超過` : null
   const categoryLabel = task.category ? ` / 区分: ${CATEGORY_LABELS[task.category]}` : ''
-  const tooltipText = `${task.title} / ${STATUS_LABELS[task.status]} / 優先度: ${PRIORITY_LABELS[task.priority]}${categoryLabel}${overdueLabel ? ` / ${overdueLabel}` : ''}`
+  const subtaskTotal = task.subtaskTotal ?? 0
+  const subtaskDone = task.subtaskDone ?? 0
+  const hasSubtasks = subtaskTotal > 0
+  const subtaskProgress = calcSubtaskProgressPercent(subtaskDone, subtaskTotal)
+  const progressLabel = hasSubtasks ? ` / 進捗: ${subtaskDone}/${subtaskTotal}` : ''
+  const tooltipText = `${task.title} / ${STATUS_LABELS[task.status]} / 優先度: ${PRIORITY_LABELS[task.priority]}${categoryLabel}${progressLabel}${overdueLabel ? ` / ${overdueLabel}` : ''}`
 
   return (
     <Tooltip.Provider delayDuration={150} skipDelayDuration={100}>
@@ -122,7 +128,14 @@ export const GanttBar = memo(function GanttBar({
               if (!didDragRef.current) onClick?.(task.id)
             }}
             aria-label={tooltipText}
-          />
+          >
+            {hasSubtasks && (
+              <div
+                className="pointer-events-none absolute inset-y-0 left-0 bg-black/20"
+                style={{ width: `${subtaskProgress}%` }}
+              />
+            )}
+          </div>
         </Tooltip.Trigger>
         <Tooltip.Portal>
           <Tooltip.Content

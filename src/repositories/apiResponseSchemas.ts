@@ -86,6 +86,8 @@ export const taskWireSchema = z
     statusChangedAt: unixMsSchema.nullish(),
     createdAt: unixMsSchema,
     updatedAt: unixMsSchema,
+    subtaskTotal: z.number().int().nonnegative().optional(),
+    subtaskDone: z.number().int().nonnegative().optional(),
   })
   .strip()
 
@@ -109,6 +111,8 @@ export function mapTaskDto(raw: TaskWireDto): Task {
     statusChangedAt: fromUnixMs(raw.statusChangedAt ?? raw.updatedAt),
     createdAt: fromUnixMs(raw.createdAt),
     updatedAt: fromUnixMs(raw.updatedAt),
+    subtaskTotal: raw.subtaskTotal,
+    subtaskDone: raw.subtaskDone,
   }
 }
 
