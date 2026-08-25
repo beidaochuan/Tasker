@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-08-25
+
+### Added
+
+- その日初めてアプリを起動したときに、JSONエクスポートと同じ処理で自動的に
+  バックアップを保存するようにした。実行結果は画面上部の通知バナーで
+  表示し、成功時は自動的に消え、失敗時は手動で閉じるまで表示し続ける（issue #14）
+
 ## [0.20.1] - 2026-08-18
 
 ### Fixed
