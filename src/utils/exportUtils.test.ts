@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/store/authStore'
-import { exportAllData, importAllData } from './exportUtils'
+import { exportAllData, importAllData, runDailyBackupIfNeeded } from './exportUtils'
 
 const PROJECT = {
   id: 'project-1',
@@ -250,6 +250,55 @@ describe('exportUtils', () => {
       expect(createObjectURLMock).not.toHaveBeenCalled()
       expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled()
       expect(localStorage.getItem('tasker_last_export')).toBeNull()
+    })
+  })
+
+  describe('runDailyBackupIfNeeded', () => {
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2026-08-25T09:00:00'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('本日まだ自動バックアップしていない場合はエクスポートし、日付を記録する', async () => {
+      const fetchMock = mockExportFetch()
+
+      await expect(runDailyBackupIfNeeded()).resolves.toBe(true)
+
+      expect(fetchMock).toHaveBeenCalled()
+      expect(createObjectURLMock).toHaveBeenCalledTimes(1)
+      expect(localStorage.getItem('tasker_last_auto_backup_date')).toBe('2026-08-25')
+    })
+
+    it('本日すでに自動バックアップ済みなら再実行せずfalseを返す', async () => {
+      const fetchMock = mockExportFetch()
+      localStorage.setItem('tasker_last_auto_backup_date', '2026-08-25')
+
+      await expect(runDailyBackupIfNeeded()).resolves.toBe(false)
+
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(createObjectURLMock).not.toHaveBeenCalled()
+    })
+
+    it('バックアップに失敗した場合は日付を記録せず、次回起動時に再試行できる', async () => {
+      mockExportFetch({
+        '/api/tasks': jsonResponse([{ ...TASK, status: 'cancelled' }]),
+      })
+
+      await expect(runDailyBackupIfNeeded()).rejects.toThrow()
+
+      expect(localStorage.getItem('tasker_last_auto_backup_date')).toBeNull()
+    })
+
+    it('同時に複数回呼ばれても実行は1回に集約される(StrictMode二重発火対策)', async () => {
+      const fetchMock = mockExportFetch()
+
+      await Promise.all([runDailyBackupIfNeeded(), runDailyBackupIfNeeded()])
+
+      expect(createObjectURLMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock.mock.calls.filter(([path]) => path === '/api/projects')).toHaveLength(1)
     })
   })
 

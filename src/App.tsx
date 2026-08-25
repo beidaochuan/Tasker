@@ -2,10 +2,12 @@ import { useEffect, lazy, Suspense } from 'react'
 import './index.css'
 import { AppShell } from '@/components/layout/AppShell'
 import { ExportWarning } from '@/components/layout/ExportWarning'
+import { AutoBackupNotice } from '@/components/layout/AutoBackupNotice'
 import { useUIStore } from '@/store/uiStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useAuthStore } from '@/store/authStore'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { useAutoBackupNotice } from '@/hooks/useAutoBackupNotice'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const ListView = lazy(() =>
@@ -77,6 +79,11 @@ function MainContent() {
 function App() {
   const { isDark } = useThemeStore()
   const restoreSession = useAuthStore((state) => state.restoreSession)
+  const {
+    status: autoBackupStatus,
+    checked: autoBackupChecked,
+    dismiss: dismissAutoBackupNotice,
+  } = useAutoBackupNotice()
   useKeyboardShortcuts()
 
   useEffect(() => {
@@ -94,7 +101,10 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="flex h-screen flex-col overflow-hidden">
-        <ExportWarning />
+        {autoBackupStatus && (
+          <AutoBackupNotice status={autoBackupStatus} onDismiss={dismissAutoBackupNotice} />
+        )}
+        {autoBackupChecked && <ExportWarning />}
         <AppShell>
           <ErrorBoundary>
             <Suspense fallback={VIEW_FALLBACK}>
