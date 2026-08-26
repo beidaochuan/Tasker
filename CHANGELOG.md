@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-08-26
+
 ### Fixed
 
 - Windowsサービス版の自己更新が「更新を実行中」のまま進まない問題を修正
