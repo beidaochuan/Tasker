@@ -338,6 +338,136 @@ describe('Sidebar', () => {
     expect(screen.getByText('更新が完了しました')).toBeInTheDocument()
   })
 
+  it('更新中は最新の進捗段階を表示する', async () => {
+    vi.useFakeTimers()
+    useAuthStore.setState({ isAuthenticated: true, csrfToken: 'csrf-token' })
+    let updateStarted = false
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/update/status') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ canSelfUpdate: true, version: __APP_VERSION__ }),
+        })
+      }
+      if (url === '/api/update/progress') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            steps: updateStarted
+              ? ['既存のTaskerを更新', 'GitHub ReleasesからTaskerをダウンロード']
+              : [],
+          }),
+        })
+      }
+      if (url === '/api/update') {
+        updateStarted = true
+        return Promise.resolve({ ok: true, status: 202, json: async () => ({ started: true }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tag_name: NEWER_TAG,
+          html_url: `https://github.com/beidaochuan/Tasker/releases/tag/${NEWER_TAG}`,
+        }),
+      })
+    })
+
+    render(<Sidebar />)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    const updateButton = screen.getByRole('button', { name: 'この端末を更新' })
+    await act(async () => {
+      fireEvent.click(updateButton)
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000)
+    })
+
+    expect(screen.getByText('GitHub ReleasesからTaskerをダウンロード')).toBeInTheDocument()
+  })
+
+  it('更新完了後のページ再読み込みでService Workerの登録を解除してから再読み込みする', async () => {
+    vi.useFakeTimers()
+    useAuthStore.setState({ isAuthenticated: true, csrfToken: 'csrf-token' })
+    const updatedVersion = NEWER_TAG.slice(1)
+    let updateStarted = false
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/update/status') {
+        const version = updateStarted ? updatedVersion : __APP_VERSION__
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ canSelfUpdate: true, version }),
+        })
+      }
+      if (url === '/api/update/progress') {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ steps: [] }) })
+      }
+      if (url === '/api/update') {
+        updateStarted = true
+        return Promise.resolve({ ok: true, status: 202, json: async () => ({ started: true }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tag_name: NEWER_TAG,
+          html_url: `https://github.com/beidaochuan/Tasker/releases/tag/${NEWER_TAG}`,
+        }),
+      })
+    })
+
+    const unregister = vi.fn().mockResolvedValue(true)
+    const getRegistrations = vi.fn().mockResolvedValue([{ unregister }])
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { getRegistrations },
+      configurable: true,
+    })
+    // jsdomのwindow.location.reloadは再定義不可のため、locationごとモックに置き換える。
+    const originalLocation = window.location
+    const reloadSpy = vi.fn()
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { reload: reloadSpy },
+    })
+
+    try {
+      render(<Sidebar />)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      const updateButton = screen.getByRole('button', { name: 'この端末を更新' })
+      await act(async () => {
+        fireEvent.click(updateButton)
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_000)
+      })
+      expect(screen.getByText('更新が完了しました')).toBeInTheDocument()
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'ページを再読み込み' }))
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(getRegistrations).toHaveBeenCalled()
+      expect(unregister).toHaveBeenCalled()
+      expect(reloadSpy).toHaveBeenCalled()
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+      delete (navigator as unknown as { serviceWorker?: unknown }).serviceWorker
+    }
+  })
+
   it('更新の完了を確認できないままタイムアウトするとエラーを表示する', async () => {
     vi.useFakeTimers()
     useAuthStore.setState({ isAuthenticated: true, csrfToken: 'csrf-token' })

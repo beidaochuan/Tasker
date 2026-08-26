@@ -8,7 +8,6 @@ import { Router } from 'express'
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const selfUpdateScriptPath = path.join(appRoot, 'scripts', 'setup-windows.ps1')
-const updateLogPath = path.join(os.tmpdir(), 'tasker-update.log')
 const serverVersion = (
   JSON.parse(readFileSync(path.join(appRoot, 'package.json'), 'utf8')) as { version: string }
 ).version
@@ -71,10 +70,29 @@ function updateUnavailableMessage(): string | null {
 
 export function createUpdateRouter(port: number): Router {
   const router = Router()
+  // 同一マシンに複数インストールしている場合（READMEに記載のある構成）でも、
+  // 他インスタンスの更新ログと混ざって進捗が誤表示されないようポートで一意にする。
+  const updateLogPath = path.join(os.tmpdir(), `tasker-update-${port}.log`)
 
   router.get('/status', (_req, res) => {
     res.set('Cache-Control', 'no-store')
     res.json({ canSelfUpdate: updateUnavailableMessage() === null, version: serverVersion })
+  })
+
+  router.get('/progress', (_req, res) => {
+    res.set('Cache-Control', 'no-store')
+    let steps: string[] = []
+    try {
+      if (existsSync(updateLogPath)) {
+        const log = readFileSync(updateLogPath, 'utf8')
+        steps = [...log.matchAll(/^==> (.+)$/gm)].map((match) => match[1])
+      }
+    } catch (err) {
+      // 更新スクリプトが書き込み中のロック競合などは進捗が一時的に取れないだけであり、
+      // updateUnavailableMessage()と同様エラーにはせず空配列へ穏やかに縮退させる。
+      console.warn('[update] 更新ログの読み取りに失敗しました', err)
+    }
+    res.json({ steps })
   })
 
   router.post('/', (_req, res) => {

@@ -32,7 +32,7 @@ import { unwrapResult } from '@/utils/resultUtils'
 import { LicensesDialog } from './LicensesDialog'
 import { ReleaseDialog, type ReleaseCheckState } from './ReleaseDialog'
 import { fetchLatestGitHubRelease, isNewerVersion, type GitHubRelease } from '@/utils/githubRelease'
-import { getUpdateCapability, startSelfUpdate } from '@/repositories/updateApi'
+import { getUpdateCapability, getUpdateProgress, startSelfUpdate } from '@/repositories/updateApi'
 
 type DialogState =
   | { type: 'none' }
@@ -127,7 +127,7 @@ export function Sidebar() {
 
   async function handleStartUpdate() {
     const requestId = ++releaseRequestId.current
-    setReleaseCheckState({ type: 'installing' })
+    setReleaseCheckState({ type: 'installing', steps: [] })
 
     const before = await getUpdateCapability()
     if (requestId !== releaseRequestId.current) return
@@ -153,7 +153,7 @@ export function Sidebar() {
         clearUpdatePolling()
         return
       }
-      const status = await getUpdateCapability()
+      const [status, progress] = await Promise.all([getUpdateCapability(), getUpdateProgress()])
       if (requestId !== releaseRequestId.current) {
         clearUpdatePolling()
         return
@@ -173,6 +173,9 @@ export function Sidebar() {
         })
         return
       }
+      if (progress.ok) {
+        setReleaseCheckState({ type: 'installing', steps: progress.data.steps })
+      }
       // 前回のレスポンスを待ってから次回をスケジュールし、多重リクエストを避ける。
       updatePollTimer.current = window.setTimeout(
         () => void pollUpdateStatus(),
@@ -185,6 +188,22 @@ export function Sidebar() {
       () => void pollUpdateStatus(),
       UPDATE_POLL_INTERVAL_MS
     )
+  }
+
+  async function handleReloadAfterUpdate() {
+    // PWAのService Workerが更新前のキャッシュ済みバンドルを持ち続けたままリロードされると、
+    // 古い__APP_VERSION__のままGitHub Releasesと再比較され、更新直後に誤って
+    // 「新しいバージョンがあります」ダイアログが再表示されてしまう。
+    // 事前に登録解除し、リロードを確実にネットワーク経由の取得にする。
+    if ('serviceWorker' in navigator) {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(registrations.map((registration) => registration.unregister()))
+      } catch {
+        // 登録解除に失敗してもリロード自体は続行する
+      }
+    }
+    window.location.reload()
   }
 
   function handleReleaseButtonClick() {
@@ -439,6 +458,7 @@ export function Sidebar() {
           onRetry={() => void checkForRelease(true)}
           canSelfUpdate={canSelfUpdate && isAuthenticated}
           onStartUpdate={() => void handleStartUpdate()}
+          onReload={() => void handleReloadAfterUpdate()}
         />
       )}
 

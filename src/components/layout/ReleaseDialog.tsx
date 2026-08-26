@@ -1,13 +1,14 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { CheckCircle, Download, ExternalLink, RefreshCw, X } from 'lucide-react'
+import { Check, CheckCircle, Download, ExternalLink, RefreshCw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/utils/cn'
 import type { GitHubRelease } from '@/utils/githubRelease'
 
 export type ReleaseCheckState =
   | { type: 'checking' }
   | { type: 'available'; release: GitHubRelease }
   | { type: 'upToDate'; release: GitHubRelease }
-  | { type: 'installing' }
+  | { type: 'installing'; steps: string[] }
   | { type: 'installed'; version: string }
   | { type: 'error'; message: string }
 
@@ -17,6 +18,75 @@ interface ReleaseDialogProps {
   onRetry: () => void
   canSelfUpdate: boolean
   onStartUpdate: () => void
+  onReload: () => void
+}
+
+// update-windows.ps1のWrite-Step出力（"==> ..."でログに残る段階名）を、既知の5段階に
+// 順序どおり割り当てるためのマッチャー。スクリプトの文言をそのまま踏襲する。
+const UPDATE_STAGES = [
+  { label: 'ダウンロード', pattern: /ダウンロード/ },
+  { label: 'サービス停止', pattern: /サービスを停止/ },
+  { label: 'バックアップ', pattern: /バックアップ/ },
+  { label: 'インストール', pattern: /インストール/ },
+  { label: 'サービス起動', pattern: /サービスを起動/ },
+]
+
+function getCurrentStageIndex(steps: string[]): number {
+  let currentIndex = -1
+  for (const step of steps) {
+    const stageIndex = UPDATE_STAGES.findIndex(({ pattern }) => pattern.test(step))
+    if (stageIndex > currentIndex) currentIndex = stageIndex
+  }
+  return currentIndex
+}
+
+function UpdateProgressStepper({ steps }: { steps: string[] }) {
+  const currentIndex = getCurrentStageIndex(steps)
+  const latestStep = steps.at(-1)
+
+  return (
+    <div className="mt-3">
+      <ol className="flex items-center gap-1" aria-label="更新の進捗">
+        {UPDATE_STAGES.map((stage, index) => {
+          const status =
+            index < currentIndex ? '完了' : index === currentIndex ? '実行中' : '未着手'
+          return (
+            <li
+              key={stage.label}
+              className="flex flex-1 items-center gap-1"
+              aria-current={index === currentIndex ? 'step' : undefined}
+            >
+              <span
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px]',
+                  index < currentIndex && 'bg-primary text-primary-foreground',
+                  index === currentIndex && 'bg-primary/20 text-primary',
+                  index > currentIndex && 'bg-muted text-muted-foreground'
+                )}
+                title={stage.label}
+                aria-label={`${stage.label}: ${status}`}
+              >
+                {index < currentIndex ? (
+                  <Check className="h-3 w-3" aria-hidden="true" />
+                ) : index === currentIndex ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />
+                ) : (
+                  <span aria-hidden="true">{index + 1}</span>
+                )}
+              </span>
+              {index < UPDATE_STAGES.length - 1 && (
+                <span
+                  className={cn('h-px flex-1', index < currentIndex ? 'bg-primary' : 'bg-muted')}
+                  aria-hidden="true"
+                />
+              )}
+            </li>
+          )
+        })}
+      </ol>
+      {latestStep && <p className="mt-2 text-xs text-muted-foreground">{latestStep}</p>}
+    </div>
+  )
 }
 
 export function ReleaseDialog({
@@ -25,6 +95,7 @@ export function ReleaseDialog({
   onRetry,
   canSelfUpdate,
   onStartUpdate,
+  onReload,
 }: ReleaseDialogProps) {
   const isAvailable = state.type === 'available'
 
@@ -70,6 +141,7 @@ export function ReleaseDialog({
                 {state.type === 'upToDate' && `現在のバージョン（v${__APP_VERSION__}）は最新です。`}
                 {state.type === 'error' && state.message}
               </Dialog.Description>
+              {state.type === 'installing' && <UpdateProgressStepper steps={state.steps} />}
             </div>
           </div>
           <div className="flex justify-end gap-2">
@@ -96,7 +168,7 @@ export function ReleaseDialog({
               </Button>
             )}
             {state.type === 'installed' && (
-              <Button size="sm" onClick={() => window.location.reload()}>
+              <Button size="sm" onClick={onReload}>
                 ページを再読み込み
               </Button>
             )}

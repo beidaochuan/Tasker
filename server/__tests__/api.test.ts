@@ -102,6 +102,13 @@ describe('Tasker API', () => {
     expect(result.body).toEqual({ canSelfUpdate: expect.any(Boolean), version: expect.any(String) })
   })
 
+  it('更新の進捗ステップ一覧を取得できる', async () => {
+    const result = await rawRequest('/api/update/progress')
+
+    expect(result.response.status).toBe(200)
+    expect(result.body).toEqual({ steps: expect.any(Array) })
+  })
+
   it('関連タスクを双方向に保存し、タスク削除時に関連も解除する', async () => {
     const project = await post('/api/projects', { name: 'Project' })
     const topic = await post('/api/topics', { projectId: project.body.id, name: 'Topic' })
