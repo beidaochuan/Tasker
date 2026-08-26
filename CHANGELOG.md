@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.2] - 2026-08-26
+
+### Fixed
+
+- ダークモードで開始日・期日の日付選択欄のカレンダーアイコンが背景に埋もれて
+  見えない問題を修正（issue #15）。ネイティブ日付ピッカーの配色はCSSの
+  `color-scheme`プロパティに依存しているが、これまで未設定だったため常に
+  ライト用の暗い配色のアイコンが使われていた。テーマに応じて`color-scheme`を
+  設定するようにした
+
 ## [0.21.1] - 2026-08-26
 
 ### Fixed
