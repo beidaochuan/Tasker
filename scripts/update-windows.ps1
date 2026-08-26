@@ -228,7 +228,16 @@ function Invoke-ProductionInstall {
 
   Push-Location $Destination
   try {
-    & $npm.Source ci --omit=dev --no-audit --no-fund
+    # $ErrorActionPreference = 'Stop' のままだと、npmが標準エラーに1行書いただけで
+    # （警告であっても）即座に終了コード確認前に例外化してしまうため、ここだけ緩める。
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+      & $npm.Source ci --omit=dev --no-audit --no-fund 2>&1 | ForEach-Object { Write-Host $_ }
+    }
+    finally {
+      $ErrorActionPreference = $previousErrorActionPreference
+    }
     if ($LASTEXITCODE -ne 0) {
       throw "npm ciに失敗しました（終了コード: $LASTEXITCODE）。"
     }

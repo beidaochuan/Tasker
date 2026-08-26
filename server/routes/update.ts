@@ -1,12 +1,13 @@
-import { execFileSync, spawn } from 'node:child_process'
-import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Router } from 'express'
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const selfUpdateScriptPath = path.join(appRoot, 'scripts', 'self-update.ps1')
+const selfUpdateScriptPath = path.join(appRoot, 'scripts', 'setup-windows.ps1')
 const updateLogPath = path.join(os.tmpdir(), 'tasker-update.log')
 const serverVersion = (
   JSON.parse(readFileSync(path.join(appRoot, 'package.json'), 'utf8')) as { version: string }
@@ -39,6 +40,11 @@ function findServiceName(nameOrDisplayName: string): string | null {
     }
   }
   return null
+}
+
+// PowerShellのシングルクォート文字列内で使うため、埋め込む値の ' を '' にエスケープする。
+function escapeForPowerShellSingleQuoted(value: string): string {
+  return value.replace(/'/g, "''")
 }
 
 function updateUnavailableMessage(): string | null {
@@ -78,45 +84,78 @@ export function createUpdateRouter(port: number): Router {
       return
     }
 
-    let logFd: number
-    try {
-      logFd = openSync(updateLogPath, 'w')
-    } catch (err) {
-      console.error('[update] 更新ログファイルを作成できませんでした', err)
-      res
-        .status(500)
-        .json({ error: 'UPDATE_START_FAILED', message: '更新プログラムを起動できませんでした' })
-      return
+    // Taskerサービス自身の子プロセスとして更新スクリプトを起動すると、スクリプトが
+    // Stop-ServiceでTaskerサービスを止めた瞬間、サービスラッパー（WinSW）が
+    // 子孫プロセスも含めて丸ごと強制終了してしまい、更新が完了しなくなる。
+    // タスクスケジューラ経由で起動することで、Taskerサービスとは無関係な
+    // プロセスツリーとして実行し、この巻き添え終了を回避する。
+    // タスク名はポートで一意にし、同一マシンに複数インストールしている場合
+    // （READMEに記載のある構成）でも他インスタンスの更新と衝突しないようにする。
+    const updateTaskName = `TaskerSelfUpdate-${port}`
+    // schtasksの/trに複雑な文字列を直接埋め込むと引用符の入れ子でパースが崩れるため、
+    // 実行内容は一時的な.ps1ファイルに書き出し、/trはそれを-Fileで呼ぶだけにする。
+    // ファイル名は実行ごとに一意にし、同時に複数の更新要求が来た場合の取り違えを避ける。
+    const updateRunnerScriptPath = path.join(
+      os.tmpdir(),
+      `tasker-self-update-runner-${randomUUID()}.ps1`
+    )
+    const runnerScript =
+      // 失敗・再試行を繰り返してもログが無制限に積み重ならないよう、実行のたびに
+      // リセットしてから今回分だけを書き込む。
+      `Set-Content -LiteralPath '${escapeForPowerShellSingleQuoted(updateLogPath)}' ` +
+      `-Value "=== $(Get-Date -Format o) ===" -Encoding utf8\n` +
+      `try {\n` +
+      `  & '${escapeForPowerShellSingleQuoted(selfUpdateScriptPath)}' ` +
+      `-InstallPath '${escapeForPowerShellSingleQuoted(appRoot)}' -Port ${port} ` +
+      `*>> '${escapeForPowerShellSingleQuoted(updateLogPath)}'\n` +
+      `}\n` +
+      `finally {\n` +
+      `  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n` +
+      `}\n`
+
+    function removeExistingUpdateTask(): void {
+      try {
+        execFileSync('schtasks.exe', ['/delete', '/tn', updateTaskName, '/f'], {
+          stdio: 'ignore',
+          windowsHide: true,
+        })
+      } catch (err) {
+        // タスクが存在しない場合もここに来るため警告扱い。想定外の失敗を診断できるように記録する。
+        console.warn('[update] 既存の更新タスクの削除に失敗しました（未登録の場合は正常）', err)
+      }
     }
 
     try {
-      const child = spawn(
-        'powershell.exe',
+      writeFileSync(updateRunnerScriptPath, runnerScript, 'utf8')
+      removeExistingUpdateTask()
+      execFileSync(
+        'schtasks.exe',
         [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-File',
-          selfUpdateScriptPath,
-          '-InstallPath',
-          appRoot,
-          '-Port',
-          String(port),
+          '/create',
+          '/tn',
+          updateTaskName,
+          '/tr',
+          `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${updateRunnerScriptPath}"`,
+          '/sc',
+          'once',
+          '/st',
+          '23:59',
+          '/ru',
+          'SYSTEM',
+          '/f',
         ],
-        { detached: true, stdio: ['ignore', logFd, logFd], windowsHide: true }
+        { windowsHide: true }
       )
-      child.on('error', (err) => {
-        console.error('[update] 更新プログラムの起動に失敗しました', err)
-      })
-      child.unref()
+      execFileSync('schtasks.exe', ['/run', '/tn', updateTaskName], { windowsHide: true })
+      // タスク定義を消してもスケジューラが既に開始した実行インスタンスは継続するため、
+      // ライブラリにタスク定義が残り続けないようここで片付ける。
+      removeExistingUpdateTask()
       res.status(202).json({ started: true })
     } catch (err) {
       console.error('[update] 更新プログラムの起動に失敗しました', err)
       res
         .status(500)
         .json({ error: 'UPDATE_START_FAILED', message: '更新プログラムを起動できませんでした' })
-    } finally {
-      closeSync(logFd)
     }
   })
 
