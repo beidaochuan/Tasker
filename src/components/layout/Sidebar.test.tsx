@@ -355,8 +355,14 @@ describe('Sidebar', () => {
           ok: true,
           status: 200,
           json: async () => ({
+            // setup-windows.ps1は既存/新規インストールの判定前に必ず「インストール先を確認」を
+            // 出力する。これが更新段階の「インストール」に誤マッチして進捗が先読みされないことを確認する。
             steps: updateStarted
-              ? ['既存のTaskerを更新', 'GitHub ReleasesからTaskerをダウンロード']
+              ? [
+                  'インストール先を確認',
+                  '既存のTaskerを更新',
+                  'GitHub ReleasesからTaskerをダウンロード',
+                ]
               : [],
           }),
         })
@@ -391,6 +397,7 @@ describe('Sidebar', () => {
     })
 
     expect(screen.getByText('GitHub ReleasesからTaskerをダウンロード')).toBeInTheDocument()
+    expect(screen.getByLabelText('ダウンロード: 実行中')).toBeInTheDocument()
   })
 
   it('更新完了後のページ再読み込みでService Workerの登録を解除してから再読み込みする', async () => {

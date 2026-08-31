@@ -23,11 +23,15 @@ interface ReleaseDialogProps {
 
 // update-windows.ps1のWrite-Step出力（"==> ..."でログに残る段階名）を、既知の5段階に
 // 順序どおり割り当てるためのマッチャー。スクリプトの文言をそのまま踏襲する。
+// getCurrentStageIndexは「これまでの最大ステージindex」を採用するため、他スクリプト
+// （setup-windows.ps1）の出力に部分一致すると進捗が誤って先読みされる（issue #18）。
+// 例: 'インストール'は setup-windows.ps1 の「インストール先を確認」に一致しないよう、
+// 「をインストール」まで含めて絞っている。
 const UPDATE_STAGES = [
   { label: 'ダウンロード', pattern: /ダウンロード/ },
   { label: 'サービス停止', pattern: /サービスを停止/ },
   { label: 'バックアップ', pattern: /バックアップ/ },
-  { label: 'インストール', pattern: /インストール/ },
+  { label: 'インストール', pattern: /をインストール/ },
   { label: 'サービス起動', pattern: /サービスを起動/ },
 ]
 
