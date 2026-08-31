@@ -14,7 +14,7 @@ import {
   PRIORITY_LABELS,
   PRIORITY_TEXT_CLASSES,
 } from '@/utils/taskPresentation'
-import { hasRepeatRule } from '@/utils/recurrenceUtils'
+import { shouldCompleteAsRecurring } from '@/utils/recurrenceUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 import type { Task } from '@/types'
 
@@ -42,7 +42,7 @@ export function TaskRow({ task, canEdit = true }: TaskRowProps) {
           updateProjectTask(selectedProjectId, updatedTask)
           invalidateProjectTasks(selectedProjectId)
         }
-      } else if (hasRepeatRule(task.repeatRule)) {
+      } else if (shouldCompleteAsRecurring(task.status, 'done', task.repeatRule)) {
         if (selectedProjectId) await completeRecurringTask(task, [selectedProjectId])
       } else {
         const updatedTask = unwrapResult(await taskRepo.update(task.id, { status: 'done' }))

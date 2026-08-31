@@ -20,11 +20,13 @@ import { KanbanCardContent } from './KanbanCardContent'
 import { KanbanSkeleton } from '@/components/ui/skeleton'
 import { COLUMN_ORDER, WIP_LIMITS } from './kanbanConstants'
 import { useKanbanData } from '@/hooks/useTasks'
+import { useRecurrence } from '@/hooks/useRecurrence'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo } from '@/repositories'
 import { unwrapResult } from '@/utils/resultUtils'
+import { shouldCompleteAsRecurring } from '@/utils/recurrenceUtils'
 import { sortKanbanColumnTasks } from '@/utils/sortUtils'
 import type { Task, TaskStatus } from '@/types'
 
@@ -58,6 +60,7 @@ export function KanbanView() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
   const updateProjectTask = useDataQueryStore((state) => state.updateProjectTask)
+  const { completeRecurringTask } = useRecurrence()
   const { tasksByStatus, defaultTopicId, isLoading } = useKanbanData(selectedProjectId)
 
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
@@ -199,16 +202,25 @@ export function KanbanView() {
         return
       }
 
+      if (!selectedProjectId) {
+        clearDragState()
+        return
+      }
+
       try {
-        const updatedTask = unwrapResult(
-          await taskRepo.update(activeTask.id, { status: targetCol })
-        )
-        // authoritative data が追いつくまではローカル順を残し、元列へのsnap backを防ぐ。
-        pendingStatusChangeRef.current = { taskId: activeTask.id, status: targetCol }
-        if (selectedProjectId) {
+        if (shouldCompleteAsRecurring(originalCol, targetCol, activeTask.repeatRule)) {
+          // 周期タスクの完了は次周期タスクを生成する completeRecurringTask を使う。
+          // 内部で invalidateProjectTasks 済みのため、ここでは再度呼ばない。
+          await completeRecurringTask(activeTask, [selectedProjectId])
+        } else {
+          const updatedTask = unwrapResult(
+            await taskRepo.update(activeTask.id, { status: targetCol })
+          )
           updateProjectTask(selectedProjectId, updatedTask)
           invalidateProjectTasks(selectedProjectId)
         }
+        // authoritative data が追いつくまではローカル順を残し、元列へのsnap backを防ぐ。
+        pendingStatusChangeRef.current = { taskId: activeTask.id, status: targetCol }
       } catch (err) {
         console.error('カンバンのステータス更新に失敗しました', err)
         clearDragState()
@@ -220,6 +232,7 @@ export function KanbanView() {
       selectedProjectId,
       updateProjectTask,
       invalidateProjectTasks,
+      completeRecurringTask,
       clearDragState,
     ]
   )

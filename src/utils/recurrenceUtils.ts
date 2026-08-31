@@ -1,4 +1,5 @@
 import { RRule } from 'rrule'
+import type { TaskStatus } from '@/types'
 
 export type RRuleFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 
@@ -120,6 +121,19 @@ export function resolveTaskId(id: string | number): number {
 
 export function hasRepeatRule(rruleStr: string | null | undefined): rruleStr is string {
   return typeof rruleStr === 'string' && rruleStr.length > 0
+}
+
+/**
+ * ステータス変更が「周期タスクの完了」に該当するかを判定する。
+ * done への遷移かつ、元が done でなく、repeatRule を持つ場合のみ true。
+ * この判定に一致する場合は通常の更新ではなく completeRecurringTask を呼ぶこと。
+ */
+export function shouldCompleteAsRecurring(
+  fromStatus: TaskStatus | null,
+  toStatus: TaskStatus,
+  repeatRule: string | null | undefined
+): boolean {
+  return toStatus === 'done' && fromStatus !== 'done' && hasRepeatRule(repeatRule)
 }
 
 export function isVirtualTask(id: string | number): boolean {

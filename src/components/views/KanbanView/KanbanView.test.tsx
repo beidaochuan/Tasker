@@ -29,6 +29,7 @@ const { dndMock, kanbanDataMock, taskRepoMock } = vi.hoisted(() => ({
   },
   taskRepoMock: {
     update: vi.fn(),
+    completeRecurring: vi.fn(),
   },
 }))
 
@@ -136,6 +137,7 @@ describe('KanbanView drag focus', () => {
     dndMock.onDragEnd = null
     dndMock.onDragCancel = null
     taskRepoMock.update.mockReset()
+    taskRepoMock.completeRecurring.mockReset()
     kanbanDataMock.tasksByStatus = {
       todo: [TASK],
       in_progress: [],
@@ -259,5 +261,72 @@ describe('KanbanView drag focus', () => {
     expect(screen.getByTestId('column-todo')).toHaveTextContent(String(project2Task.id))
     expect(screen.getByTestId('column-in_progress')).toBeEmptyDOMElement()
     expect(screen.queryByText(String(TASK.id))).toBeNull()
+  })
+
+  it('周期タスクをdone列にドラッグ&ドロップしたら次周期タスクを生成する完了処理を呼ぶ（Issue #17）', async () => {
+    const recurringTask = { ...TASK, repeatRule: 'FREQ=DAILY;INTERVAL=1' }
+    taskRepoMock.completeRecurring.mockResolvedValue({
+      ok: true,
+      data: { completedTask: { ...recurringTask, status: 'done' }, nextTask: null },
+    })
+    kanbanDataMock.tasksByStatus = {
+      todo: [recurringTask],
+      in_progress: [],
+      paused: [],
+      done: [],
+    }
+    render(<KanbanView />)
+
+    const recurringDragEvent = (overId: string | number | null): DragEventLike => ({
+      active: { id: recurringTask.id, data: { current: { task: recurringTask } } },
+      over: overId ? { id: overId } : null,
+    })
+
+    act(() => {
+      dndMock.onDragStart?.({ active: recurringDragEvent(null).active })
+      dndMock.onDragOver?.(recurringDragEvent('done'))
+    })
+
+    await act(async () => {
+      await dndMock.onDragEnd?.(recurringDragEvent('done'))
+    })
+
+    expect(taskRepoMock.completeRecurring).toHaveBeenCalledWith(
+      recurringTask.id,
+      expect.objectContaining({ status: 'todo', repeatRule: recurringTask.repeatRule })
+    )
+    expect(taskRepoMock.update).not.toHaveBeenCalled()
+  })
+
+  it('周期タスクでもdone以外への移動なら通常の更新のみ行う', async () => {
+    const recurringTask = { ...TASK, repeatRule: 'FREQ=DAILY;INTERVAL=1' }
+    taskRepoMock.update.mockResolvedValue({
+      ok: true,
+      data: { ...recurringTask, status: 'in_progress' },
+    })
+    kanbanDataMock.tasksByStatus = {
+      todo: [recurringTask],
+      in_progress: [],
+      paused: [],
+      done: [],
+    }
+    render(<KanbanView />)
+
+    const recurringDragEvent = (overId: string | number | null): DragEventLike => ({
+      active: { id: recurringTask.id, data: { current: { task: recurringTask } } },
+      over: overId ? { id: overId } : null,
+    })
+
+    act(() => {
+      dndMock.onDragStart?.({ active: recurringDragEvent(null).active })
+      dndMock.onDragOver?.(recurringDragEvent('in_progress'))
+    })
+
+    await act(async () => {
+      await dndMock.onDragEnd?.(recurringDragEvent('in_progress'))
+    })
+
+    expect(taskRepoMock.update).toHaveBeenCalledWith(recurringTask.id, { status: 'in_progress' })
+    expect(taskRepoMock.completeRecurring).not.toHaveBeenCalled()
   })
 })

@@ -24,6 +24,7 @@ import { useRecurrence } from '@/hooks/useRecurrence'
 import { useDataQueryStore } from '@/hooks/useDataQueries'
 import { taskRepo } from '@/repositories'
 import { formatDateTime, getStatusChangedAt, parseDateInput } from '@/utils/dateUtils'
+import { shouldCompleteAsRecurring } from '@/utils/recurrenceUtils'
 import { unwrapResult } from '@/utils/resultUtils'
 
 export function TaskDrawer() {
@@ -152,7 +153,7 @@ export function TaskDrawer() {
           })
         )
       } else if (existingTask) {
-        if (values.status === 'done' && existingTask.status !== 'done' && repeatRule) {
+        if (shouldCompleteAsRecurring(existingTask.status, values.status, repeatRule)) {
           await completeRecurringTask(
             {
               ...existingTask,
