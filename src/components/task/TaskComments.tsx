@@ -199,6 +199,17 @@ export function TaskComments({ taskId, canEdit }: TaskCommentsProps) {
                   setNewBody(event.target.value)
                   setActionError(null)
                 }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    (event.ctrlKey || event.metaKey) &&
+                    !event.nativeEvent.isComposing &&
+                    event.nativeEvent.keyCode !== 229
+                  ) {
+                    event.preventDefault()
+                    if (!event.repeat) void handleAdd()
+                  }
+                }}
                 rows={3}
                 className={TEXTAREA_CLASS}
                 placeholder="コメントを追加"
@@ -209,6 +220,7 @@ export function TaskComments({ taskId, canEdit }: TaskCommentsProps) {
                   type="button"
                   size="sm"
                   onClick={() => void handleAdd()}
+                  title="Ctrl+Enter（Mac: ⌘+Enter）で追加"
                   disabled={isAdding || newBody.trim() === ''}
                 >
                   追加
@@ -230,7 +242,7 @@ export function TaskComments({ taskId, canEdit }: TaskCommentsProps) {
                 return (
                   <li
                     key={comment.id}
-                    className="group space-y-1 rounded-md border border-border px-2.5 py-1.5"
+                    className="group space-y-1 rounded-md border border-border px-2.5 py-1.5 transition-colors hover:bg-accent/40"
                   >
                     {isEditing ? (
                       <div className="space-y-1.5">
@@ -241,6 +253,20 @@ export function TaskComments({ taskId, canEdit }: TaskCommentsProps) {
                           id={`comment-${comment.id}`}
                           value={editingBody}
                           onChange={(event) => setEditingBody(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (
+                              event.key === 'Enter' &&
+                              (event.ctrlKey || event.metaKey) &&
+                              !event.nativeEvent.isComposing &&
+                              event.nativeEvent.keyCode !== 229
+                            ) {
+                              event.preventDefault()
+                              if (!event.repeat) void handleSaveEdit(comment)
+                            } else if (event.key === 'Escape') {
+                              event.preventDefault()
+                              cancelEditing()
+                            }
+                          }}
                           rows={3}
                           className={TEXTAREA_CLASS}
                           disabled={isPending}
@@ -252,6 +278,7 @@ export function TaskComments({ taskId, canEdit }: TaskCommentsProps) {
                             onClick={() => void handleSaveEdit(comment)}
                             disabled={isPending}
                             aria-label="コメントの変更を保存"
+                            title="Ctrl+Enter（Mac: ⌘+Enter）で保存"
                             className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-primary disabled:opacity-50"
                           >
                             <Check className="h-3.5 w-3.5" />
@@ -270,9 +297,21 @@ export function TaskComments({ taskId, canEdit }: TaskCommentsProps) {
                     ) : (
                       <>
                         <div className="flex items-start justify-between gap-2">
-                          <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm">
-                            {comment.body}
-                          </p>
+                          {canEdit ? (
+                            <button
+                              type="button"
+                              onClick={() => startEditing(comment)}
+                              disabled={isPending}
+                              title="クリックしてコメントを編集"
+                              className="min-w-0 flex-1 cursor-text whitespace-pre-wrap break-words rounded-sm text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
+                            >
+                              {comment.body}
+                            </button>
+                          ) : (
+                            <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm">
+                              {comment.body}
+                            </p>
+                          )}
                           {canEdit && (
                             <div className="flex shrink-0 gap-1">
                               <button

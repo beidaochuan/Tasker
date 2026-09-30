@@ -102,7 +102,10 @@ describe('TaskWorkList', () => {
     expect(screen.getByRole('checkbox', { name: '「レビューを依頼」を未完了に戻す' })).toBeChecked()
   })
 
-  it('Enterで作業を追加しても親フォームをsubmitしない', async () => {
+  it.each([
+    ['Ctrl+Enter', '{Control>}{Enter}{/Control}'],
+    ['Command+Enter', '{Meta>}{Enter}{/Meta}'],
+  ])('%sで作業を追加しても親フォームをsubmitしない', async (_, shortcut) => {
     const user = userEvent.setup()
     const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault())
     const created: Subtask = {
@@ -122,7 +125,8 @@ describe('TaskWorkList', () => {
     )
 
     const input = await screen.findByLabelText('新しい作業')
-    await user.type(input, '  テストを書く  {Enter}')
+    await user.type(input, '  テストを書く  ')
+    await user.keyboard(shortcut)
 
     await waitFor(() => {
       expect(subtaskRepoMock.create).toHaveBeenCalledWith({
@@ -134,6 +138,23 @@ describe('TaskWorkList', () => {
     })
     expect(await screen.findByText('テストを書く')).toBeInTheDocument()
     expect(input).toHaveValue('')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('Enter単独では作業を追加せず親フォームもsubmitしない', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault())
+    render(
+      <form onSubmit={onSubmit}>
+        <TaskWorkList taskId={1} canEdit />
+      </form>
+    )
+
+    const input = await screen.findByLabelText('新しい作業')
+    await user.type(input, 'テストを書く{Enter}')
+
+    expect(input).toHaveValue('テストを書く')
+    expect(subtaskRepoMock.create).not.toHaveBeenCalled()
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
@@ -170,25 +191,118 @@ describe('TaskWorkList', () => {
     expect(screen.getByText('2 / 2 完了')).toBeInTheDocument()
   })
 
-  it('作業タイトルを編集する', async () => {
+  it.each(['編集ボタン', 'タイトル'] as const)(
+    '%sのシングルクリックで作業を編集する',
+    async (target) => {
+      const user = userEvent.setup()
+      subtaskRepoMock.update.mockResolvedValue({
+        ok: true,
+        data: { ...SUBTASKS[0], title: '仕様を再確認' },
+      })
+      render(<TaskWorkList taskId={1} canEdit />)
+
+      await user.click(
+        target === 'タイトル'
+          ? await screen.findByText('仕様を確認')
+          : await screen.findByRole('button', { name: '「仕様を確認」を編集' })
+      )
+      const input = screen.getByLabelText('作業内容')
+      expect(input).toHaveValue('仕様を確認')
+      expect(input).toHaveFocus()
+      await user.clear(input)
+      await user.type(input, '  仕様を再確認  ')
+      await user.keyboard('{Control>}{Enter}{/Control}')
+
+      await waitFor(() => {
+        expect(subtaskRepoMock.update).toHaveBeenCalledWith('subtask-1', {
+          title: '仕様を再確認',
+        })
+      })
+      expect(await screen.findByText('仕様を再確認')).toBeInTheDocument()
+    }
+  )
+
+  it('完了済みの作業もタイトルのクリックで編集でき、完了状態は変わらない', async () => {
     const user = userEvent.setup()
     subtaskRepoMock.update.mockResolvedValue({
       ok: true,
-      data: { ...SUBTASKS[0], title: '仕様を再確認' },
+      data: { ...SUBTASKS[1], title: 'レビューを再依頼' },
     })
     render(<TaskWorkList taskId={1} canEdit />)
 
-    await user.click(await screen.findByRole('button', { name: '「仕様を確認」を編集' }))
+    await user.click(await screen.findByText('レビューを依頼'))
+    const input = screen.getByLabelText('作業内容')
+    expect(input).toHaveValue('レビューを依頼')
+    expect(input).toHaveFocus()
+    expect(subtaskRepoMock.update).not.toHaveBeenCalled()
+    await user.clear(input)
+    await user.type(input, 'レビューを再依頼')
+    await user.keyboard('{Meta>}{Enter}{/Meta}')
+
+    expect(subtaskRepoMock.update).toHaveBeenCalledExactlyOnceWith('subtask-2', {
+      title: 'レビューを再依頼',
+    })
+    expect(
+      await screen.findByRole('checkbox', { name: '「レビューを再依頼」を未完了に戻す' })
+    ).toBeChecked()
+    expect(screen.getByText('1 / 2 完了')).toBeInTheDocument()
+  })
+
+  it('タイトルをクリックして編集した内容をキャンセルすると元の作業内容を保持する', async () => {
+    const user = userEvent.setup()
+    render(<TaskWorkList taskId={1} canEdit />)
+
+    await user.click(await screen.findByText('仕様を確認'))
     const input = screen.getByLabelText('作業内容')
     await user.clear(input)
-    await user.type(input, '  仕様を再確認  {Enter}')
+    await user.type(input, '保存しない変更')
+    await user.click(screen.getByRole('button', { name: '「仕様を確認」の編集をキャンセル' }))
 
-    await waitFor(() => {
-      expect(subtaskRepoMock.update).toHaveBeenCalledWith('subtask-1', {
-        title: '仕様を再確認',
-      })
-    })
-    expect(await screen.findByText('仕様を再確認')).toBeInTheDocument()
+    expect(screen.queryByLabelText('作業内容')).not.toBeInTheDocument()
+    expect(screen.getByText('仕様を確認')).toBeInTheDocument()
+    expect(subtaskRepoMock.update).not.toHaveBeenCalled()
+    await user.click(screen.getByText('仕様を確認'))
+    expect(screen.getByLabelText('作業内容')).toHaveValue('仕様を確認')
+  })
+
+  it('Enter単独では編集中の作業を保存せず親フォームもsubmitしない', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault())
+    render(
+      <form onSubmit={onSubmit}>
+        <TaskWorkList taskId={1} canEdit />
+      </form>
+    )
+
+    await user.click(await screen.findByText('仕様を確認'))
+    const input = screen.getByLabelText('作業内容')
+    await user.clear(input)
+    await user.type(input, '仕様を再確認{Enter}')
+
+    expect(input).toHaveValue('仕様を再確認')
+    expect(subtaskRepoMock.update).not.toHaveBeenCalled()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('完了状態の更新中はタイトルをクリックしても編集を開始しない', async () => {
+    const user = userEvent.setup()
+    let finishUpdate!: () => void
+    subtaskRepoMock.update.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishUpdate = () => resolve({ ok: true, data: { ...SUBTASKS[0], isDone: true } })
+        })
+    )
+    render(<TaskWorkList taskId={1} canEdit />)
+
+    await user.click(await screen.findByRole('checkbox', { name: '「仕様を確認」を完了にする' }))
+    await user.click(screen.getByText('仕様を確認'))
+    expect(screen.queryByLabelText('作業内容')).not.toBeInTheDocument()
+
+    await act(async () => finishUpdate())
+    await user.click(screen.getByText('仕様を確認'))
+    expect(screen.getByLabelText('作業内容')).toHaveValue('仕様を確認')
+    expect(subtaskRepoMock.update).toHaveBeenCalledExactlyOnceWith('subtask-1', { isDone: true })
   })
 
   it('日本語IMEの変換確定Enterでは作業タイトルを保存しない', async () => {
@@ -238,9 +352,12 @@ describe('TaskWorkList', () => {
   })
 
   it('未認証では作業リストを閲覧のみできる', async () => {
+    const user = userEvent.setup()
     render(<TaskWorkList taskId={1} canEdit={false} />)
 
-    expect(await screen.findByText('仕様を確認')).toBeInTheDocument()
+    await user.click(await screen.findByText('仕様を確認'))
+    expect(screen.queryByLabelText('作業内容')).not.toBeInTheDocument()
+    expect(subtaskRepoMock.update).not.toHaveBeenCalled()
     expect(screen.getByRole('checkbox', { name: '「仕様を確認」を完了にする' })).toBeDisabled()
     expect(screen.queryByLabelText('新しい作業')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '「仕様を確認」を編集' })).not.toBeInTheDocument()

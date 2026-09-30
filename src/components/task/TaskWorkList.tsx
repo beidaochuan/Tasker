@@ -329,9 +329,15 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
                             value={editingTitle}
                             onChange={(event) => setEditingTitle(event.target.value)}
                             onKeyDown={(event) => {
-                              if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                              if (
+                                event.key === 'Enter' &&
+                                !event.nativeEvent.isComposing &&
+                                event.nativeEvent.keyCode !== 229
+                              ) {
                                 event.preventDefault()
-                                void handleRename(subtask)
+                                if ((event.ctrlKey || event.metaKey) && !event.repeat) {
+                                  void handleRename(subtask)
+                                }
                               } else if (event.key === 'Escape') {
                                 event.preventDefault()
                                 cancelEditing()
@@ -346,6 +352,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
                             onClick={() => void handleRename(subtask)}
                             disabled={isReordering || isPending}
                             aria-label={`「${subtask.title}」の変更を保存`}
+                            title="Ctrl+Enter（Mac: ⌘+Enter）で保存"
                             className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-primary disabled:opacity-50"
                           >
                             <Check className="h-3.5 w-3.5" />
@@ -362,15 +369,31 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
                         </>
                       ) : (
                         <>
-                          <span
-                            className={cn(
-                              'min-w-0 flex-1 break-words text-sm',
-                              subtask.isDone &&
-                                'text-muted-foreground line-through decoration-foreground/40'
-                            )}
-                          >
-                            {subtask.title}
-                          </span>
+                          {canEdit ? (
+                            <button
+                              type="button"
+                              onClick={() => startEditing(subtask)}
+                              disabled={isReordering || isPending}
+                              title="クリックして作業内容を編集"
+                              className={cn(
+                                'min-w-0 flex-1 cursor-text break-words rounded-sm text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default',
+                                subtask.isDone &&
+                                  'text-muted-foreground line-through decoration-foreground/40'
+                              )}
+                            >
+                              {subtask.title}
+                            </button>
+                          ) : (
+                            <span
+                              className={cn(
+                                'min-w-0 flex-1 break-words text-sm',
+                                subtask.isDone &&
+                                  'text-muted-foreground line-through decoration-foreground/40'
+                              )}
+                            >
+                              {subtask.title}
+                            </span>
+                          )}
                           {canEdit && (
                             <>
                               <button
@@ -415,9 +438,13 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
                   setActionError(null)
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                  if (
+                    event.key === 'Enter' &&
+                    !event.nativeEvent.isComposing &&
+                    event.nativeEvent.keyCode !== 229
+                  ) {
                     event.preventDefault()
-                    void handleAdd()
+                    if ((event.ctrlKey || event.metaKey) && !event.repeat) void handleAdd()
                   }
                 }}
                 placeholder="作業を追加"
@@ -427,6 +454,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
                 type="button"
                 size="sm"
                 onClick={() => void handleAdd()}
+                title="Ctrl+Enter（Mac: ⌘+Enter）で追加"
                 disabled={isReordering || isAdding || newTitle.trim() === ''}
               >
                 <Plus className="h-3.5 w-3.5" />

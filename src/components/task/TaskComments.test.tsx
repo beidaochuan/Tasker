@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TaskComment } from '@/types'
@@ -82,26 +82,175 @@ describe('TaskComments', () => {
     expect(textarea).toHaveValue('')
   })
 
-  it('コメントを編集する', async () => {
+  it.each(['編集ボタン', '本文'] as const)(
+    '%sのシングルクリックでコメントを編集する',
+    async (target) => {
+      const user = userEvent.setup()
+      taskCommentRepoMock.update.mockResolvedValue({
+        ok: true,
+        data: { ...COMMENTS[0], body: '編集後のコメント' },
+      })
+      render(<TaskComments taskId={1} canEdit />)
+
+      await user.click(
+        target === '本文'
+          ? await screen.findByText('2番目のコメント')
+          : (await screen.findAllByRole('button', { name: 'コメントを編集' }))[0]
+      )
+      const editArea = screen.getByLabelText('コメント本文')
+      expect(editArea).toHaveValue('2番目のコメント')
+      expect(editArea).toHaveFocus()
+      await user.clear(editArea)
+      await user.type(editArea, '編集後のコメント')
+      await user.click(screen.getByRole('button', { name: 'コメントの変更を保存' }))
+
+      await waitFor(() => {
+        expect(taskCommentRepoMock.update).toHaveBeenCalledWith('comment-2', {
+          body: '編集後のコメント',
+        })
+      })
+      expect(await screen.findByText('編集後のコメント')).toBeInTheDocument()
+    }
+  )
+
+  it('本文をクリックして編集した内容をキャンセルすると元のコメントを保持する', async () => {
     const user = userEvent.setup()
-    taskCommentRepoMock.update.mockResolvedValue({
-      ok: true,
-      data: { ...COMMENTS[0], body: '編集後のコメント' },
-    })
     render(<TaskComments taskId={1} canEdit />)
 
-    await user.click((await screen.findAllByRole('button', { name: 'コメントを編集' }))[0])
-    const editArea = screen.getByLabelText('コメント本文')
-    await user.clear(editArea)
-    await user.type(editArea, '編集後のコメント')
-    await user.click(screen.getByRole('button', { name: 'コメントの変更を保存' }))
+    await user.click(await screen.findByText('2番目のコメント'))
+    const textarea = screen.getByLabelText('コメント本文')
+    await user.clear(textarea)
+    await user.type(textarea, '保存しない変更')
+    await user.click(screen.getByRole('button', { name: 'コメントの編集をキャンセル' }))
 
-    await waitFor(() => {
-      expect(taskCommentRepoMock.update).toHaveBeenCalledWith('comment-2', {
-        body: '編集後のコメント',
+    expect(screen.queryByLabelText('コメント本文')).not.toBeInTheDocument()
+    expect(screen.getByText('2番目のコメント')).toBeInTheDocument()
+    expect(taskCommentRepoMock.update).not.toHaveBeenCalled()
+    await user.click(screen.getByText('2番目のコメント'))
+    expect(screen.getByLabelText('コメント本文')).toHaveValue('2番目のコメント')
+  })
+
+  it('コメント行はポインターを合わせると背景が変化する', async () => {
+    render(<TaskComments taskId={1} canEdit />)
+
+    const commentBody = await screen.findByText('2番目のコメント')
+    expect(commentBody.closest('li')).toHaveClass('transition-colors', 'hover:bg-accent/40')
+  })
+
+  it('本文をクリックして編集した内容をEscapeでキャンセルする', async () => {
+    const user = userEvent.setup()
+    render(<TaskComments taskId={1} canEdit />)
+
+    await user.click(await screen.findByText('2番目のコメント'))
+    const textarea = screen.getByLabelText('コメント本文')
+    await user.clear(textarea)
+    await user.type(textarea, '保存しない変更{Escape}')
+
+    expect(screen.queryByLabelText('コメント本文')).not.toBeInTheDocument()
+    expect(screen.getByText('2番目のコメント')).toBeInTheDocument()
+    expect(taskCommentRepoMock.update).not.toHaveBeenCalled()
+  })
+
+  it('削除処理中はコメント本文をクリックしても編集を開始しない', async () => {
+    const user = userEvent.setup()
+    let finishDelete!: () => void
+    taskCommentRepoMock.delete.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishDelete = () => resolve({ ok: true, data: undefined })
+        })
+    )
+    render(<TaskComments taskId={1} canEdit />)
+
+    await user.click((await screen.findAllByRole('button', { name: 'コメントを削除' }))[0])
+    await user.click(screen.getByText('2番目のコメント'))
+    expect(screen.queryByLabelText('コメント本文')).not.toBeInTheDocument()
+    expect(taskCommentRepoMock.update).not.toHaveBeenCalled()
+
+    await act(async () => finishDelete())
+    expect(screen.queryByText('2番目のコメント')).not.toBeInTheDocument()
+    expect(taskCommentRepoMock.delete).toHaveBeenCalledExactlyOnceWith('comment-2')
+  })
+
+  describe.each(['追加', '編集'] as const)('コメントの%s時のキーボード操作', (mode) => {
+    async function prepareInput() {
+      const user = userEvent.setup()
+      taskCommentRepoMock.create.mockResolvedValue({
+        ok: true,
+        data: { ...COMMENTS[0], id: 'comment-3', body: '入力したコメント' },
       })
+      taskCommentRepoMock.update.mockResolvedValue({
+        ok: true,
+        data: { ...COMMENTS[0], body: '入力したコメント' },
+      })
+      render(<TaskComments taskId={1} canEdit />)
+
+      let textarea = await screen.findByLabelText('コメントを追加')
+      if (mode === '編集') {
+        await user.click(screen.getAllByRole('button', { name: 'コメントを編集' })[0])
+        textarea = screen.getByLabelText('コメント本文')
+        await user.clear(textarea)
+      }
+      await user.type(textarea, '入力したコメント')
+      return { user, textarea }
+    }
+
+    it.each([
+      ['Ctrl+Enter', '{Control>}{Enter}{/Control}'],
+      ['Command+Enter', '{Meta>}{Enter}{/Meta}'],
+    ])('%sで確定できる', async (_, keys) => {
+      const { user, textarea } = await prepareInput()
+
+      await user.keyboard(keys)
+
+      if (mode === '追加') {
+        expect(taskCommentRepoMock.create).toHaveBeenCalledExactlyOnceWith({
+          taskId: 1,
+          body: '入力したコメント',
+        })
+        await waitFor(() => expect(textarea).toHaveValue(''))
+      } else {
+        expect(taskCommentRepoMock.update).toHaveBeenCalledExactlyOnceWith('comment-2', {
+          body: '入力したコメント',
+        })
+        await waitFor(() => expect(screen.queryByLabelText('コメント本文')).not.toBeInTheDocument())
+      }
+      expect(await screen.findByText('入力したコメント')).toBeInTheDocument()
     })
-    expect(await screen.findByText('編集後のコメント')).toBeInTheDocument()
+
+    it.each([
+      ['Enter', '{Enter}'],
+      ['Shift+Enter', '{Shift>}{Enter}{/Shift}'],
+    ])('%sは送信せず改行する', async (_, keys) => {
+      const { user, textarea } = await prepareInput()
+
+      await user.keyboard(keys)
+      await user.type(textarea, '次の行')
+
+      expect(textarea).toHaveValue('入力したコメント\n次の行')
+      expect(taskCommentRepoMock.create).not.toHaveBeenCalled()
+      expect(taskCommentRepoMock.update).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['Ctrl+Enter', { ctrlKey: true }, { isComposing: true }],
+      ['Command+Enter', { metaKey: true }, { isComposing: true }],
+      ['Ctrl+Enter（keyCode 229）', { ctrlKey: true }, { keyCode: 229 }],
+      ['Command+Enter（keyCode 229）', { metaKey: true }, { keyCode: 229 }],
+    ])('日本語変換中の%sでは確定しない', async (_, modifier, composition) => {
+      const { textarea } = await prepareInput()
+
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        ...modifier,
+        ...composition,
+      })
+
+      expect(textarea).toHaveValue('入力したコメント')
+      expect(taskCommentRepoMock.create).not.toHaveBeenCalled()
+      expect(taskCommentRepoMock.update).not.toHaveBeenCalled()
+    })
   })
 
   it('コメントを削除する', async () => {
@@ -117,9 +266,12 @@ describe('TaskComments', () => {
   })
 
   it('未認証ではコメントを閲覧のみできる', async () => {
+    const user = userEvent.setup()
     render(<TaskComments taskId={1} canEdit={false} />)
 
-    expect(await screen.findByText('2番目のコメント')).toBeInTheDocument()
+    await user.click(await screen.findByText('2番目のコメント'))
+    expect(screen.queryByLabelText('コメント本文')).not.toBeInTheDocument()
+    expect(taskCommentRepoMock.update).not.toHaveBeenCalled()
     expect(screen.queryByPlaceholderText('コメントを追加')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'コメントを編集' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'コメントを削除' })).not.toBeInTheDocument()

@@ -287,6 +287,41 @@ describe('TaskDrawer', () => {
     })
   })
 
+  it.each([
+    ['Ctrl+Enter', '{Control>}{Enter}{/Control}'],
+    ['Command+Enter', '{Meta>}{Enter}{/Meta}'],
+  ])('%sで関連タスクを追加し、親のタスクを保存しない', async (_, shortcut) => {
+    const user = userEvent.setup()
+    const relatedTask: Task = { ...TASK, id: 2, title: '関連するタスク' }
+    taskRepoMock.getAll.mockResolvedValue({ ok: true, data: [TASK, relatedTask] })
+    taskRepoMock.replaceRelatedTasks.mockResolvedValue({ ok: true, data: [relatedTask] })
+    render(<TaskDrawer />)
+
+    const input = await screen.findByLabelText('タスクIDで関連タスクを追加')
+    await user.type(input, String(relatedTask.id))
+    await user.keyboard(shortcut)
+
+    await waitFor(() => {
+      expect(taskRepoMock.replaceRelatedTasks).toHaveBeenCalledExactlyOnceWith(1, [2])
+    })
+    expect(taskRepoMock.update).not.toHaveBeenCalled()
+    expect(await screen.findByText('関連するタスク')).toBeInTheDocument()
+  })
+
+  it('Enter単独では関連タスクも親のタスクも保存しない', async () => {
+    const user = userEvent.setup()
+    const relatedTask: Task = { ...TASK, id: 2, title: '関連するタスク' }
+    taskRepoMock.getAll.mockResolvedValue({ ok: true, data: [TASK, relatedTask] })
+    render(<TaskDrawer />)
+
+    const input = await screen.findByLabelText('タスクIDで関連タスクを追加')
+    await user.type(input, `${relatedTask.id}{Enter}`)
+
+    expect(input).toHaveValue(String(relatedTask.id))
+    expect(taskRepoMock.replaceRelatedTasks).not.toHaveBeenCalled()
+    expect(taskRepoMock.update).not.toHaveBeenCalled()
+  })
+
   it('存在しないタスクIDは関連付けずエラーを表示する', async () => {
     const user = userEvent.setup()
     render(<TaskDrawer />)

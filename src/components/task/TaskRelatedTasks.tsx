@@ -188,6 +188,16 @@ export function TaskRelatedTasks({
             placeholder="関連付けるタスクIDを入力"
             value={relatedTaskIdInput}
             onChange={(event) => setRelatedTaskIdInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key === 'Enter' &&
+                !event.nativeEvent.isComposing &&
+                event.nativeEvent.keyCode !== 229
+              ) {
+                event.preventDefault()
+                if ((event.ctrlKey || event.metaKey) && !event.repeat) handleAddTaskById()
+              }
+            }}
             className={FIELD_CLASS}
             disabled={isSavingRelations}
           />
@@ -197,6 +207,7 @@ export function TaskRelatedTasks({
             onClick={handleAddTaskById}
             disabled={!relatedTaskIdInput.trim() || isSavingRelations}
             aria-label="入力したタスクIDを追加する"
+            title="Ctrl+Enter（Mac: ⌘+Enter）で追加"
           >
             <Plus className="mr-1 h-4 w-4" />
             IDで追加
