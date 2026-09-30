@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.5] - 2026-09-30
+
+### Changed
+
+- 作業リストの項目とコメント本文をシングルクリックで編集できるようにし、
+  コメント行のホバー表示と、編集中のEscapeによるキャンセル操作を追加
+- コメント、作業リスト、関連タスクの確定操作をCtrl+Enter（Macでは
+  Command+Enter）に統一。Enter単独による親フォームの誤送信と、日本語IME
+  変換中の誤確定を防止
+
 ## [0.21.4] - 2026-08-31
 
 ### Fixed
