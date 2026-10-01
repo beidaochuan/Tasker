@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.8] - 2026-10-01
+
 ### Fixed
 
 - Windows版の自己更新で、更新処理が正常に進んでいても進捗ステッパーが変化しない問題を修正
