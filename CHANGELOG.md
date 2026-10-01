@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows版の自己更新で、更新処理が正常に進んでいても進捗ステッパーが変化しない問題を修正
+  （issue #18）。Windows PowerShell 5.1によるログ追記をUTF-8へ統一し、進捗APIが各段階を
+  正しく読み取れるように変更
+
 ## [0.21.7] - 2026-10-01
 
 ### Fixed

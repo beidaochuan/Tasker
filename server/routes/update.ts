@@ -46,6 +46,39 @@ function escapeForPowerShellSingleQuoted(value: string): string {
   return value.replace(/'/g, "''")
 }
 
+interface UpdateRunnerScriptOptions {
+  updateLogPath: string
+  updateScriptPath: string
+  installPath: string
+  port: number
+}
+
+export function buildUpdateRunnerScript({
+  updateLogPath,
+  updateScriptPath,
+  installPath,
+  port,
+}: UpdateRunnerScriptOptions): string {
+  const escapedLogPath = escapeForPowerShellSingleQuoted(updateLogPath)
+  return (
+    // 失敗・再試行を繰り返してもログが無制限に積み重ならないよう、実行のたびに
+    // リセットしてから今回分だけを書き込む。
+    `Set-Content -LiteralPath '${escapedLogPath}' ` +
+    `-Value "=== $(Get-Date -Format o) ===" -Encoding utf8\n` +
+    `try {\n` +
+    `  & '${escapeForPowerShellSingleQuoted(updateScriptPath)}' ` +
+    `-InstallPath '${escapeForPowerShellSingleQuoted(installPath)}' -Port ${port} ` +
+    // Windows PowerShell 5.1のリダイレクト演算子（*>>）はUTF-16LEで追記する。
+    // UTF-8で作成したログに混在するとNode.js側で進捗行を抽出できないため、
+    // 全ストリームを統合してOut-Fileで明示的にUTF-8追記する。
+    `*>&1 | Out-File -LiteralPath '${escapedLogPath}' -Encoding utf8 -Append\n` +
+    `}\n` +
+    `finally {\n` +
+    `  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n` +
+    `}\n`
+  )
+}
+
 function updateUnavailableMessage(): string | null {
   if (process.platform !== 'win32') return 'この端末ではアプリ内更新を利用できません'
   if (!existsSync(selfUpdateScriptPath)) return '更新スクリプトが見つかりません'
@@ -117,19 +150,12 @@ export function createUpdateRouter(port: number): Router {
       os.tmpdir(),
       `tasker-self-update-runner-${randomUUID()}.ps1`
     )
-    const runnerScript =
-      // 失敗・再試行を繰り返してもログが無制限に積み重ならないよう、実行のたびに
-      // リセットしてから今回分だけを書き込む。
-      `Set-Content -LiteralPath '${escapeForPowerShellSingleQuoted(updateLogPath)}' ` +
-      `-Value "=== $(Get-Date -Format o) ===" -Encoding utf8\n` +
-      `try {\n` +
-      `  & '${escapeForPowerShellSingleQuoted(selfUpdateScriptPath)}' ` +
-      `-InstallPath '${escapeForPowerShellSingleQuoted(appRoot)}' -Port ${port} ` +
-      `*>> '${escapeForPowerShellSingleQuoted(updateLogPath)}'\n` +
-      `}\n` +
-      `finally {\n` +
-      `  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n` +
-      `}\n`
+    const runnerScript = buildUpdateRunnerScript({
+      updateLogPath,
+      updateScriptPath: selfUpdateScriptPath,
+      installPath: appRoot,
+      port,
+    })
 
     function removeExistingUpdateTask(): void {
       try {
