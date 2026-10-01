@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.6] - 2026-10-01
+
+### Fixed
+
+- Windows版の自己更新で、実際のインストール開始前に進捗ステッパーが
+  「インストール」段階まで先読みされる問題を修正（issue #18）。
+  `setup-windows.ps1` の「インストール先を確認」というログへの部分一致を避け、
+  実際のインストール処理を示すログだけを判定するように変更
+
 ## [0.21.5] - 2026-09-30
 
 ### Changed
