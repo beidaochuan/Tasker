@@ -260,6 +260,46 @@ describe('TaskDrawer', () => {
     expect(screen.getByRole('heading', { name: '作業リスト' })).toBeInTheDocument()
   })
 
+  it('作業リストの進捗変更をカード用データへ反映し、編集中のフォームを保持する', async () => {
+    const user = userEvent.setup()
+    let taskLoadCount = 0
+    taskRepoMock.getByProjectId.mockImplementation((projectId: string) => {
+      taskLoadCount += 1
+      return Promise.resolve({
+        ok: true,
+        data:
+          projectId === 'project-1'
+            ? [
+                {
+                  ...TASK,
+                  subtaskTotal: 1,
+                  subtaskDone: taskLoadCount === 1 ? 0 : 1,
+                },
+              ]
+            : [],
+      })
+    })
+    subtaskRepoMock.getByTaskId.mockResolvedValue({ ok: true, data: [SUBTASK] })
+    subtaskRepoMock.update.mockResolvedValue({
+      ok: true,
+      data: { ...SUBTASK, isDone: true },
+    })
+
+    render(<TaskDrawer />)
+
+    const titleInput = await screen.findByLabelText('タイトル')
+    await user.clear(titleInput)
+    await user.type(titleInput, '保存前のタイトル')
+    await user.click(await screen.findByRole('checkbox', { name: '「仕様を確認」を完了にする' }))
+
+    await waitFor(() => {
+      const task = useDataQueryStore.getState().projectsById['project-1']?.tasks.data?.[0]
+      expect(task).toMatchObject({ subtaskTotal: 1, subtaskDone: 1 })
+    })
+    expect(titleInput).toHaveValue('保存前のタイトル')
+    expect(taskRepoMock.update).not.toHaveBeenCalled()
+  })
+
   it('関連タスクを追加・解除できる', async () => {
     const user = userEvent.setup()
     const relatedTask: Task = { ...TASK, id: 2, title: '関連するタスク' }

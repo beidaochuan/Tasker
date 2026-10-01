@@ -108,6 +108,7 @@ describe('TaskWorkList', () => {
   ])('%sで作業を追加しても親フォームをsubmitしない', async (_, shortcut) => {
     const user = userEvent.setup()
     const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault())
+    const onProgressChange = vi.fn()
     const created: Subtask = {
       id: 'subtask-3',
       taskId: 1,
@@ -120,7 +121,7 @@ describe('TaskWorkList', () => {
 
     render(
       <form onSubmit={onSubmit}>
-        <TaskWorkList taskId={1} canEdit />
+        <TaskWorkList taskId={1} canEdit onProgressChange={onProgressChange} />
       </form>
     )
 
@@ -139,6 +140,7 @@ describe('TaskWorkList', () => {
     expect(await screen.findByText('テストを書く')).toBeInTheDocument()
     expect(input).toHaveValue('')
     expect(onSubmit).not.toHaveBeenCalled()
+    expect(onProgressChange).toHaveBeenCalledOnce()
   })
 
   it('Enter単独では作業を追加せず親フォームもsubmitしない', async () => {
@@ -171,11 +173,12 @@ describe('TaskWorkList', () => {
 
   it('チェックボックスで完了状態を切り替える', async () => {
     const user = userEvent.setup()
+    const onProgressChange = vi.fn()
     subtaskRepoMock.update.mockResolvedValue({
       ok: true,
       data: { ...SUBTASKS[0], isDone: true },
     })
-    render(<TaskWorkList taskId={1} canEdit />)
+    render(<TaskWorkList taskId={1} canEdit onProgressChange={onProgressChange} />)
 
     const checkbox = await screen.findByRole('checkbox', {
       name: '「仕様を確認」を完了にする',
@@ -189,6 +192,7 @@ describe('TaskWorkList', () => {
       await screen.findByRole('checkbox', { name: '「仕様を確認」を未完了に戻す' })
     ).toBeChecked()
     expect(screen.getByText('2 / 2 完了')).toBeInTheDocument()
+    expect(onProgressChange).toHaveBeenCalledOnce()
   })
 
   it.each(['編集ボタン', 'タイトル'] as const)(
@@ -320,7 +324,8 @@ describe('TaskWorkList', () => {
 
   it('作業を削除する', async () => {
     const user = userEvent.setup()
-    render(<TaskWorkList taskId={1} canEdit />)
+    const onProgressChange = vi.fn()
+    render(<TaskWorkList taskId={1} canEdit onProgressChange={onProgressChange} />)
 
     await user.click(await screen.findByRole('button', { name: '「仕様を確認」を削除' }))
 
@@ -329,6 +334,7 @@ describe('TaskWorkList', () => {
     })
     expect(screen.queryByText('仕様を確認')).not.toBeInTheDocument()
     expect(screen.getByText('1 / 1 完了')).toBeInTheDocument()
+    expect(onProgressChange).toHaveBeenCalledOnce()
   })
 
   it('ドラッグで作業の順序を入れ替え、まとめて保存する', async () => {

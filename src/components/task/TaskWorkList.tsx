@@ -25,12 +25,13 @@ import { SortableSubtaskRow } from './SortableSubtaskRow'
 interface TaskWorkListProps {
   taskId: number | null
   canEdit: boolean
+  onProgressChange?: () => void
 }
 
 const ITEM_INPUT_CLASS =
   'h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20'
 
-export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
+export function TaskWorkList({ taskId, canEdit, onProgressChange }: TaskWorkListProps) {
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [newTitle, setNewTitle] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -122,6 +123,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
       )
       setSubtasks((current) => sortByOrder([...current, created]))
       setNewTitle('')
+      onProgressChange?.()
     } catch (error) {
       setActionError(error instanceof Error ? error.message : '作業の追加に失敗しました')
     } finally {
@@ -139,6 +141,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
         await subtaskRepo.update(subtask.id, { isDone: !subtask.isDone })
       )
       setSubtasks((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      onProgressChange?.()
     } catch (error) {
       setActionError(error instanceof Error ? error.message : '完了状態の更新に失敗しました')
     } finally {
@@ -191,6 +194,7 @@ export function TaskWorkList({ taskId, canEdit }: TaskWorkListProps) {
       unwrapResult(await subtaskRepo.delete(subtask.id))
       setSubtasks((current) => current.filter((item) => item.id !== subtask.id))
       if (editingId === subtask.id) cancelEditing()
+      onProgressChange?.()
     } catch (error) {
       setActionError(error instanceof Error ? error.message : '作業の削除に失敗しました')
     } finally {

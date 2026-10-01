@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { X, Trash2 } from 'lucide-react'
@@ -35,6 +35,7 @@ export function TaskDrawer() {
   const invalidateProjectTasks = useDataQueryStore((state) => state.invalidateProjectTasks)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [autoSelectTopicProjectId, setAutoSelectTopicProjectId] = useState<string | null>(null)
+  const initializedFormKeyRef = useRef<string | null>(null)
 
   const isNew = newTaskTopicId !== null
   const existingTask = useTask(
@@ -67,6 +68,10 @@ export function TaskDrawer() {
     closeTaskDrawer()
   }, [closeTaskDrawer])
 
+  const handleWorkListProgressChange = useCallback(() => {
+    if (selectedProjectId) invalidateProjectTasks(selectedProjectId)
+  }, [invalidateProjectTasks, selectedProjectId])
+
   useEffect(() => {
     if (!isTaskDrawerOpen) return
 
@@ -82,11 +87,20 @@ export function TaskDrawer() {
 
   // 同じタスクを開き直した場合も、保存済みの値からフォームを作り直す。
   useEffect(() => {
-    if (!isTaskDrawerOpen) return
+    if (!isTaskDrawerOpen) {
+      initializedFormKeyRef.current = null
+      return
+    }
     if (existingTask && existingTask.id === selectedTaskId) {
+      const formKey = `existing:${selectedProjectId ?? ''}:${selectedTaskId}`
+      if (initializedFormKeyRef.current === formKey) return
       reset(createExistingTaskFormValues(existingTask, selectedProjectId))
+      initializedFormKeyRef.current = formKey
     } else if (isNew) {
+      const formKey = `new:${selectedProjectId ?? ''}:${newTaskTopicId ?? ''}`
+      if (initializedFormKeyRef.current === formKey) return
       reset(createNewTaskFormValues(selectedProjectId, newTaskTopicId))
+      initializedFormKeyRef.current = formKey
     }
   }, [
     existingTask,
@@ -270,7 +284,11 @@ export function TaskDrawer() {
               onProjectChange={handleProjectChange}
             />
 
-            <TaskWorkList taskId={isNew ? null : selectedTaskId} canEdit={isAuthenticated} />
+            <TaskWorkList
+              taskId={isNew ? null : selectedTaskId}
+              canEdit={isAuthenticated}
+              onProgressChange={handleWorkListProgressChange}
+            />
 
             <TaskComments taskId={isNew ? null : selectedTaskId} canEdit={isAuthenticated} />
 
