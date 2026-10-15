@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-15
+
 ### Changed
 
 - ログインセッションの失効方式を、固定TTL（既定480分）から「サーバーOSのローカル時刻で深夜0:00（日付が変わるタイミング）に必ず失効する」方式に変更。これにより、日付をまたいでログイン状態が意図せず長時間残ることを防止
