@@ -1,6 +1,5 @@
 const DEFAULT_PORT = 3208
 const DEFAULT_HOST = '127.0.0.1'
-const DEFAULT_SESSION_TTL_MINUTES = 480
 const DEFAULT_MAX_SESSIONS = 8
 const DEFAULT_LOGIN_WINDOW_MINUTES = 15
 
@@ -12,7 +11,6 @@ export const DEFAULT_MAX_LOGIN_ATTEMPTS = 5
 export interface AuthConfig {
   username: string
   password: string
-  sessionTtlMs: number
   maxSessions: number
   cookieSecure: boolean
   loginWindowMs: number
@@ -117,14 +115,6 @@ export function loadServerConfig(env: Environment = process.env): ServerConfig {
     )
   }
 
-  const sessionTtlMinutes = parseInteger(
-    env,
-    'TASKER_SESSION_TTL_MINUTES',
-    DEFAULT_SESSION_TTL_MINUTES,
-    1,
-    10_080
-  )
-
   return {
     port: parseInteger(env, 'PORT', DEFAULT_PORT, 1, 65_535),
     host: env.TASKER_HOST?.trim() || DEFAULT_HOST,
@@ -132,7 +122,6 @@ export function loadServerConfig(env: Environment = process.env): ServerConfig {
     auth: {
       username,
       password,
-      sessionTtlMs: sessionTtlMinutes * 60 * 1000,
       maxSessions: DEFAULT_MAX_SESSIONS,
       cookieSecure: parseBoolean(env, 'TASKER_COOKIE_SECURE', false),
       loginWindowMs:

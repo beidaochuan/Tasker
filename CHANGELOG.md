@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- ログインセッションの失効方式を、固定TTL（既定480分）から「サーバーOSのローカル時刻で深夜0:00（日付が変わるタイミング）に必ず失効する」方式に変更。これにより、日付をまたいでログイン状態が意図せず長時間残ることを防止
+
+### Removed
+
+- 破壊的変更: 環境変数`TASKER_SESSION_TTL_MINUTES`を削除。この変数は従来ログインセッションの有効時間（分）を指定するものであったが、セッションは常に次のローカル深夜0:00に失効する仕様に変更されたため、設定しても効果を持たない。Windowsサービスとして登録済みの環境では、`service:uninstall`→`service:install`で再登録することを推奨（古い値が残っていても動作には影響しない）
+
 ## [0.21.8] - 2026-10-01
 
 ### Fixed

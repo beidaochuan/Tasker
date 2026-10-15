@@ -204,10 +204,11 @@ Remove-NetFirewallRule -DisplayName 'Tasker (LAN TCP 3208)'
 | `PORT`                        | `3208`      | 未指定時に使う接続ポート。通常の接続先は `http://localhost:3208/` |
 | `TASKER_HOST`                 | `127.0.0.1` | 待受アドレス。LAN 公開時だけ `0.0.0.0` を指定                     |
 | `TASKER_COOKIE_SECURE`        | `false`     | HTTPS 経由で利用するときだけ `true`                               |
-| `TASKER_SESSION_TTL_MINUTES`  | `480`       | ログインセッションの有効時間（1〜10080 分）                       |
 | `TASKER_LOGIN_MAX_ATTEMPTS`   | `5`         | 時間枠内に許可するログイン失敗回数（1〜100 回）                   |
 | `TASKER_LOGIN_WINDOW_MINUTES` | `15`        | ログイン試行を数える時間枠（1〜1440 分）                          |
 | `CORS_ORIGIN`                 | 未設定      | 追加で許可する Origin。完全な Origin をカンマ区切りで指定         |
+
+ログインセッションは、サーバーのローカル時刻で深夜 0:00（日付が変わるタイミング）になると自動的に失効します。有効期間を設定で調整することはできません。
 
 開発時と `npm run preview:full` では、`.env.example` を `.env` にコピーして設定できます。
 

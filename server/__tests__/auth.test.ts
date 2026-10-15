@@ -36,7 +36,6 @@ function createTestConfig(
     auth: {
       username: TEST_USERNAME,
       password: TEST_PASSWORD,
-      sessionTtlMs: 8 * 60 * 60 * 1000,
       maxSessions: 8,
       cookieSecure: false,
       loginWindowMs: 15 * 60 * 1000,
@@ -96,8 +95,9 @@ afterEach(async () => {
 
 describe('SessionStore', () => {
   it('raw tokenではなくSHA-256 hashをMap keyにし、アクセス時に期限切れを掃除する', () => {
-    let now = 100
-    const store = new SessionStore(1_000, 2, () => now)
+    // 2024-01-15 23:59:59.000（ローカル時刻）
+    let now = new Date(2024, 0, 15, 23, 59, 59, 0).getTime()
+    const store = new SessionStore(2, () => now)
 
     const session = store.create()
     const internalSessions = (
@@ -106,10 +106,32 @@ describe('SessionStore', () => {
     expect(session.token).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(internalSessions.has(session.token)).toBe(false)
     expect([...internalSessions.keys()]).toEqual([expect.stringMatching(/^[a-f0-9]{64}$/)])
+    expect(session.expiresAt).toBe(new Date(2024, 0, 16, 0, 0, 0, 0).getTime())
 
-    now = 1_100
+    // 深夜0:00を過ぎた時点でexpire
+    now = new Date(2024, 0, 16, 0, 0, 0, 0).getTime()
     expect(store.size).toBe(0)
   })
+
+  it('ちょうど深夜0:00にログインした場合は即時失効せず翌日深夜まで有効', () => {
+    const midnight = new Date(2024, 0, 16, 0, 0, 0, 0).getTime()
+    const store = new SessionStore(2, () => midnight)
+    const session = store.create()
+    expect(session.expiresAt).toBe(new Date(2024, 0, 17, 0, 0, 0, 0).getTime())
+  })
+
+  it.each([
+    [new Date(2024, 0, 31, 23, 30, 0, 0), new Date(2024, 1, 1, 0, 0, 0, 0)], // 1月末→2月
+    [new Date(2023, 11, 31, 23, 30, 0, 0), new Date(2024, 0, 1, 0, 0, 0, 0)], // 年末→年始
+    [new Date(2024, 1, 29, 12, 0, 0, 0), new Date(2024, 2, 1, 0, 0, 0, 0)], // 閏年2/29→3/1
+  ])(
+    '月末・年末・閏年をまたいでも次のローカル深夜0:00を正しく計算する',
+    (loginAt, expectedMidnight) => {
+      const store = new SessionStore(2, () => loginAt.getTime())
+      const session = store.create()
+      expect(session.expiresAt).toBe(expectedMidnight.getTime())
+    }
+  )
 })
 
 describe('authentication API', () => {
@@ -124,8 +146,11 @@ describe('authentication API', () => {
   })
 
   it('loginでopaque session CookieとCSRF tokenを発行し、sessionから復元する', async () => {
-    let now = 10_000
-    const app = await startApp(createTestConfig({ sessionTtlMs: 60_000 }), () => now)
+    // 2024-01-15 23:00:00.000（ローカル時刻）にログイン→次の深夜0:00まで1時間
+    const loginAt = new Date(2024, 0, 15, 23, 0, 0, 0).getTime()
+    const midnight = new Date(2024, 0, 16, 0, 0, 0, 0).getTime()
+    let now = loginAt
+    const app = await startApp(createTestConfig(), () => now)
 
     const login = await loginRequest(app)
 
@@ -134,15 +159,15 @@ describe('authentication API', () => {
     expect(login.response.headers.get('x-powered-by')).toBeNull()
     expect(login.body).toMatchObject({
       isAuthenticated: true,
-      expiresAt: 70_000,
-      expiresInMs: 60_000,
+      expiresAt: midnight,
+      expiresInMs: midnight - loginAt,
     })
     expect(login.body.csrfToken).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(JSON.stringify(login.body)).not.toContain(TEST_PASSWORD)
     expect(login.cookie).toMatch(/^tasker_session=[A-Za-z0-9_-]{43}$/)
 
     const setCookie = login.response.headers.get('set-cookie') ?? ''
-    expect(setCookie).toContain('Max-Age=60')
+    expect(setCookie).toContain(`Max-Age=${Math.ceil((midnight - loginAt) / 1000)}`)
     expect(setCookie).toContain('Path=/api')
     expect(setCookie).toContain('HttpOnly')
     expect(setCookie).toContain('SameSite=Strict')
@@ -155,7 +180,7 @@ describe('authentication API', () => {
     })
     expect(restored.body).toEqual({
       ...login.body,
-      expiresInMs: 59_999,
+      expiresInMs: midnight - loginAt - 1,
     })
   })
 
@@ -282,20 +307,33 @@ describe('authentication API', () => {
     ).toMatchObject({ isAuthenticated: true })
   })
 
-  it('絶対期限切れとサーバー再起動でsessionを失効する', async () => {
-    let now = 100
-    const config = createTestConfig({ sessionTtlMs: 1_000 })
+  it('ローカル深夜0:00を越えるとsessionを失効し、サーバー再起動でも失効する', async () => {
+    // 2024-01-15 23:59:59.900（ローカル時刻）にログイン
+    const loginAt = new Date(2024, 0, 15, 23, 59, 59, 900).getTime()
+    const midnight = new Date(2024, 0, 16, 0, 0, 0, 0).getTime()
+    let now = loginAt
+    const config = createTestConfig()
     const firstApp = await startApp(config, () => now)
     const login = await loginRequest(firstApp)
+    expect(login.body).toMatchObject({ expiresAt: midnight })
 
-    now = 1_100
+    // 深夜0:00の直前(1ms前)はまだ有効
+    now = midnight - 1
+    const stillValid = await request(firstApp, '/api/auth/session', {
+      headers: { Cookie: login.cookie! },
+    })
+    expect(stillValid.body).toMatchObject({ isAuthenticated: true })
+
+    // 深夜0:00ちょうどで失効
+    now = midnight
     const expired = await request(firstApp, '/api/auth/session', {
       headers: { Cookie: login.cookie! },
     })
     expect(expired.body).toEqual({ isAuthenticated: false })
     expect(expired.response.headers.get('set-cookie')).toContain('tasker_session=;')
 
-    const restartedApp = await startApp(config, () => 100)
+    // サーバー(Windowsサービス)再起動でメモリ内sessionが全て失われることは変更なし
+    const restartedApp = await startApp(config, () => loginAt)
     const afterRestart = await request(restartedApp, '/api/auth/session', {
       headers: { Cookie: login.cookie! },
     })

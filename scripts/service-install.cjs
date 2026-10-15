@@ -95,11 +95,6 @@ if (!['true', 'false'].includes(TASKER_COOKIE_SECURE)) {
   fail('環境変数 TASKER_COOKIE_SECURE には true または false を設定してください。')
 }
 
-const TASKER_SESSION_TTL_MINUTES = positiveIntegerEnvironment(
-  'TASKER_SESSION_TTL_MINUTES',
-  '480',
-  10080
-)
 const TASKER_LOGIN_MAX_ATTEMPTS = positiveIntegerEnvironment('TASKER_LOGIN_MAX_ATTEMPTS', '5', 100)
 const TASKER_LOGIN_WINDOW_MINUTES = positiveIntegerEnvironment(
   'TASKER_LOGIN_WINDOW_MINUTES',
@@ -126,7 +121,6 @@ const serviceEnvironment = [
   { name: 'TASKER_ADMIN_USERNAME', value: TASKER_ADMIN_USERNAME },
   { name: 'TASKER_ADMIN_PASSWORD', value: TASKER_ADMIN_PASSWORD },
   { name: 'TASKER_COOKIE_SECURE', value: TASKER_COOKIE_SECURE },
-  { name: 'TASKER_SESSION_TTL_MINUTES', value: TASKER_SESSION_TTL_MINUTES },
   { name: 'TASKER_LOGIN_MAX_ATTEMPTS', value: TASKER_LOGIN_MAX_ATTEMPTS },
   { name: 'TASKER_LOGIN_WINDOW_MINUTES', value: TASKER_LOGIN_WINDOW_MINUTES },
 ]

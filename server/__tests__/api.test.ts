@@ -16,7 +16,6 @@ const TEST_CONFIG: ServerConfig = {
   auth: {
     username: TEST_USERNAME,
     password: TEST_PASSWORD,
-    sessionTtlMs: 8 * 60 * 60 * 1000,
     maxSessions: 8,
     cookieSecure: false,
     loginWindowMs: 15 * 60 * 1000,

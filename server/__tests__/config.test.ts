@@ -18,7 +18,6 @@ describe('server config', () => {
     expect(config.auth).toMatchObject({
       username: 'admin',
       password: 'password-for-tests',
-      sessionTtlMs: 8 * 60 * 60 * 1000,
       maxSessions: 8,
       cookieSecure: false,
       loginWindowMs: DEFAULT_LOGIN_WINDOW_MS,
@@ -26,13 +25,12 @@ describe('server config', () => {
     })
   })
 
-  it('明示した待受・Cookie・期限・ログイン制限・CORS originを読み込む', () => {
+  it('明示した待受・Cookie・ログイン制限・CORS originを読み込む', () => {
     const config = loadServerConfig({
       ...REQUIRED_ENV,
       PORT: '8080',
       TASKER_HOST: '0.0.0.0',
       TASKER_COOKIE_SECURE: 'true',
-      TASKER_SESSION_TTL_MINUTES: '60',
       TASKER_LOGIN_MAX_ATTEMPTS: '3',
       TASKER_LOGIN_WINDOW_MINUTES: '10',
       CORS_ORIGIN: 'https://tasker.example.test/, http://192.0.2.10:8080',
@@ -42,12 +40,17 @@ describe('server config', () => {
     expect(config.host).toBe('0.0.0.0')
     expect(config.auth).toMatchObject({
       cookieSecure: true,
-      sessionTtlMs: 60 * 60 * 1000,
       maxSessions: 8,
       loginWindowMs: 10 * 60 * 1000,
       maxLoginAttempts: 3,
     })
     expect(config.corsOrigins).toEqual(['https://tasker.example.test', 'http://192.0.2.10:8080'])
+  })
+
+  it('TASKER_SESSION_TTL_MINUTESは廃止されており、設定しても起動設定に影響しない', () => {
+    const withLegacyEnv = loadServerConfig({ ...REQUIRED_ENV, TASKER_SESSION_TTL_MINUTES: '9999' })
+    const withoutLegacyEnv = loadServerConfig(REQUIRED_ENV)
+    expect(withLegacyEnv.auth).toEqual(withoutLegacyEnv.auth)
   })
 
   it.each([
@@ -61,7 +64,6 @@ describe('server config', () => {
 
   it.each([
     [{ ...REQUIRED_ENV, TASKER_COOKIE_SECURE: 'yes' }, 'TASKER_COOKIE_SECURE'],
-    [{ ...REQUIRED_ENV, TASKER_SESSION_TTL_MINUTES: '0' }, 'TASKER_SESSION_TTL_MINUTES'],
     [{ ...REQUIRED_ENV, TASKER_LOGIN_MAX_ATTEMPTS: '0' }, 'TASKER_LOGIN_MAX_ATTEMPTS'],
     [{ ...REQUIRED_ENV, TASKER_LOGIN_WINDOW_MINUTES: '1.5' }, 'TASKER_LOGIN_WINDOW_MINUTES'],
     [{ ...REQUIRED_ENV, PORT: '70000' }, 'PORT'],

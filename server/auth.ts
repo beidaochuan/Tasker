@@ -31,6 +31,12 @@ interface AuthenticatedSession {
 
 type Clock = () => number
 
+function nextLocalMidnight(fromMs: number): number {
+  const date = new Date(fromMs)
+  date.setHours(24, 0, 0, 0)
+  return date.getTime()
+}
+
 function hashToken(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }
@@ -49,7 +55,6 @@ export class SessionStore {
   private readonly sessions = new Map<string, SessionRecord>()
 
   constructor(
-    private readonly ttlMs: number,
     private readonly maxSessions: number,
     private readonly now: Clock = Date.now
   ) {}
@@ -68,7 +73,7 @@ export class SessionStore {
 
     const record = {
       csrfToken: randomToken(),
-      expiresAt: now + this.ttlMs,
+      expiresAt: nextLocalMidnight(now),
     }
     this.sessions.set(tokenHash, record)
     return { token, ...record }
@@ -192,7 +197,7 @@ export interface AuthFeature {
 
 export function createAuthFeature(config: AuthConfig, now: Clock = Date.now): AuthFeature {
   const router = Router()
-  const sessionStore = new SessionStore(config.sessionTtlMs, config.maxSessions, now)
+  const sessionStore = new SessionStore(config.maxSessions, now)
   const loginAttempts = new LoginAttemptTracker(config.maxLoginAttempts, config.loginWindowMs, now)
   const cookieOptions: CookieOptions = {
     httpOnly: true,
@@ -294,7 +299,7 @@ export function createAuthFeature(config: AuthConfig, now: Clock = Date.now): Au
       const session = sessionStore.create()
       res.cookie(SESSION_COOKIE_NAME, session.token, {
         ...cookieOptions,
-        maxAge: config.sessionTtlMs,
+        maxAge: expiresInMs(session),
       })
       res.json({
         isAuthenticated: true,
